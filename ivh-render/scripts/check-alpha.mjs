@@ -47,8 +47,11 @@ if (!inputs.length) {
 
 /* ---------- ffmpeg / ffprobe ---------- */
 const FF = process.env.IVH_FFMPEG || [
-  "C:/Users/mydfy/Developer/ffmpeg-8.1.1-full/ffmpeg-8.1.1-essentials_build/bin/ffmpeg.exe",
+  /* 只列各平台的通用安装位，不放任何个人路径 —— 换台机器/换个人用，这里必须依然成立。
+     探测顺序：IVH_FFMPEG → 下面这些位置 → PATH（结尾的 "ffmpeg"）。 */
   "C:/ffmpeg/bin/ffmpeg.exe",
+  "C:/Program Files/ffmpeg/bin/ffmpeg.exe",
+  "C:/Program Files (x86)/ffmpeg/bin/ffmpeg.exe",
   "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg",
 ].find(p => fs.existsSync(p)) || "ffmpeg";
 
@@ -64,6 +67,9 @@ const PROBE = (() => {
 })();
 
 const MEDIA = /\.(png|mov|webm|mkv|mp4|gif|apng)$/i;
+/* 「不补帧」开关的名字在 ffmpeg 5.1 变了（-vsync → -fps_mode），
+   新版已移除旧名。首次用到时探一次，之后复用选定的那个。 */
+let FPS_MODE = ["-fps_mode", "passthrough"];
 const fwd = p => p.replace(/\\/g, "/");
 const pct = v => (100 * v).toFixed(2).padStart(6) + "%";
 
@@ -105,10 +111,24 @@ function alphaFrames(file, interval, frameSize) {
     ? `alphaextract,select='isnan(prev_selected_t)+gte(t-prev_selected_t\\,${interval.toFixed(3)})'`
     : "alphaextract";
   const args = ["-v", "error", "-i", fwd(file), "-vf", sel];
-  if (interval > 0) args.push("-vsync", "0");
+  /* ★ select 出来的序列是变帧率的，必须显式 passthrough，否则 ffmpeg 会把它补成
+     恒定帧率、帧数变多，下面按 frameSize 切块的抽样点就全部错位了。
+     「不补帧」这个开关换过名字：ffmpeg 5.1 起是 -fps_mode passthrough，
+     而 -vsync 在新版（本机是 ffmpeg 9）已被移除 —— 写死任何一个都会让这道闸门失效。 */
+  if (interval > 0) args.push(...FPS_MODE);
   args.push("-f", "rawvideo", "-pix_fmt", "gray", "-");
 
-  const r = spawnSync(FF, args, { maxBuffer: 1 << 27 });
+  let r = spawnSync(FF, args, { maxBuffer: 1 << 27 });
+  /* 新旧 ffmpeg 都照顾到：参数名不被识别时换另一个再试一次 */
+  const errText = (r.stderr || Buffer.from("")).toString();
+  if (/Unrecognized option '(-fps_mode|-vsync)'/.test(errText)) {
+    const i = args.indexOf(FPS_MODE[0]);
+    if (i >= 0) {
+      FPS_MODE = FPS_MODE[0] === "-fps_mode" ? ["-vsync", "0"] : ["-fps_mode", "passthrough"];
+      args.splice(i, 2, ...FPS_MODE);
+      r = spawnSync(FF, args, { maxBuffer: 1 << 27 });
+    }
+  }
   if (r.error) return { err: r.error.message };
   if (!r.stdout || !r.stdout.length) {
     return { err: (r.stderr || Buffer.from("")).toString().trim().split("\n")[0] || "取不到 alpha 平面" };

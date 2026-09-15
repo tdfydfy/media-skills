@@ -464,10 +464,13 @@ if (BASE !== "timeline") {
       short.length === 0 ? ok("停留 >= 0.8s")
                          : fail(`${short.length} 个组件停留 < 0.8s，观众来不及看`);
 
-      /* 组合入场动效多样性（组合是各组件动效的集合） */
+      /* 组合入场动效多样性（组合是各组件动效的集合）
+         ★ 硬线。13 种入场里挑 3 种是底线 —— 全片一个手感是"看着平淡"最直接的原因，
+           而改它只是换个属性值，属于"没写好"，不是风格选择。 */
       const set = [...new Set(comps.map(c => c.anim))];
       set.length >= 3 ? ok(`用到 ${set.length} 种入场动效：${set.join(" / ")}`)
-                      : note(`只用到 ${set.length} 种入场动效：${set.join(" / ")} —— 建议 >=3 避免单调`);
+                      : fail(`只用到 ${set.length} 种入场动效：${set.join(" / ")}`
+                          + ` —— 需 >=3（13 种里挑 3 种即可），全片同一个手感会很单调`);
 
       /* 时间轴总长 */
       const dur = Math.max(...comps.map(c => c.out));

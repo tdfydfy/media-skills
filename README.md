@@ -48,7 +48,7 @@
 每环交付前都必须跑各自的机器校验，**不过不许交付**：
 
 ```bash
-node ivh-script/scripts/check-script.mjs 脚本.json          # 契约校验
+node ivh-script/scripts/check-script.mjs 脚本.json          # 契约 + 提炼度校验
 node ivh-standalone/scripts/check-template.mjs 成片.html     # 十一项自检
 node ivh-overlay/scripts/check-template.mjs 素材.html        # 十一项自检
 node ivh-render/scripts/check-alpha.mjs 素材.mov             # alpha 真伪
@@ -61,23 +61,57 @@ node ivh-render/scripts/check-alpha.mjs 素材.mov             # alpha 真伪
 - **契约先于实现**：`references/interop.md` 是 ②③④ 共用的产物契约（`data-*` 属性与运行时名字）；`references/script-format.md` 是 ① 的对外契约。
 - **六个视觉风格**：`doodle` 手绘科普 · `riso` 潮流观点 · `blueprint` 技术工程 · `minimal` 商务数据 · `neon` 科技发布 · `pixel` 复古趣味。风格由用户在 ① 选定，下游取全套变量，不各自发挥。
 - **三层文本**：口播稿（给听，15~40 字/句）、整屏标题（给看，≤2 行 × ≤12 字）、信息卡与标签（≤14 字/行，标签 ≤6 字）。屏幕字念出来不应与口播重复。
+- **提炼先于排版**：屏幕字来自一条压缩链（抓手 → 论点 → 主张 → 屏幕字），主张必须**能被反驳**；每个位置写 5 个候选再挑 1 个。方法与判据见 `ivh-script/references/distillation.md`。
+- **素材模式自动跳过空档**：透明素材只渲染「有内容的帧」，空档复用一张实测全透明的帧 —— 30s 素材的渲染帧数约降到 4 成，成品逐字节不变。
 
 ## 环境依赖
 
-②③ 只产出 HTML，本身不需要额外依赖。①④ 涉及校验与渲染：
+②③ 只产出 HTML，本身**不需要任何前置软件**。只有 ①④ 要装：
 
-| 依赖 | 用途 | 说明 |
-| --- | --- | --- |
-| Node.js | 跑全部校验与渲染脚本 | 仅用标准库，无需 `npm install` |
-| FFmpeg / FFprobe | ④ 合成与校验视频 | 脚本按顺序探测常见路径，可用 `IVH_FFMPEG` / `IVH_FFPROBE` 覆盖 |
-| Chrome 或 Edge | ④ 抽帧 | 自动探测 Windows、macOS、Linux 常见安装路径 |
+| 依赖 | 版本 | 用途 | 探测方式 |
+| --- | --- | --- | --- |
+| Node.js | 22+ 走快路，更低可用 | 跑全部校验与渲染脚本 | 仅用标准库，无需 `npm install` |
+| FFmpeg / FFprobe | 5.1+ | ④ 合成与校验视频 | `IVH_FFMPEG` / `IVH_FFPROBE` → 常见安装位 → `PATH` |
+| Chrome 或 Edge | 任意近期版本 | ④ 抽帧 | `IVH_BROWSER` → Windows / macOS / Linux 常见安装位 |
 
-若自动探测不到，用环境变量指定：
+- **Node 22 是性能分界，不是功能分界**：抽帧的 CDP 快路径用 Node 自带的全局 `WebSocket`。
+  低于 22 会自动回退到「每帧一个浏览器」的慢路径 —— 画面逐像素一致，只是慢一个数量级。
+- **FFmpeg 5.1 是 `-fps_mode` 的起点**，更早的版本只有 `-vsync`。脚本两个名字都能用，
+  认不出来就换另一个重试，所以写死任何一个都不会让透明复检失效。
+
+装：
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+winget install Gyan.FFmpeg          # Edge 系统自带，一般可跳过
+```
+
+```bash
+brew install node ffmpeg            # macOS
+```
+
+装完验一下，三条都要有输出：
+
+```bash
+node -v && ffmpeg -version && ffprobe -version
+```
+
+探测不到时显式指定（便携版、多版本共存、装了但没进 `PATH`，都靠这个）：
 
 ```powershell
 $env:IVH_FFMPEG  = "D:\tools\ffmpeg\bin\ffmpeg.exe"
 $env:IVH_FFPROBE = "D:\tools\ffmpeg\bin\ffprobe.exe"
+$env:IVH_BROWSER = "D:\tools\chrome\chrome.exe"
 ```
+
+**缺哪个会怎样** —— 出问题就报错退出，不会静默出错：
+
+| 缺 | 后果 | 怎么补 |
+| --- | --- | --- |
+| Node.js | 全链路不可用 | 必须装 |
+| FFmpeg | ④ 帧照抽，但合成不出文件；`render.mjs` 最后以「没有找到预期产物」退出 | 装，或设 `IVH_FFMPEG` / 加进 `PATH` |
+| FFprobe | 透明复检取不到时长，抽样间隔退化成 0（改成抽全片 alpha） | 与 ffmpeg 同目录即可，脚本会顺着 ffmpeg 的位置找 |
+| Chrome / Edge | ④ 直接报错退出，出不了片 | 装，或设 `IVH_BROWSER` |
 
 ## 安装
 

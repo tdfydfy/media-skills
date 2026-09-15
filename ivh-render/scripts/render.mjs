@@ -8,6 +8,7 @@
  *   node scripts/render.mjs <产物.html> --step 0.1 --fps 30 --out <目录> --scale 2
  *   node scripts/render.mjs <产物.html> --preflight        # 只做出片前检查，不渲染
  *   node scripts/render.mjs <产物.html> --no-verify        # 跳过透明通道复检
+ *   node scripts/render.mjs <产物.html> --no-reuse-blank   # 素材模式空档不复用（逐帧老实渲染）
  *
  * 它做三件事，按顺序：
  *   1) 前置检查 —— 读产物里的 CONFIG，把「出片必然出错」的组合挡下来（纯正则，毫秒级）
@@ -22,11 +23,18 @@
  * 输出格式由产物自己的 CONFIG 决定，不靠命令行猜：
  *   BG='transparent' → ProRes 4444 / yuva444p10le / .mov（带 alpha）
  *   BG='opaque'      → H.264 / yuv420p / .mp4
+ *
+ * ★ 素材模式（透明 + 3:4）出片时，空档帧自动复用：
+ *   它的时间轴大段是全透明的（规格就是 60s 做 8~12 个素材点），
+ *   逐帧渲染那些空档等于白干 —— 实测空档帧在同一份产物里逐字节相同。
+ *   所以只渲染「有内容」的帧 + 1 张空档帧，其余复用，成片画面一点不变。
+ *   这里显示的帧数与耗时都按复用后的实际值算（与 shoot.mjs 共用同一份计划）。
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { samplePlan } from "./active-windows.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const NODE = process.execPath;
@@ -123,30 +131,50 @@ if (block) {
 }
 
 /* ---------- 2 · 决定抽帧密度 ---------- */
-const PRESETS = { draft: 0.5, normal: 0.1, fine: 0.04 };
+/* 采样密度 = 每秒采几张真实画面，直接决定运动顺不顺滑。
+   成片一律输出恒定 30fps（--fps 可改）；采样不足的地方由容器保持帧。
+   旧的 preset 值（0.5 / 0.1 / 0.04）会把成片做成 2fps / 10fps，交出去根本不像一条片子。 */
+const PRESETS = { draft: 0.1, normal: 0.04, fine: 1 / 30 };
 const preset = getArg("--preset", "normal");
 let STEP = Number(getArg("--step", 0)) || 0;
 if (STEP <= 0) {
   if (!(preset in PRESETS)) { console.error(`未知 preset: ${preset}（可选 ${Object.keys(PRESETS).join(" / ")}）`); process.exit(1); }
   STEP = PRESETS[preset];
 }
-const FRAMES_EST = Math.floor(DURATION / STEP) + 1;
-/* 每帧要拉起一次 headless 浏览器，实测约 0.4~1.2s */
-const SEC_LO = (FRAMES_EST * 0.4).toFixed(0), SEC_HI = (FRAMES_EST * 1.2).toFixed(0);
-console.log(`\n[render] 抽帧密度 preset=${preset} step=${STEP}s → 约 ${FRAMES_EST} 帧，预计耗时 ${SEC_LO}~${SEC_HI}s`);
-if (FRAMES_EST > 400) {
-  console.log("  ! 帧数偏多（每帧都要拉起一次浏览器）。先用 --preset draft 出一版看效果，满意再出 fine。");
+const OUT_FPS    = Number(getArg("--fps", 0)) || 30;
+const SAMPLE_FPS = +(1 / STEP).toFixed(2);
+/* 素材模式（透明 + 3:4）出片时空档会被自动复用：真正渲染的只有「有内容的」那些帧。
+   估值必须和实际一致，否则会把耗时说高一倍。 */
+const plan = (TRANSPARENT && PURPOSE === "overlay" && RATIO === "3:4" && BASE === "timeline")
+  ? samplePlan(html, DURATION, STEP) : null;
+const reuseBlank = !!(plan && plan.blankT !== null) && !has("--no-reuse-blank");
+const FRAMES_EST = plan ? plan.times.length : Math.floor(DURATION / STEP) + 2;
+const RENDER_EST = reuseBlank ? plan.activeTimes.length + 1 : FRAMES_EST;
+/* 两条抽帧引擎的实测单帧成本：单浏览器约 0.10s；逐帧浏览器约 1.1s */
+const FAST_SEC = RENDER_EST * 0.10, SLOW_SEC = RENDER_EST * 1.1;
+const fmt = s => s < 90 ? `${s.toFixed(0)}s` : `${(s / 60).toFixed(1)}min`;
+console.log(`\n[render] 采样 ${SAMPLE_FPS}fps（step=${STEP.toFixed(3)}s）→ 约 ${FRAMES_EST} 帧 · 输出 ${OUT_FPS}fps CFR`);
+if (reuseBlank) {
+  const activeSec = plan.spans.reduce((n, s) => n + (s[1] - s[0]), 0);
+  console.log(`[render] 素材模式：${plan.spans.length} 段有内容共 ${activeSec.toFixed(1)}s，`
+    + `占时间轴 ${Math.round(100 * activeSec / Math.max(DURATION, 1e-6))}%`
+    + ` → 只渲染 ${plan.activeTimes.length} 帧（+1 张空档帧），其余 ${FRAMES_EST - plan.activeTimes.length} 帧复用，画面不变`);
+}
+console.log(`[render] 预计耗时：单浏览器引擎约 ${fmt(FAST_SEC)}；回退到逐帧浏览器约 ${fmt(SLOW_SEC)}`);
+if (SLOW_SEC > 900 && preset === "normal" && !has("--step")) {
+  console.log(`  ! 帧数偏多。先用 --preset draft 出一版看效果，满意再出 ${preset}。`);
 }
 
 /* ---------- 3 · 委托 shoot.mjs 出片 ---------- */
 const outDir = path.resolve(getArg("--out", path.join(path.dirname(FILE), "render-" + path.basename(FILE, ".html"))));
-const args = [path.join(HERE, "shoot.mjs"), FILE, "--video", "--step", String(STEP), "--out", outDir];
-const FPS = Number(getArg("--fps", 0)) || 0;
-if (FPS > 0) args.push("--fps", String(FPS));
+const args = [path.join(HERE, "shoot.mjs"), FILE, "--video", "--step", String(STEP), "--out", outDir, "--fps", String(OUT_FPS)];
+const engine = getArg("--engine", "");
+if (engine) args.push("--engine", engine);
+if (has("--no-reuse-blank")) args.push("--no-reuse-blank");
 const SCALE = Number(getArg("--scale", 0)) || 0;
 if (SCALE > 0) args.push("--scale", String(SCALE));
 
-console.log(`\n[render] 开始抽帧合成…（这一步就是出片本身，不是"检查"；每帧拉起一次浏览器）`);
+console.log(`\n[render] 开始抽帧合成…（这一步就是出片本身，不是"检查"）`);
 const r = spawnSync(NODE, args, { stdio: "inherit" });
 if (r.status !== 0) {
   console.error("\n[render] shoot.mjs 失败。");

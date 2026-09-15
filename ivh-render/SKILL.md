@@ -34,11 +34,12 @@ node scripts/render.mjs 产物.html
 常用选项：
 
 ```bash
-node scripts/render.mjs 产物.html --preset draft     # 0.5s 一帧，快速看节奏
-node scripts/render.mjs 产物.html --preset fine      # 0.04s 一帧，交付级
+node scripts/render.mjs 产物.html --preset draft     # 0.1s 一帧（采 10fps），快速看节奏
+node scripts/render.mjs 产物.html --preset fine      # 1/30s 一帧（采 30fps），交付级
 node scripts/render.mjs 产物.html --preflight        # 只检查，不渲染
 node scripts/render.mjs 产物.html --out ./dist
 node scripts/render.mjs 产物.html --scale 2          # 2 倍分辨率
+node scripts/render.mjs 产物.html --engine cli       # 强制走逐帧浏览器（慢，零网络）
 ```
 
 ## 二、关于「检查」：这一环没有抽帧自查
@@ -51,11 +52,12 @@ node scripts/render.mjs 产物.html --scale 2          # 2 倍分辨率
 | 步骤 | 拍不拍图 | 成本 | 判什么 |
 |---|---|---|---|
 | ① 前置检查 | **不拍** —— 纯读 HTML 源码的正则 | 毫秒 | 出片必然失败的组合（时长算不出、透明没藏 HUD） |
-| ② 抽帧合成 | **拍** —— 但这**就是出片本身** | 分钟级 | 不判任何东西，产出的就是成品 |
+| ② 抽帧合成 | **拍** —— 但这**就是出片本身** | 秒~分钟级 | 不判任何东西，产出的就是成品 |
 | ③ 透明复检 | 读已产出的 `.mov`，抽 12 个时间点 | 秒级 | 文件能不能用（假 alpha 是头号事故） |
 
 **② 躲不掉。** 这套链路是「按秒定位 → 截图 → 串成序列 → 合成」——
-截图不是检查手段，是生产方式本身。想快只能抽稀一点，不能取消。
+截图不是检查手段，是生产方式本身。但成本能压下来：单浏览器引擎快约 11 倍，
+素材模式还会自动跳过空档（见第四节）。再想省就只能抽稀一点，不能取消。
 
 **③ 只判"文件能不能用"，不判"好不好看"**，而且只读已经产出的文件、不再动浏览器。
 透明素材不要跳过它。
@@ -84,14 +86,22 @@ node scripts/render.mjs 产物.html --scale 2          # 2 倍分辨率
 
 ## 四、抽帧密度：唯一的取舍点
 
-这套链路是「按秒定位 → 截图 → 串序列 → 合成」，**每帧都要拉起一次浏览器**，
-所以帧数直接等于耗时。
+这套链路是「按秒定位 → 截图 → 串序列 → 合成」，**每多采一帧就多按一次快门**，
+所以帧数直接等于耗时。两条抽帧引擎（`--engine auto|cdp|cli`，默认 auto）：
 
-| preset | `--step` | 30s 片子 | 适合 |
+| 引擎 | 机制 | 实测 | 什么时候用 |
 |---|---|---|---|
-| `draft` | 0.5s | ~61 帧 | 只用于用户明确要求的快速试片 |
-| `normal`（默认） | 0.1s | ~301 帧 | 日常出片，入场动能看出过程 |
-| `fine` | 0.04s | ~751 帧 | 交付级，很慢 |
+| `cdp` | 开一个浏览器，用 CDP 逐帧驱动产物的 `IVH.seekAt(t)` | **0.10s/帧** | 默认的快路径 |
+| `cli` | 每帧拉起一个 headless 浏览器 + `--screenshot` 落盘 | 1.1s/帧 | 零网络、不依赖子进程回连，任何沙箱都能跑 |
+
+`auto` 先试 cdp，连不上调试端口（沙箱隔离子进程网络）就**自动**退回 cli ——
+两条路的画面**逐像素一致**，回退只影响耗时。`--engine cli` 可强制走慢的那条。
+
+| preset | `--step` | 采样帧率 | 30s 片子 | 适合 |
+|---|---|---|---|---|
+| `draft` | 0.1s | 10 fps | ~301 帧 | 只用于用户明确要求的快速试片 |
+| `normal`（默认） | 0.04s | 25 fps | ~751 帧 | 日常出片，入场动能看出过程 |
+| `fine` | 1/30s | 30 fps | ~901 帧 | 交付级，与输出帧率一一对应 |
 
 **默认一把出 `normal`，出完就交。**
 
@@ -100,8 +110,29 @@ node scripts/render.mjs 产物.html --scale 2          # 2 倍分辨率
 
 `draft` 只在用户明确说"先出个粗的看节奏"时才用。
 
-> **不要用 `--fps` 补帧。** 它只是重排已有帧，补出来的是重复帧，文件涨几十倍而画面毫无变化。
-> 要更流畅只能降低 `--step`——采更多**真实**帧。
+> **输出帧率与采样密度是两件事。** 成片一律输出恒定 30fps（`--fps` 可改）：
+> 采样不足的地方由容器保持帧，剪辑软件拿到的始终是一条 30fps 的正常素材。
+> 但 `--fps` 不会凭空造出画面 —— 要更流畅只能**降低 `--step`**（采更多**真实**帧）。
+
+### 素材模式自动跳过空档
+
+透明素材（`PURPOSE=overlay` + `RATIO=3:4`）的时间轴大段是全透明的 ——
+规格就是 60s 做 8~12 个素材点。逐帧渲染那些空档等于白干：
+实测同一份产物里两个空档时刻截出的 PNG **逐字节相同**（MD5 一致、alpha 平面全 0）。
+
+于是出片时**只渲染「有内容的帧」+ 1 张空档帧，其余空档全部复用**：
+
+| | 关掉复用（`--no-reuse-blank`） | 默认 |
+|---|---|---|
+| 渲染帧数 | 761 | 319 + 1（其余 442 帧硬链接复用） |
+| 端到端耗时 | 89s | 43s |
+| 成品 `.mov` | —— | **MD5 与改动前完全相同** |
+
+（实测口径：`make-fixture.mjs` 的官方素材产物，30.4s / `normal` / 1080×1440 ProRes 4444。）
+
+复用的前提是**空档帧真的全透明**，这一点会在渲染前**实测一次**
+（`alphaextract` 抽 alpha 平面看是不是全 0），不是靠推断。不成立就自动退回均匀抽帧 ——
+拿不准的时候宁可慢，也不要交一份画面不对的素材。`--no-reuse-blank` 可以关掉它。
 
 ## 五、透明：必须验到底层像素
 
@@ -120,14 +151,21 @@ alpha 平面转 rawvideo 是 1.48MB/帧（1080x1440），一条 30s 素材全解
 node scripts/check-alpha.mjs 产物-alpha.mov --samples 20   # 想抽得更密
 ```
 
-## 六、为什么不用实时录屏
+## 六、两条抽帧引擎：默认 CDP，CLI 必须留着
 
-常规做法是 CDP screencast。**本机沙箱走不通**：沙箱隔离了子进程网络，
-Node `spawn` 的浏览器活着，但 Node 回连不上 `--remote-debugging-port`（`ETIMEDOUT`）。
+常规做法是 CDP screencast 实时录制 —— 那个仍然不用：它按真实时钟走，出片时长不受控。
+现在用的是 CDP 的另一个用法：**逐帧驱动 + 逐帧截图**，它已经是默认引擎。
 
-所以一律走浏览器自带 CLI：`--screenshot=<path>` 落盘、`--dump-dom` 读回状态，
-**全程零网络**。`--default-background-color=00000000` 是透明能否成立的开关，
-已内置在 `shoot.mjs` 里，**不要去掉**。
+| 引擎 | 机制 | 代价 |
+|---|---|---|
+| `cdp` | 一个浏览器跑到底：`IVH.seekAt(t)` 定格 → `Page.captureScreenshot` | 要连 `127.0.0.1` 的调试端口；沙箱隔离子进程网络时连不上 |
+| `cli` | 浏览器自带的 `--screenshot=<path>` 落盘、`--dump-dom` 读回状态，全程零网络 | 每帧一次浏览器冷启动，1.1s/帧 |
+
+所以默认 `--engine auto`：先试 cdp，连不上就**自动**退回 cli。**这条回退是硬要求**——
+换机器、换沙箱时不能变成"出不了片"，而两条路的画面逐像素一致，回退只损失时间。
+
+透明底是两条路各自的开关，都已内置，**不要去掉**：cli 是
+`--default-background-color=00000000`，cdp 是 `Emulation.setDefaultBackgroundColorOverride`。
 
 ## 七、文件
 
@@ -135,6 +173,8 @@ Node `spawn` 的浏览器活着，但 Node 回连不上 `--remote-debugging-port
 |---|---|
 | `scripts/render.mjs` | **主入口**：前置检查 → 出片 → 透明复检 |
 | `scripts/shoot.mjs` | 抽帧 / 逐幕截图 / 六风格对照 / `--video` 合成 |
+| `scripts/cdp-shoot.mjs` | 单浏览器逐帧取样（快路径引擎；不可用时返回 null，由 shoot.mjs 回退） |
+| `scripts/active-windows.mjs` | 从产物源码算「哪些秒数上有内容」——空档复用与耗时估算共用这一份计划 |
 | `scripts/shoot-at.mjs` | 定向复核：按组件入出点采样，核对卡点是否对齐 SRT |
 | `scripts/check-alpha.mjs` | 抽 alpha 平面（按时间点抽样），判真透明 |
 | `references/render-matrix.md` | 出片矩阵、抽帧取舍、故障排查表 |

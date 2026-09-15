@@ -8,7 +8,9 @@
  *   node scripts/shoot.mjs <产物.html> --points            # 只抽「素材点/组件点」附近的帧
  *   node scripts/shoot.mjs <产物.html> --frames            # 抽帧 + 给出可直接执行的 ffmpeg 命令
  *   node scripts/shoot.mjs <产物.html> --video             # 抽帧并直接合成视频（需 ffmpeg）
- *   node scripts/shoot.mjs <产物.html> --video --fps 30    # 补帧到恒定 30fps（默认保持定格帧率）
+ *   node scripts/shoot.mjs <产物.html> --video --fps 30    # 成片输出 30fps 恒定帧率（默认就是 30）
+ *   node scripts/shoot.mjs <产物.html> --engine cli        # 强制走「每帧一个浏览器」的老路
+ *   node scripts/shoot.mjs <产物.html> --no-reuse-blank    # 空档不复用，逐帧老实渲染
  *   node scripts/shoot.mjs <产物.html> --gallery            # 六风格对照页
  *   node scripts/shoot.mjs <产物.html> --out <目录> --scale 2
  *
@@ -16,17 +18,25 @@
  *   shoot-at.mjs  按「组件入点/出点」精确采样，用于核对卡点是否对齐 SRT
  *   shoot.mjs     按「固定时间间隔/逐幕/素材点」采样，用于整体观感检查与抽帧合成
  *
- * ★ 素材模式（PURPOSE=overlay + RATIO=3:4）默认走 --points：
- *   一条 60s 的素材里大段是全透明的，均匀抽帧会得到一堆空画面。
- *   出片（--video/--frames）时会自动退回均匀抽帧，因为合成需要连续的帧间隔。
+ * ★ 素材模式（PURPOSE=overlay + RATIO=3:4）的两种采样：
+ *   预览（不带 --video/--frames）默认走 --points，只看素材点附近的画面。
+ *   出片（--video/--frames）仍按 --step 均匀铺满整条时间轴（合成需要连续帧），
+ *   但空档不再逐帧渲染 —— 只渲染一张，其余复用（见「空档复用」）。
+ *   空档帧在同一份产物里是逐字节相同的，复用后成片画面完全不变。
  *
- * 原理同上：零网络，用 headless 浏览器自带 --screenshot 落盘。
+ * 抽帧引擎（--engine auto|cdp|cli，默认 auto）：
+ *   cdp   开一个浏览器、用 CDP 逐帧驱动产物的 IVH.seekAt(t)，实测 0.10s/帧 —— 快路径
+ *   cli   每帧拉起一次 headless 浏览器 + --screenshot 落盘，实测 1.1s/帧；
+ *         零网络、不依赖子进程回连，任何沙箱都能跑 —— 回退路径
+ *   auto  先试 cdp，连不上调试端口（沙箱隔离子进程网络）就自动退回 cli。
+ *         两条路的画面逐像素一致，回退只影响耗时。
  */
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { parseComps, samplePlan, uniformTimes, alphaIsEmpty } from "./active-windows.mjs";
 
 /* ---------- 浏览器探测 ---------- */
 const BROWSERS = [
@@ -55,6 +65,8 @@ if (!fs.existsSync(FILE)) { console.error("文件不存在: " + FILE); process.e
 const getArg = (k, d) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
 const STEP   = Number(getArg("--step", 0)) || 0;
 const FPS_ARG = Number(getArg("--fps", 0)) || 0;
+const ENGINE  = getArg("--engine", "auto");        /* auto | cdp | cli */
+const OUT_FPS = FPS_ARG > 0 ? FPS_ARG : 30;        /* 成片的恒定帧率 */
 const SCALE  = Number(getArg("--scale", 1)) || 1;
 const FRAMES = argv.includes("--frames");
 const VIDEO  = argv.includes("--video");
@@ -182,19 +194,27 @@ ${items.map(i => `  <figure><figcaption>${i.s}</figcaption>${i.png ? `<img src="
      不剥掉的话"总时长"会被注释里的示例数字带偏。
    ========================================================================== */
 const bareHtml = html.replace(/<!--[\s\S]*?-->/g, "");
-const allComps = [...bareHtml.matchAll(/<div[^>]*class="[^"]*\bcomp\b[^"]*"[^>]*>/g)].map(m => {
-  const g = k => { const mm = m[0].match(new RegExp('data-' + k + '="([^"]*)"')); return mm ? parseFloat(mm[1]) : null; };
-  return { in: g("in"), out: g("out") };
-}).filter(c => Number.isFinite(c.in) && Number.isFinite(c.out));
+const { comps: allComps, outDur: OUT_DUR } = parseComps(html);
 
 const POINTS = argv.includes("--points");
 if (POINTS && (FRAMES || VIDEO))
-  console.warn("[shoot] --points 与 --video/--frames 冲突：合成需要连续的帧间隔，已改为均匀抽帧。");
+  console.warn("[shoot] --points 只管预览取样；出片按 --step 均匀铺满时间轴，空档由引擎自动复用。");
 /* 素材点采样只对「透明素材（overlay + 3:4）」有意义 —— 它的时间轴大段是空档。
    分幕/时间轴的独立成片是连续内容，应当均匀抽帧。 */
 const usePoints = BASE === "timeline" && MATERIAL && !(FRAMES || VIDEO) && (POINTS || STEP === 0);
-if (MATERIAL && STEP === 0 && (FRAMES || VIDEO))
-  console.warn("[shoot] 素材模式出片：整条时间轴大段是全透明的，均匀抽帧会得到很多空帧。\n        建议先 --points 看画面，再按素材点密度用 --step 指定间隔出片。");
+
+/* ---------- 空档复用 ----------
+   素材模式出片时，整条时间轴上大部分秒数一个可见像素都没有。逐帧渲染它们纯属白干：
+   实测同一份产物里两个空档时刻截出的 PNG 逐字节相同（MD5 一致、alpha 平面全 0）。
+   于是只渲染一张空档帧，其余空档全部复用它 —— 成片画面一点不变，
+   帧序号与时间映射也不变（seq/ 里该有的帧一张不少）。
+   只对「透明产物」成立：不透明产物的空档里还有纸底和进度条，那不算空档。
+   ★ 复用前会对那一张实测 alpha，不是靠推断（见 shootWithBlankReuse）。 */
+const REUSE_BLANK = !argv.includes("--no-reuse-blank")
+  && (argv.includes("--reuse-blank")
+      || (MATERIAL && BASE === "timeline" && BG === "transparent" && (FRAMES || VIDEO)));
+if (MATERIAL && STEP === 0 && (FRAMES || VIDEO) && !REUSE_BLANK)
+  console.warn("[shoot] 素材模式出片：整条时间轴上大段是全透明的，建议先 --points 看画面，再用 --step 指定间隔。");
 
 /* —— 总时长：两条路各有各的算法 ——
    timeline：max(data-out)   text：Σ data-sec
@@ -208,6 +228,89 @@ const totalDur = (BASE === "timeline" ? timelineDur : sceneDur) || dataDur || 10
 /* 按时间抽帧的场合：timeline 一律；text 只要不是「只想逐幕看一张」就走时间轴。
    分幕模式的 ?t= 定位已由模板 10-C 段实现（负 animation-delay + 暂停 = 定格）。 */
 const sampleByTime = BASE === "timeline" || STEP > 0 || FRAMES || VIDEO;
+
+/* 按时刻抽帧。两条引擎产出的 PNG 同名同内容，所以回退是无缝的。
+   tag 决定文件名前缀：f = 均匀抽帧 / p = 素材点采样。 */
+const shootTimes = async (times, tag) => {
+  const filePrefix = `${name}-${tag}`;
+  if (ENGINE !== "cli") {
+    const { captureFrames } = await import("./cdp-shoot.mjs");
+    let explained = false;
+    const res = await captureFrames({
+      browser: BROWSER, file: FILE, times, outDir, filePrefix,
+      size: SIZE, scale: SCALE, transparent: BG === "transparent",
+      log: (done, total, t, perFrame, err) => {
+        if (err) {
+          if (!explained) {
+            explained = true;
+            console.warn(`[shoot] 单浏览器引擎不可用：${err}`);
+            console.warn("        回退到逐帧浏览器（每帧一次冷启动，会慢一个数量级）。");
+          }
+          return;
+        }
+        process.stdout.write(`\r  已抽 ${done}/${total} 帧 @ ${t}s · ${perFrame.toFixed(0)}ms/帧   `);
+      },
+    });
+    if (res) {
+      process.stdout.write("\r" + " ".repeat(64) + "\r");
+      return res;
+    }
+    if (ENGINE === "cdp") {
+      console.error("[shoot] 指定了 --engine cdp，但单浏览器引擎不可用。");
+      process.exit(1);
+    }
+  }
+  const out = [];
+  for (const t of times) {
+    const png = path.join(outDir, `${filePrefix}${String(t).padStart(7, "0").replace(".", "_")}.png`);
+    if (shootOne(fileUrl(`?t=${t}`), png, 3000)) {
+      out.push({ t, png });
+      process.stdout.write(`\r  已抽 ${out.length}/${times.length} 帧 @ ${t}s   `);
+    }
+  }
+  process.stdout.write("\r" + " ".repeat(64) + "\r");
+  return out;
+};
+
+/* 空档复用：渲染一张空档帧、实测它的 alpha，确认全透明之后才复用。
+   实测不过（HIDE_HUD 没关、BG 其实是 opaque、产物里还有别的可见元素……）
+   就退回均匀抽帧 —— 拿不准的时候宁可慢，也不要交一份画面不对的素材。 */
+const shootWithBlankReuse = async (plan) => {
+  const { times, activeTimes, blankT } = plan;
+  const gapCount = times.length - activeTimes.length;
+  console.log(`  ★ 空档复用：${allComps.length} 个组件 → ${plan.spans.length} 段有内容 · `
+    + `${times.length} 帧里只有 ${activeTimes.length} 帧要渲染，空档 ${gapCount} 帧复用 1 张`);
+
+  /* 一次把「有内容的帧 + 那张空档帧」都抽掉：同一个浏览器、同一趟顺序，
+     不空跑第二趟。空档帧被夹在时间轴的正确位置上，顺便也验证了它前后确实是空档。 */
+  const targets = [...new Set([...activeTimes, blankT])].sort((a, b) => a - b);
+  const rendered = await shootTimes(targets, "f");
+  const byTime = new Map(rendered.map(s => [s.t, s.png]));
+
+  const blank = byTime.get(blankT);
+  const alpha = blank ? alphaIsEmpty(findFfmpeg(), blank) : null;
+  if (alpha !== true) {
+    console.warn(`  ! 空档帧（t=${blankT}s）实测不是全透明`
+      + `${alpha === null ? "，读不出 alpha 平面" : ""} —— 不复用，退回均匀抽帧。`);
+    return shootTimes(times, "f");
+  }
+
+  const activeSet = new Set(activeTimes);
+  const out = [];
+  let missing = 0;
+  for (const t of times) {
+    if (!activeSet.has(t)) { out.push({ t, png: blank, blank: true }); continue; }
+    const png = byTime.get(t);
+    if (png) out.push({ t, png });
+    else missing++;                       /* 有内容的帧没抽到，不能拿空档帧糊过去 */
+  }
+  if (missing) {
+    console.warn(`  ! ${missing} 帧有内容的帧没抽到，退回均匀抽帧重来。`);
+    return shootTimes(times, "f");
+  }
+  console.log(`  ✓ 空档帧 t=${blankT}s 实测 alpha 全 0 —— 复用它 ${gapCount} 帧，成片画面不变`);
+  return out;
+};
 
 let shots = [];
 if (sampleByTime) {
@@ -225,24 +328,18 @@ if (sampleByTime) {
     }
     const uniq = [...new Set(times)].sort((a, b) => a - b);
     console.log(`[shoot] ${name} · 素材点采样 ${uniq.length} 张 · ${allComps.length} 个组件 · 时间轴总长 ${timelineDur}s`);
-    for (const t of uniq) {
-      const png = path.join(outDir, `${name}-p${String(t).padStart(7, "0").replace(".", "_")}.png`);
-      const okShot = shootOne(fileUrl(`?t=${t}`), png, 3000);
-      if (okShot) { shots.push({ t, png }); process.stdout.write(`\r  已抽 ${shots.length} 帧 @ ${t}s   `); }
-    }
+    shots = await shootTimes(uniq, "p");
     console.log("");
   } else {
     const step = STEP > 0 ? STEP : Math.max(duration / 40, 0.2);
-    const times = [];
-    for (let t = 0; t <= duration + 1e-6; t += step) times.push(+t.toFixed(3));
-    if (times[times.length - 1] < duration) times.push(+duration.toFixed(3));
+    const times = uniformTimes(duration, step);
 
     console.log(`[shoot] ${name} · ${BASE === "timeline" ? "timeline" : "分幕"} 抽帧 ${times.length} 张 · 间隔 ${step.toFixed(2)}s · 总长 ${duration}s`);
-    for (const t of times) {
-      const png = path.join(outDir, `${name}-f${String(t).padStart(7, "0").replace(".", "_")}.png`);
-      const okShot = shootOne(fileUrl(`?t=${t}`), png, 3000);
-      if (okShot) { shots.push({ t, png }); process.stdout.write(`\r  已抽 ${shots.length} 帧 @ ${t}s   `); }
-    }
+    /* 空档复用只改「渲染哪些帧」，不改 times —— 帧序号、时间映射、成片时长一律不动。 */
+    const plan = REUSE_BLANK ? samplePlan(html, duration, step) : null;
+    shots = (plan && plan.blankT !== null)
+      ? await shootWithBlankReuse(plan)
+      : await shootTimes(times, "f");
     console.log("");
   }
 } else {
@@ -308,38 +405,55 @@ if ((FRAMES || VIDEO) && shots.length) {
     fs.rmSync(seqDir, { recursive: true, force: true });
     fs.mkdirSync(seqDir, { recursive: true });
     const index = [];
+    let reused = 0;
     shots.forEach((s, i) => {
       const f = `frame-${String(i + 1).padStart(5, "0")}.png`;
-      try { fs.renameSync(s.png, path.join(seqDir, f)); }
-      catch { fs.copyFileSync(s.png, path.join(seqDir, f)); }   // 跨盘时改名会失败，退回拷贝
+      const dst = path.join(seqDir, f);
+      /* 空档帧：同一张全透明 PNG 会被复用几百次。硬链接最省 —— 同盘是元数据操作，
+         不占额外空间、也不花拷贝时间；文件系统不支持时退回拷贝（一张 9KB，代价可忽略）。 */
+      if (s.blank) {
+        reused++;
+        try { fs.linkSync(s.png, dst); }
+        catch { try { fs.copyFileSync(s.png, dst); } catch {} }
+      } else {
+        try { fs.renameSync(s.png, dst); }
+        catch { fs.copyFileSync(s.png, dst); }   // 跨盘时改名会失败，退回拷贝
+      }
       index.push(`${f}\t${s.t}s`);
     });
     /* 序号 → 秒 的对照，方便回头定位某一帧 */
     fs.writeFileSync(path.join(seqDir, "index.txt"), index.join("\n") + "\n", "utf8");
+    if (reused) console.log(`[shoot] 空档复用：${reused} 帧指向同一张全透明帧（硬链接，不重复占空间）`);
 
     /* 2) 用相邻帧的实际间隔推算输入帧率，保证成片时长 = 原始时间轴长度 */
     const ts = shots.map(s => s.t);
     const diffs = ts.slice(1).map((v, i) => v - ts[i]).filter(d => d > 0);
     const stepAvg = diffs.length ? diffs.reduce((a, b) => a + b, 0) / diffs.length : 0;
-    const fps = Number((stepAvg > 0 ? 1 / stepAvg : 30).toFixed(4));
+    /* 采样帧率 = 每秒采到几张真实画面，决定运动顺不顺滑；
+       输出帧率 = 成片容器的恒定帧率，决定剪辑软件怎么解读这段素材。两者是两件事。 */
+    const sampleFps = Number((stepAvg > 0 ? 1 / stepAvg : OUT_FPS).toFixed(4));
 
     /* 3) 透明底出 ProRes 4444（带 alpha），不透明出 H.264。
-       默认保持抽帧的原生帧率（定格感），传 --fps 才补帧成恒定帧率。
-       强行 -r 30 会把 25 帧补成 1500 帧，文件从 1MB 涨到 75MB，纯属浪费。 */
+       ★ 一律输出 OUT_FPS 的恒定帧率。原来是「抽帧多细、成片就是多少帧率」——
+         normal 档出 10fps、draft 档出 2fps，交出去的其实不是一条正常帧率的片子，
+         剪辑软件只能自己猜。采多少帧仍由 --step 决定（那才是清晰度/耗时的取舍），
+         容器帧率则固定下来。 */
     const alpha = BG === "transparent";
     const outFile = path.join(outDir, alpha ? `${name}-alpha.mov` : `${name}.mp4`);
     const seqPattern = path.join(seqDir, "frame-%05d.png");
-    const cfr = FPS_ARG > 0 ? ["-r", String(FPS_ARG)] : [];
+    const cfr = ["-r", String(OUT_FPS)];
     const cmd = alpha
-      ? ["-y", "-framerate", String(fps), "-i", seqPattern,
+      ? ["-y", "-framerate", String(sampleFps), "-i", seqPattern,
          "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", ...cfr, outFile]
-      : ["-y", "-framerate", String(fps), "-i", seqPattern,
+      : ["-y", "-framerate", String(sampleFps), "-i", seqPattern,
          "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", ...cfr, outFile];
 
     const FFMPEG = findFfmpeg();
     const quote = s => (/\s/.test(s) ? `"${s}"` : s);
     console.log(`\n[shoot] 帧序列 -> ${seqDir}（frame-%05d.png + index.txt）`);
-    console.log(`[shoot] 输入 ${fps}fps（间隔 ${stepAvg.toFixed(2)}s）× ${shots.length} 帧 → 约 ${(shots.length * (stepAvg || 0)).toFixed(1)}s${cfr.length ? ` · 已补帧到 ${FPS_ARG}fps` : " · 保持定格帧率"}`);
+    console.log(`[shoot] 采样 ${sampleFps}fps（间隔 ${stepAvg.toFixed(2)}s）× ${shots.length} 帧 → 约 ${(shots.length * (stepAvg || 0)).toFixed(1)}s · 输出 ${OUT_FPS}fps CFR`);
+    if (sampleFps < OUT_FPS * 0.6)
+      console.log(`        ! 采样只有 ${sampleFps.toFixed(1)}fps，成片里每张画面要顶 ${(OUT_FPS / sampleFps).toFixed(1)} 帧 —— 运动是「定格感」的。要顺滑就调小 --step。`);
     console.log(`[shoot] ${alpha ? "透明 ProRes 4444" : "H.264"} 合成命令：`);
     console.log(`  ${[FFMPEG || "ffmpeg", ...cmd].map(quote).join(" ")}`);
 

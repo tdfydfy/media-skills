@@ -87,7 +87,12 @@ if (times.length === 0) {
   if (comps.length) {
     const s = new Set([0]);
     for (const c of comps) {
-      s.add(+(c.in + 0.2).toFixed(2));               /* 刚入场后 */
+      /* ★ 入场定格之后，「in 附近」和「入场结束时」是两张不同的图：
+         in+0.2 是入场进行到一半（能看出动效真的在放），
+         in+0.9 是入场落定（能看清内容与排版）。
+         两边都要 —— 只拍前者会以为组件还没画出来，只拍后者看不出动效。 */
+      s.add(+(c.in + 0.2).toFixed(2));               /* 入场进行中 */
+      s.add(+(c.in + 0.9).toFixed(2));               /* 入场落定 */
       s.add(+((c.in + c.out) / 2).toFixed(2));        /* 停留中点 */
       s.add(+Math.max(c.out - 0.05, 0).toFixed(2));   /* 即将退场 */
     }

@@ -5,7 +5,8 @@
  * 用法：node scripts/check-script.mjs <脚本.json>
  * 退出码：0 = 全过（允许 note）；1 = 有 FAIL
  *
- * 校验 script-format.md 第三节的 8 条硬规则。
+ * 校验 script-format.md 第三节的 8 条结构硬规则 + 第 7 项「提炼度」
+ *（提炼链的写法见 references/distillation.md）。
  * 下游 ivh-standalone / ivh-overlay 拿到脚本后应先跑这一遍 ——
  * 上游没校验就交过来的脚本，在这里必须挡住，不要带病往下游走。
  */
@@ -159,9 +160,11 @@ if (!points.length) {
   if (per60 < 5) note(`每 60s 仅 ${per60.toFixed(1)} 个呼应点 —— 偏稀疏，检查是否有该强调的内容漏了`);
   if (per60 > 14) fail(`每 60s 有 ${per60.toFixed(1)} 个呼应点 —— 太密，叠加层会变成第二块屏`);
 
+  /* 与 check-template 第 9 项同一条硬线：13 种入场里挑 3 种是底线。
+     素材生命周期只有 3~5 秒，入场就是它的全部表演，三块板一个手感等于没设计。 */
   const anims = [...new Set(p.map(x => x.anim).filter(Boolean))];
-  anims.length >= 2 ? ok(`用到 ${anims.length} 种入场动效`)
-    : note("入场动效种类过少，素材会显得单调");
+  anims.length >= 3 ? ok(`用到 ${anims.length} 种入场动效：${anims.join(" / ")}`)
+    : fail(`只用到 ${anims.length} 种入场动效 —— 需 >=3（13 种里挑 3 种即可），三块板一个手感等于没设计`);
 }
 
 /* ---------- 6 · 双层文本（口播 vs 屏幕字互不重复） ---------- */
@@ -192,6 +195,112 @@ if (!vo.length) {
     }
   }
   if (echo === 0) ok("屏幕字与口播无逐字重复");
+}
+
+/* ---------- 7 · 提炼度 ---------- */
+head("7. 提炼度");
+{
+  /* 前六项查的是「结构对不对」，查不出「话有没有劲」：
+     一份通篇「内容概述 / 渠道问题 / 提升效果」的脚本，字数、区间、结构全合规，
+     照样 100% 通过闸门 —— "平淡"就是这么流到下游的。这一项补上提炼度里
+     能静态验的部分。怎么写见 references/distillation.md。 */
+  const strip = s => String(s == null ? "" : s)
+    .replace(/[\s，。！？、；：""''（）()《》「」【】·—…\-!?.,;:"']/g, "");
+
+  /* 「标题里没有内容」的三种形态：客套、结构占位、自我指涉 */
+  const AIRY = [
+    /^(大家好|你们好|各位好|我是)/,
+    /(今天|本期|这一期|这期|接下来)(我们)?(来讲|来说|来聊|聊聊|聊一聊|分享|看看|看)/,
+    /^(开场|开篇|引言|前言|序|背景|背景介绍|背景概述|概述|概览|导语|正文|小结|总结|结语|结尾|尾声|收尾|回顾|预告|目录|全文)$/,
+    /^(内容)?(概述|概览|摘要|简介)$/,
+    /^(相关|基本)(情况|介绍|说明|内容)$/,
+    /^(谢谢(大家|观看|收看)?|感谢(观看|收看|大家)?)$/,
+    /^以上就是(今天|本次|本期)?.{0,6}$/,
+    /^第[一二三四五六七八九十0-9]{1,3}(部分|章|节|幕|块|讲|点)?$/,
+    /^[一二三四五六七八九十0-9]{1,3}(部分|章|节|幕|块|讲)$/,
+  ];
+  /* 主张标记：数字 / 对比 / 变化 / 判断。有它才叫「结论」，没有就只是「话题」 */
+  const CLAIM = /[0-9]|[vV][sS]|对比|相比|相较|从.{1,8}到|涨|跌|降|升|增|减|翻|倍|成|折|超|低于|高于|不如|反而|其实|不是|才是|没有|过半|占|达|破|跑赢|贡献|拿下|撑起|意味着|必须|应该/;
+  const SLOGAN = /提升|提高|增强|优化|完善|加强|促进|推动|打造|赋能|助力|实现|全面|深化|持续/;
+
+  /* 收集所有"给人看的字"：A-roll 标题 + 素材点元素 */
+  const titles = [];
+  scenes.forEach(s => {
+    const t = s.aroll && s.aroll.type === "title" ? s.aroll.text : null;
+    if (t) titles.push({ where: `第 ${s.i} 幕(${s.role})`, text: t, role: s.role, num: /[0-9]/.test(t) });
+  });
+  points.forEach(p => (p.elements || []).forEach((e, k) => {
+    if (!e || !e.t) return;
+    const raw = String(e.t) + " " + (e.v || "") + " " + (e.label || "");
+    titles.push({ where: `素材点 ${p.i} 元素${k + 1}`, text: e.t, role: "element", num: /[0-9]/.test(raw) });
+  }));
+
+  if (!titles.length) {
+    skip("没有屏幕字（A-roll 标题 / 素材点元素），本项不适用");
+  } else {
+    /* 7.1 空转标题 */
+    const airy = titles.filter(x => x.text.split("\n").some(l => {
+      const n = strip(l);
+      return !n || AIRY.some(re => re.test(n));
+    }));
+    airy.length === 0
+      ? ok(`${titles.length} 条屏幕字里没有空转标题`)
+      : fail(`${airy.length} 条标题是空转（客套 / 结构占位 / 自我指涉，读不出内容）：`
+          + airy.slice(0, 3).map(x => `${x.where}「${strip(x.text)}」`).join("；"));
+
+    /* 7.2 重复：同一句话只该说一次 */
+    const seen = new Map(), dup = [];
+    for (const x of titles) {
+      const k = strip(x.text);
+      if (!k) continue;
+      if (seen.has(k)) dup.push(`${seen.get(k)} 与 ${x.where}「${k}」`);
+      else seen.set(k, x.where);
+    }
+    dup.length === 0
+      ? ok("屏幕字两两不重复")
+      : fail(`${dup.length} 处屏幕字重复：${dup.slice(0, 3).join("；")}`);
+
+    /* 7.3 body 幕的标题要是「一句话」，不能只是名词短语 */
+    const bodyTitles = titles.filter(x => x.role === "body");
+    if (!bodyTitles.length) {
+      skip("没有 body 幕标题，7.3 不适用");
+    } else {
+      const flat = bodyTitles.filter(x => !CLAIM.test(strip(x.text)));
+      flat.length === 0
+        ? ok(`${bodyTitles.length} 条 body 标题都带主张标记（数字 / 对比 / 判断）`)
+        : fail(`${flat.length} 条 body 标题只是名词短语、没有主张：`
+            + flat.slice(0, 3).map(x => `${x.where}「${strip(x.text)}」`).join("；")
+            + " —— 标题要给结论，话题留给口播");
+    }
+
+    /* 7.4 数字锚定率（note：程度问题，不是对错问题） */
+    const rate = Math.round(100 * titles.filter(x => x.num).length / titles.length);
+    if (rate < 40) note(`只有 ${rate}% 的屏幕字带数字 —— 数字是最省力的「具体」`);
+
+    /* 7.5 开场钩子 / 收尾金句 */
+    const openT = titles.find(x => x.role === "open");
+    if (openT && !CLAIM.test(strip(openT.text)))
+      note(`开场标题「${strip(openT.text)}」没有钩子（数字 / 反差 / 反常识）—— 前三秒决定看不看下去`);
+    const closeT = titles.find(x => x.role === "close");
+    if (closeT) {
+      const n = strip(closeT.text);
+      if (n.length > 12 || /^(总之|综上|总的来说|好了)/.test(n))
+        note(`收尾标题「${n}」不像能单独拿出去的话 —— 金句要短、要能被引用`);
+    }
+
+    /* 7.6 口号式标题：有形容词、没有数字 */
+    const slogan = titles.filter(x => SLOGAN.test(x.text) && !x.num);
+    if (slogan.length) note(`${slogan.length} 条标题是口号式（有形容词、没有数字）：`
+      + slogan.slice(0, 3).map(x => `「${strip(x.text)}」`).join(""));
+
+    /* 7.7 素材模式：一块板只有一个元素 = 字幕卡，不是素材 */
+    if (PURPOSE === "overlay") {
+      const thin = points.filter(p => (p.elements || []).length === 1);
+      if (thin.length) note(`${thin.length} 个素材点只有 1 个元素 —— 缺关系层，观众记不住（见 material-spec 第一节）`);
+      const noNum = points.filter(p => p.kind === "data" && !/[0-9]/.test(JSON.stringify(p.elements || [])));
+      if (noNum.length) note(`${noNum.length} 个数据型素材点里一个数字都没有`);
+    }
+  }
 }
 
 /* ---------- 结论 ---------- */

@@ -81,7 +81,7 @@ node scripts/check-template.mjs 素材.html      # 十一项自检，纯文本�
 用户要看的是**每块板的内容与动效**，以及"块与块之间是不是真的空着"。
 
 ```bash
-# ❌ 不要这样做 —— 每帧拉起一次浏览器，而且素材大半是空档，抽出来一堆白图
+# ❌ 不要这样做 —— 抽帧不是检查手段（它是出片的生产方式本身），观感判断交给用户
 node ../ivh-render/scripts/shoot.mjs 素材.html --points
 ```
 

@@ -627,15 +627,27 @@ body.animate .comp.in[data-anim="FADE-IN"]     {animation:fadein    .60s ease-ou
 body.animate .comp.in[data-anim="CALM-IN"]     {animation:calmin    .70s cubic-bezier(.3,.8,.3,1) both}
 body.animate .comp.in[data-anim="SHIFT-IN"]    {animation:shiftin   .60s cubic-bezier(.22,.85,.28,1) both}
 body.animate .comp.in[data-anim="NONE"]        {opacity:1}
+/* 省略 data-anim 时的默认入场。文档一直写的是「省略则 MASK-UP」，
+   但上面全是显式取值的选择器 —— 省略等于没有动画、组件直接跳出来。补上。 */
+body.animate .comp.in:not([data-anim]){animation:maskup .62s cubic-bezier(.22,.85,.28,1) both}
 
 /* 退场触发（0.4s，与 JS 里的 OUT_DUR 一致） */
 body.animate .comp.out[data-out-anim="FADE-SHIFT"]{animation:fadeshift .40s ease-in both}
 body.animate .comp.out[data-out-anim="SCALE-OUT"] {animation:scaleout  .40s ease-in both}
 body.animate .comp.out[data-out-anim="SLIDE-OUT"] {animation:slideout  .40s ease-in both}
 body.animate .comp.out[data-out-anim="FADE-OUT"]  {animation:fadeout   .40s ease-in both}
+/* 省略 data-out-anim 时的默认退场（文档：「省略则 FADE-SHIFT」） */
+body.animate .comp.out:not([data-out-anim]){animation:fadeshift .40s ease-in both}
 
 /* 风格专属动效叠加：让六风格动画手感不同 */
-html[data-style="doodle"]    body.animate .comp.in{animation-name:handfloat}
+/* ★ doodle 的手绘感来自「落定之后还在轻微浮动」，不是覆盖各组件自己的入场。
+   原来这里是 .comp.in{animation-name:handfloat}，特指度 (0,4,2) 压过上面
+   [data-anim] 的 (0,4,1)，于是 doodle 下 13 种入场全被换成同一种；
+   而 handfloat 没有 opacity 关键帧，连淡入也一并丢了。
+   改成作用在子元素上的持续浮动后，入场仍由 data-anim 决定。 */
+html[data-style="doodle"] body.animate .comp.in > *{animation:handfloat 3.4s ease-in-out infinite}
+html[data-style="doodle"] body.animate .comp.in > *:nth-child(2){animation-delay:.5s}
+html[data-style="doodle"] body.animate .comp.in > *:nth-child(3){animation-delay:1s}
 html[data-style="blueprint"] body.animate .comp.in[data-anim="GROW"]{animation:grow .7s steps(7,end) both}
 html[data-style="pixel"]     body.animate .comp.in[data-anim="MASK-UP"]{animation:maskup .5s steps(4,end) both}
 html[data-style="neon"]      body.animate .comp.in[data-anim="BLUR-IN"]{animation:blurin .62s ease-out both}
@@ -657,6 +669,7 @@ body.animate .comp.in .c-line .line-path{animation:linedraw 1.2s cubic-bezier(.3
 /* 降低动效偏好 */
 @media (prefers-reduced-motion: reduce){
   body.animate .comp.in,body.animate .comp.out{animation-duration:.01ms !important}
+  html[data-style="doodle"] body.animate .comp.in > *{animation:none !important}
 }
 
 /* ==========================================================================
@@ -1036,20 +1049,53 @@ function applyTimeline(t){
     const tin  = parseFloat(c.dataset.in  || '0');
     const tout = parseFloat(c.dataset.out || '0');
     const OUT_DUR = 0.4;                        /* 与 .comp.out 的 animation 时长一致 */
-    const on  = t >= tin && t < tout;
     const off = t >= tout && t < tout + OUT_DUR;
+    /* ★ 在场 = 已入场、且退场动画也放完（含退场窗口这一段）。
+       抽帧时每一帧都是新开的页面，退场窗口里的组件「从来没入过场」——
+       原来只加 .out 不补 .in，基础 opacity:0 会让退场动画从全透明起步，
+       拍出来是一帧空白，退场等于没有。补上 .in，退场才有可见的起点。 */
+    const visible = t >= tin && t < tout + OUT_DUR;
     const had = c.classList.contains('in');
     /* 只加一次 .in，避免重复触发入场动画 */
-    if (on && !had){ c.classList.remove('out'); c.classList.add('in'); }
-    else if (!on && had && !off){ c.classList.remove('in'); }
+    if (visible && !had){ c.classList.remove('out'); c.classList.add('in'); }
+    else if (!visible && had){ c.classList.remove('in'); }
     if (off) c.classList.add('out');
     else c.classList.remove('out');
   }
 }
-function seek(t){
+/* 把组件内的 CSS 动画「定格在 off 秒」：负 animation-delay + 暂停。
+   ★ 少了这一步，抽帧永远只能拍到「入场已经跑完」的画面 ——
+     headless 的 --virtual-time-budget 会在截图前把 0.6s 的入场动画跑完，
+     于是 13 种入场动效在成片里全部失效，组件看着就是「直接完整出现」。
+   ★ .comp 与它的子元素（图表生长 / 环形扫出等）在同一时刻开始动画，
+     所以共用同一个 off。 */
+const ANIM_D0 = new WeakMap();      /* 元素 → 原始 animation-delay（首次定格前读到的值） */
+function freezeCompAnims(c, off){
+  for (const el of [c, ...c.querySelectorAll('*')]){
+    const cs = getComputedStyle(el);
+    const name = cs.animationName;
+    if (!name || name === 'none') continue;          /* 没有动画的元素跳过 */
+    /* ★ 原始 delay 只读一次。同一浏览器里逐帧取样时，第二次 getComputedStyle 读到的
+       是上一帧自己写进去的内联值，直接相减会让偏移逐帧累积、画面越飘越远。 */
+    if (!ANIM_D0.has(el)) ANIM_D0.set(el, parseFloat(cs.animationDelay) || 0);
+    el.style.animationDelay = (ANIM_D0.get(el) - off) + 's';
+    el.style.animationPlayState = 'paused';
+  }
+}
+function seek(t, freeze){
   TL.t = t;
   applyTimeline(t);
   comps.forEach(c => { const sc = c.querySelector('.scene'); if (sc) sc.classList.add('active'); });
+  if (freeze){
+    for (const c of comps){
+      const isOut = c.classList.contains('out');
+      if (!isOut && !c.classList.contains('in')) continue;   /* 未上场的组件不可见，不必定格 */
+      const tin  = parseFloat(c.dataset.in  || '0');
+      const tout = parseFloat(c.dataset.out || '0');
+      /* 退场中定格在退场进度上，在场时定格在入场进度上 */
+      freezeCompAnims(c, Math.max(isOut ? t - tout : t - tin, 0));
+    }
+  }
   return TL.t;
 }
 function play(){
@@ -1088,7 +1134,7 @@ const qs   = new URLSearchParams(location.search);
 const seekT = parseFloat(qs.get('t'));
 if (Number.isFinite(seekT)){
   pause();
-  seek(seekT);
+  seek(seekT, true);                 /* 定格：让入场动画能被逐帧拍到 */
   freezeCounters(document);          /* 静态核对：数字直接给终值 */
   if (progress) progress.style.width = Math.round(100 * seekT / Math.max(TL.duration, 1)) + '%';
 } else {
@@ -1098,6 +1144,24 @@ if (Number.isFinite(seekT)){
     comps.forEach(c => setTimeout(() => runCounters(c), 380));  /* 入场后再滚数字 */
   }, 60);
 }
+/* --------------------------------------------------------------------------
+   10-B2 · 渲染器逐帧钩子
+   --------------------------------------------------------------------------
+   同一份产物有两条抽帧路径，都必须完成同一件事：把动画定格在 t、把计数器给终值。
+     · ?t=<秒>        每帧新开一个浏览器做单帧定位；沙箱受限时唯一的办法
+     · IVH.seekAt(t)  ivh-render 的 CDP 引擎复用同一个浏览器逐帧取样，
+                      省掉每帧一次的浏览器冷启动（实测 1.1s/帧 → 0.1s/帧）
+   在这里收口，下游渲染器就不必复刻一遍模板的运行时逻辑。
+   分幕模式（BASE=text）会在下面的 if (scenes.length) 块里覆盖成逐幕版本。 */
+window.IVH = {
+  seekAt: function(t){
+    pause();
+    seek(t, true);
+    freezeCounters(document);
+    if (progress) progress.style.width = Math.round(100 * t / Math.max(TL.duration, 1)) + '%';
+    return TL.duration;
+  }
+};
 /* 时间轴模式下 HUD 显示秒数而非页码 */
 if (pageNo && CONFIG.BASE === 'timeline'){
   setInterval(() => { pageNo.textContent = TL.t.toFixed(1) + 's / ' + TL.duration + 's'; }, 100);
@@ -1145,12 +1209,13 @@ if (scenes.length){
      -------------------------------------------------------------------------- */
   const durOf = s => parseFloat(s.dataset.sec || '6');
   const TOTAL_SEC = scenes.reduce((n, s) => n + durOf(s), 0);
-  const qsT = parseFloat(new URLSearchParams(location.search).get('t'));
-  if (Number.isFinite(qsT)){
+  /* 定格到全局第 t 秒：换算成「第 k 幕 + 幕内偏移 off」，负 animation-delay + 暂停。
+     抽成函数是为了让 ?t= 与 IVH.seekAt 两条路走同一段逻辑。 */
+  const seekTextAt = t => {
     let acc = 0, k = 0, off = 0;
     for (let i = 0; i < scenes.length; i++){
       const d = durOf(scenes[i]);
-      if (qsT < acc + d){ k = i; off = qsT - acc; break; }
+      if (t < acc + d){ k = i; off = t - acc; break; }
       acc += d;
       if (i === scenes.length - 1){ k = i; off = d; }
     }
@@ -1159,13 +1224,18 @@ if (scenes.length){
     go(k, false);
     /* 负 delay + 暂停 = 定格在 off 秒那一帧，且不消耗时间 */
     scenes[k].querySelectorAll('.anim').forEach(el => {
-      const d0 = parseFloat(getComputedStyle(el).animationDelay) || 0;
-      el.style.animationDelay = (d0 - off) + 's';
+      /* ★ 同 freezeCompAnims：原始 delay 只读一次，否则逐帧取样会累积偏移 */
+      if (!ANIM_D0.has(el)) ANIM_D0.set(el, parseFloat(getComputedStyle(el).animationDelay) || 0);
+      el.style.animationDelay = (ANIM_D0.get(el) - off) + 's';
       el.style.animationPlayState = 'paused';
     });
     freezeCounters(scenes[k]);
-    if (progress) progress.style.width = Math.round(100 * qsT / Math.max(TOTAL_SEC, 1)) + '%';
-  }
+    if (progress) progress.style.width = Math.round(100 * t / Math.max(TOTAL_SEC, 1)) + '%';
+    return TOTAL_SEC;
+  };
+  window.IVH.seekAt = seekTextAt;      /* 分幕模式：覆盖掉上面逐时间轴的版本 */
+  const qsT = parseFloat(new URLSearchParams(location.search).get('t'));
+  if (Number.isFinite(qsT)) seekTextAt(qsT);
   /* 分幕模式也要有 TL.duration —— ivh-render 用它算抽帧范围 */
   TL.duration = TOTAL_SEC;
   if (CONFIG.AUTOPLAY && !STATIC) armTimer();
