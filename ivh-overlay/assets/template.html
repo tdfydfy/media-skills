@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>动态信息图演示 · 单文件模板</title>
+<!--
+  ============================================================================
+  【模板说明 · 使用前先读】
+  ----------------------------------------------------------------------------
+  这是 ivh-overlay（透明素材）专用模板。它只做一件事：
+  产出**一块 3:4 透明板**，一份单文件 HTML，一条时间轴，成片里大段全透明。
+
+  ★ 它不做独立成片。独立成片请用 ivh-standalone 的模板。
+
+  1) 先改 <script> 里的 CONFIG：
+       用途 PURPOSE  overlay     固定。附着在别人的口播上，只做关键强调
+       文稿 BASE     timeline    固定。素材点按 data-in/data-out 卡点
+       背景 BG       transparent 固定。纹理与发光全关，深色风格自动反色
+       比例 RATIO    3:4         固定 1080x1440 一块板，由用户自己摆到画面上
+       风格 STYLE    doodle | riso | blueprint | minimal | neon | pixel
+       ANIMATE       false = 先看静态布局；true = 动画与导出
+       HIDE_HUD      固定 true。导出前必须隐藏 HUD 与进度条，否则会被拍进素材
+
+     ★ 上面这段说明刻意不写成 KEY : 'value' 的形式 —— 否则脚本按文档做
+       字符串替换时会命中注释而不是真正的 CONFIG。
+
+  2) 素材点 = 一个 <div class="comp" data-in data-out data-anim> ，
+     内含**一组**元素（≤3 个顶层元素，含它们之间的关系层）。
+     写法见下方注释块 TL_DEMO_START / TL_DEMO_END。
+
+     ★ 同一时刻只有一组元素；相邻素材点之间留 >=1.5s 纯透明空档。
+       连续铺满会让叠加层变成"第二块屏"，抢掉实拍主体的注意力。
+     ★ 不写 data-safe。板由用户摆放，"避开中央"没有参照物。
+
+  3) 交付前跑 scripts/check-template.mjs 十一项自检，再跑
+     scripts/shoot.mjs --points 按素材点取样看图。
+     出片交给 ivh-render 技能。
+  ============================================================================
+-->
+<style>
+/* ==========================================================================
+   区块 0 · 设计令牌 · 变量层
+   --------------------------------------------------------------------------
+   :root 是「默认风格 doodle」的值。其余五风格在区块 3-B 覆写。
+   颜色一律走变量，正文里不写死色值 —— check-template.mjs 第 3 项会查。
+   ========================================================================== */
+:root{
+  /* 画布 */
+  --page-bg   : #E8E2D6;
+  --paper     : #F2EDE4;
+  --paper-line: rgba(46,40,35,.09);
+  --grid      : rgba(46,40,35,.055);
+
+  /* 三主色 */
+  --c1        : #E4572E;
+  --c2        : #17A398;
+  --c3        : #F2B33D;
+
+  /* 文字与容器 */
+  --ink       : #2E2823;
+  --ink-soft  : rgba(46,40,35,.62);
+  --card-bg   : #FFFFFF;
+  --card-fill : rgba(255,255,255,.86);
+  --bar-fill  : var(--c1);
+
+  /* 造型 */
+  --stroke    : 2.5px;
+  --radius    : 14px 6px 16px 7px / 7px 16px 6px 14px;
+  --shadow    : 6px 7px 0 rgba(46,40,35,.13);
+  --tilt      : -0.5deg;
+  --edge      : none;
+  --glow      : none;
+
+  /* 排版 */
+  --font      : system-ui, "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-mono : ui-monospace, Consolas, "Courier New", monospace;
+
+  /* 尺寸 */
+  --fs-h1     : 108px;
+  --fs-h2     : 72px;
+  --fs-body   : 42px;
+  --fs-label  : 30px;
+  --fs-num    : 190px;
+  --gap       : 34px;
+  --pad       : 84px;
+}
+
+/* ==========================================================================
+   区块 1 · 基础与舞台
+   ========================================================================== */
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;}
+body{
+  background:var(--page-bg);
+  color:var(--ink);
+  font-family:var(--font);
+  -webkit-font-smoothing:antialiased;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* 舞台：固定像素画布，居中，靠 JS 写入 transform:scale 适配窗口 */
+#stage{
+  position:relative;
+  overflow:hidden;
+  background:var(--paper);
+  flex:0 0 auto;
+  transform-origin:center center;
+  isolation:isolate;
+}
+/* 纸张纹理层（透明底时关闭） */
+#stage::before{
+  content:"";
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:64px 64px;
+  pointer-events:none;z-index:0;
+}
+
+/* ==========================================================================
+   区块 2 · 布局族
+   --------------------------------------------------------------------------
+   默认 3:4。它不是手机竖屏，是一块 1080x1440 的板：
+   板上没有平台 UI 安全区，不需要底部预留字幕位，四周留白对称即可。
+   这一条决定了素材点的可用宽度（见区块 6）。
+
+   ★ 一般不改比例。若确实要改，--pad-x/--pad-y 必须跟着给，
+     否则 .comp 的宽度算式会取到 undefined。
+   ========================================================================== */
+html[data-ratio="16:9"] #stage,
+html[data-ratio="4:3"]  #stage{ --pad-x:96px; --pad-y:76px; }
+html[data-ratio="9:16"] #stage{ --pad-x:72px; --pad-y:180px; }
+html[data-ratio="3:4"]  #stage{ --pad-x:96px; --pad-y:96px; }
+
+/* ==========================================================================
+   区块 3 · 六风格 · 结构层
+   --------------------------------------------------------------------------
+   A 段 = 变量覆写（六风格各一组，check-template.mjs 第 3 项会核对变量覆盖数）
+   B 段 = 结构覆写（边框/圆角/阴影/装饰，check-template.mjs 第 8 项会核对指纹）
+   ========================================================================== */
+
+/* —— 3-A 变量层 —— */
+html[data-style="riso"]{
+  --page-bg:#F4EFE3; --paper:#F7F2E7;
+  --c1:#FF4B3E; --c2:#1B4C9C; --c3:#F5C518;
+  --ink:#181818; --card-bg:#FFFDF6;
+  --card-fill:rgba(255,253,246,.9); --bar-fill:var(--c2);
+  --stroke:3px;
+  /* 继承默认：--font */
+}
+html[data-style="blueprint"]{
+  --page-bg:#0B1B2B; --paper:#0E2337;
+  --paper-line:rgba(120,190,255,.16); --grid:rgba(120,190,255,.13);
+  --c1:#4FB8FF; --c2:#9BE38A; --c3:#FFD166;
+  --ink:#DCEEFF; --ink-soft:rgba(220,238,255,.66);
+  --card-bg:#12304A; --card-fill:rgba(18,48,74,.72);
+  --bar-fill:var(--c1);
+  --stroke:2px;
+  --font:var(--font-mono);
+  /* 继承默认：--card-fill --bar-fill */
+}
+html[data-style="minimal"]{
+  --page-bg:#FBFBFA; --paper:#FFFFFF;
+  --paper-line:rgba(0,0,0,.07); --grid:transparent;
+  --c1:#111111; --c2:#8A8A8A; --c3:#C8C8C8;
+  --ink:#141414; --card-bg:#FFFFFF;
+  --card-fill:rgba(255,255,255,.96); --bar-fill:var(--c1);
+  --stroke:1.5px; --radius:4px; --shadow:none; --tilt:0deg;
+  /* 继承默认：--font --card-fill --bar-fill */
+}
+html[data-style="neon"]{
+  --page-bg:#07070E; --paper:#0B0B16;
+  --paper-line:rgba(140,120,255,.14); --grid:rgba(140,120,255,.09);
+  --c1:#00F5D4; --c2:#FF3D9A; --c3:#FFE45E;
+  --ink:#EAF6FF; --ink-soft:rgba(234,246,255,.6);
+  --card-bg:#101024; --card-fill:rgba(16,16,36,.78);
+  --bar-fill:var(--c1);
+  --stroke:2px; --radius:2px;
+  --shadow:0 0 26px rgba(0,245,212,.28);
+  --glow:0 0 18px currentColor;
+  --tilt:0deg;
+  /* 继承默认：--card-fill --bar-fill */
+}
+html[data-style="pixel"]{
+  --page-bg:#1A1428; --paper:#221A33;
+  --paper-line:rgba(255,255,255,.08); --grid:rgba(255,255,255,.05);
+  --c1:#FF6B6B; --c2:#4ECDC4; --c3:#FFE66D;
+  --ink:#F7F3FF; --ink-soft:rgba(247,243,255,.6);
+  --card-bg:#2B2140; --card-fill:rgba(43,33,64,.86);
+  --bar-fill:var(--c1);
+  --stroke:4px; --radius:0px;
+  --shadow:6px 6px 0 rgba(0,0,0,.45);
+  --font:var(--font-mono);
+  --tilt:0deg;
+  /* 继承默认：--card-fill --bar-fill */
+}
+/* doodle 无预设块（默认风格，即 :root 值），只定义结构层 */
+
+/* —— 3-B 结构层 —— */
+/* riso 做法：套印错版、印刷网点、点阵颗粒 */
+html[data-style="riso"] .card,
+html[data-style="riso"] .c-data,
+html[data-style="riso"] .c-vs,
+html[data-style="riso"] .c-flow .st,
+html[data-style="riso"] .c-cmp .side,
+html[data-style="riso"] .c-stack .ly{
+  border:var(--stroke) solid var(--ink);
+  box-shadow:5px 5px 0 var(--c1), -4px -4px 0 var(--c2);
+}
+html[data-style="riso"] #stage::after{
+  content:"";position:absolute;inset:0;z-index:9;pointer-events:none;
+  background-image:radial-gradient(rgba(0,0,0,.16) 1px, transparent 1.4px);
+  background-size:5px 5px;mix-blend-mode:multiply;opacity:.5;
+}
+html[data-style="riso"] .c-capsule{border:2px solid var(--ink);box-shadow:3px 3px 0 var(--c3);}
+
+/* blueprint 做法：虚线轮廓、计数器编号 */
+html[data-style="blueprint"] .card,
+html[data-style="blueprint"] .c-data,
+html[data-style="blueprint"] .c-vs,
+html[data-style="blueprint"] .c-flow .st,
+html[data-style="blueprint"] .c-cmp .side,
+html[data-style="blueprint"] .c-stack .ly{
+  border:1.5px dashed rgba(120,190,255,.55);
+  background:var(--card-fill);
+  backdrop-filter:blur(2px);
+}
+html[data-style="blueprint"] .c-step{counter-increment:bp;}
+html[data-style="blueprint"] .c-step .idx::before{content:counter(bp,decimal-leading-zero);}
+html[data-style="blueprint"] .c-rule{border-bottom:1px dashed var(--c1);}
+
+/* minimal 做法：发丝分隔线、无阴影、无圆角 */
+html[data-style="minimal"] .card,
+html[data-style="minimal"] .c-data,
+html[data-style="minimal"] .c-vs,
+html[data-style="minimal"] .c-flow .st,
+html[data-style="minimal"] .c-cmp .side,
+html[data-style="minimal"] .c-stack .ly{
+  border:1px solid rgba(0,0,0,.1);border-radius:0;
+}
+html[data-style="minimal"] .c-rule{
+  border-top:1px solid rgba(0,0,0,.14);border-bottom:0;
+}
+html[data-style="minimal"] .c-quote{border-left:2px solid var(--ink);padding-left:22px;}
+
+/* neon 做法：切角面板、发光、扫描线 */
+html[data-style="neon"] .card,
+html[data-style="neon"] .c-data,
+html[data-style="neon"] .c-vs,
+html[data-style="neon"] .c-flow .st,
+html[data-style="neon"] .c-cmp .side,
+html[data-style="neon"] .c-stack .ly{
+  background:var(--card-fill);
+  border:1.5px solid var(--c1);
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);
+  box-shadow:var(--shadow);
+}
+html[data-style="neon"] .c-kw,
+html[data-style="neon"] .c-data .v .num{text-shadow:var(--glow);}
+html[data-style="neon"] #stage::after{
+  content:"";position:absolute;inset:0;z-index:9;pointer-events:none;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px);
+}
+
+/* pixel 做法：阶梯硬边、扫描线、点阵颗粒、跳帧动效 */
+html[data-style="pixel"] .card,
+html[data-style="pixel"] .c-data,
+html[data-style="pixel"] .c-vs,
+html[data-style="pixel"] .c-flow .st,
+html[data-style="pixel"] .c-cmp .side,
+html[data-style="pixel"] .c-stack .ly{
+  border:var(--stroke) solid var(--c1);
+  border-radius:0;
+  box-shadow:6px 6px 0 rgba(0,0,0,.5);
+  shape-rendering:crispEdges;
+}
+html[data-style="pixel"] #stage::after{
+  content:"";position:absolute;inset:0;z-index:9;pointer-events:none;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 2px, transparent 2px 4px);
+  opacity:.6;
+}
+html[data-style="pixel"] .c-capsule{border:3px solid var(--c1);box-shadow:3px 3px 0 rgba(0,0,0,.5);}
+
+/* ==========================================================================
+   区块 4 · 通用排版原子
+   ========================================================================== */
+.kicker{
+  font-size:var(--fs-label);letter-spacing:.22em;text-transform:uppercase;
+  color:var(--c1);font-weight:700;
+}
+.h1{font-size:var(--fs-h1);font-weight:800;line-height:1.06;letter-spacing:-.02em;}
+.h2{font-size:var(--fs-h2);font-weight:750;line-height:1.14;}
+.body{font-size:var(--fs-body);line-height:1.5;color:var(--ink-soft);}
+.hl{color:var(--c1);font-weight:800;}
+.hl2{color:var(--c2);font-weight:800;}
+.rule{height:var(--stroke);background:var(--ink);opacity:.8;}
+
+/* 通用卡片底盘 */
+.card{
+  background:var(--card-fill);
+  border:var(--stroke) solid var(--ink);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:30px 34px;
+  transform:rotate(var(--tilt));
+}
+
+/* ==========================================================================
+   区块 5 · 组件库（15 种）
+   --------------------------------------------------------------------------
+   类名一律 c- 前缀。同一段视频里要换着用，不要一个样式用到死。
+   完整规格见 references/components.md 第二节。
+
+   C01~C12 是「单元素组件」——一个组件说一个信息点，横竖版通用。
+   C13~C15 是「关系型组件」——自带元素之间的排布关系，为 3:4 素材而生：
+     素材不是"一个组件"，是"一组元素 + 它们的关系"。
+     竖版里上下顺序天然等于时间/因果顺序，所以关系在竖向是零成本的。
+   ========================================================================== */
+/* C01 数据卡片：超大数字 + 归因标签 */
+.c-data{background:var(--card-fill);border:var(--stroke) solid var(--ink);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:26px 34px 30px;}
+.c-data .v{font-size:var(--fs-num);font-weight:850;line-height:1;color:var(--c1);
+  font-variant-numeric:tabular-nums;letter-spacing:-.03em;white-space:nowrap;}
+.c-data .v .num{display:inline-block;}
+.c-data .k{font-size:var(--fs-label);color:var(--ink-soft);margin-top:12px;
+  letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* 超大数字在窄画布上会撑破卡片 —— 按比例族收号。
+   --fs-num 是「数字 + 前后缀」的总宽度预算，留出卡片内边距后可容
+   约 4 个全角字符。竖版宽度只有横版的 56%，必须显著收小。 */
+html[data-ratio="9:16"]{ --fs-num:140px; }
+html[data-ratio="3:4"] { --fs-num:158px; }
+html[data-ratio="4:3"] { --fs-num:172px; }
+html[data-ratio="9:16"] .c-data,
+html[data-ratio="3:4"]  .c-data{ padding:22px 28px 26px; }
+
+/* C02 胶囊标签：短归因
+   ★ align-self:flex-start 不能省。幕容器 .scene 是 flex 纵向列，
+     默认 align-items:stretch 会把 display:inline-block 的胶囊拉成整条横幅 ——
+     一个"渠道下沉"的标签变成一根橙色长条，完全不是胶囊了。
+     在 .comp（块级，非 flex）里这条属性不生效，所以不影响时间轴/素材模式。 */
+.c-capsule{display:inline-block;background:var(--c3);color:var(--ink);
+  border:var(--stroke) solid var(--ink);border-radius:999px;
+  padding:12px 30px;font-size:var(--fs-label);font-weight:760;letter-spacing:.04em;
+  align-self:flex-start;}
+
+/* C03 关键词：大字，无容器 */
+.c-kw{font-size:var(--fs-h2);font-weight:850;line-height:1.1;color:var(--ink);letter-spacing:-.01em;}
+
+/* C04 对比卡：A ≠ B */
+.c-vs{display:flex;align-items:center;gap:26px;background:var(--card-fill);
+  border:var(--stroke) solid var(--ink);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:26px 32px;}
+.c-vs .side{font-size:var(--fs-body);font-weight:700;line-height:1.3;}
+.c-vs .side:first-child{color:var(--ink-soft);text-decoration:line-through;text-decoration-color:var(--c1);}
+.c-vs .side:last-child{color:var(--c1);}
+.c-vs .mid{font-size:calc(var(--fs-body) * 1.4);color:var(--c2);font-weight:800;flex:0 0 auto;}
+
+/* C05 引述：竖线 + 斜体感 */
+.c-quote{border-left:6px solid var(--c1);padding:6px 0 6px 30px;
+  font-size:var(--fs-body);line-height:1.46;font-style:italic;color:var(--ink);}
+
+/* C06 强调下划线：文字 + 手绘下划线（同 C02，别在幕里被拉成通栏横线） */
+.c-rule{display:inline-block;padding-bottom:10px;border-bottom:6px solid var(--c3);
+  font-size:var(--fs-body);font-weight:780;color:var(--ink);align-self:flex-start;}
+
+/* C07 清单：逐条 */
+.c-list{display:flex;flex-direction:column;gap:14px;}
+.c-list .li{display:flex;gap:16px;align-items:flex-start;font-size:var(--fs-body);line-height:1.4;}
+.c-list .li::before{content:"";flex:0 0 auto;width:16px;height:16px;margin-top:14px;
+  background:var(--c1);border-radius:2px;}
+
+/* C08 柱状条：横向占比 */
+.c-bar{padding:6px 0;}
+.c-bar .row{margin-bottom:18px;}
+.c-bar .row .lb{display:flex;justify-content:space-between;font-size:var(--fs-label);
+  margin-bottom:8px;color:var(--ink-soft);}
+.c-bar .row .lb b{color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums;}
+.c-bar .track{height:22px;background:var(--paper-line);border-radius:3px;overflow:hidden;}
+.c-bar .fill{height:100%;background:var(--bar-fill);border-radius:3px;}
+
+/* C09 环形进度 */
+.c-ring{display:flex;align-items:center;gap:28px;}
+.c-ring svg{width:190px;height:190px;flex:0 0 auto;transform:rotate(-90deg);}
+.c-ring .ring-bg{fill:none;stroke:var(--paper-line);stroke-width:16;}
+.c-ring .ring-fg{fill:none;stroke:var(--c1);stroke-width:16;stroke-linecap:round;}
+.c-ring .cap{font-size:var(--fs-body);line-height:1.34;color:var(--ink-soft);
+  white-space:nowrap;}
+.c-ring .cap b{display:block;font-size:var(--fs-h2);color:var(--ink);font-weight:850;}
+/* 窄泊位（R-aux）或竖版：环形改纵向堆叠，避免被压窄后文字换行 */
+html[data-ratio="9:16"] .c-ring,
+html[data-ratio="3:4"]  .c-ring{flex-direction:column;gap:16px;align-items:flex-start;}
+html[data-ratio="9:16"] .c-ring svg,
+html[data-ratio="3:4"]  .c-ring svg{width:150px;height:150px;}
+html[data-ratio="9:16"] .comp[data-safe="R-aux"] .c-ring,
+html[data-ratio="3:4"]  .comp[data-safe="R-aux"] .c-ring{
+  flex-direction:column;gap:14px;align-items:flex-start;}
+html[data-ratio="9:16"] .comp[data-safe="R-aux"] .c-ring svg,
+html[data-ratio="3:4"]  .comp[data-safe="R-aux"] .c-ring svg{width:132px;height:132px;}
+html[data-ratio="9:16"] .c-ring .cap b,
+html[data-ratio="3:4"]  .c-ring .cap b{font-size:calc(var(--fs-h2) * .86);}
+
+/* C10 折线趋势 */
+.c-line svg{width:100%;height:auto;overflow:visible;}
+.c-line .axis{stroke:var(--paper-line);stroke-width:2;}
+.c-line .line-path{fill:none;stroke:var(--c1);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;}
+.c-line .dot{fill:var(--card-bg);stroke:var(--c1);stroke-width:4;}
+
+/* C11 步骤编号 */
+.c-step{display:flex;flex-direction:column;gap:20px;}
+.c-step .st{display:flex;gap:22px;align-items:center;font-size:var(--fs-body);line-height:1.3;}
+.c-step .idx{flex:0 0 auto;width:64px;height:64px;display:grid;place-items:center;
+  background:var(--c1);color:var(--card-bg);font-family:var(--font-mono);
+  font-size:38px;font-weight:800;border-radius:var(--radius);}
+
+/* C12 便签：补充信息 */
+.c-note{background:var(--c3);color:var(--ink);border:var(--stroke) solid var(--ink);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 28px;
+  font-size:var(--fs-label);line-height:1.42;transform:rotate(var(--tilt));}
+
+/* --------------------------------------------------------------------------
+   C13 纵向流向：上块 → 下块，箭头可挂关系标签
+   用于「A 变成 B」「先 A 再 B」，两个状态之间有方向和因果。
+   元素数 = 2 块 + 1 条关系 = 3（素材上限）。
+   写法：
+     <div class="c-flow">
+       <div class="st"><div class="t">一线城市</div><div class="v">40%</div></div>
+       <div class="ar"><span class="rl">渠道下沉</span></div>
+       <div class="st to"><div class="t">三四线</div><div class="v">70%+</div></div>
+     </div>
+   .to 标记终点块（换用 --c2 着色）；.ar 里的 .rl 是关系标签，可省略。
+   -------------------------------------------------------------------------- */
+.c-flow{display:flex;flex-direction:column;align-items:stretch;}
+.c-flow .st{background:var(--card-fill);border:var(--stroke) solid var(--ink);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 30px;text-align:center;}
+.c-flow .st .t{font-size:var(--fs-label);color:var(--ink-soft);letter-spacing:.06em;}
+.c-flow .st .v{font-size:calc(var(--fs-num) * .46);font-weight:850;line-height:1.06;
+  color:var(--c1);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:4px;}
+.c-flow .st.to .v{color:var(--c2);}
+/* 箭头：细杆 + 三角，全部用 CSS 画，零外部依赖 */
+.c-flow .ar{position:relative;height:74px;flex:0 0 auto;}
+.c-flow .ar::before{content:"";position:absolute;left:50%;top:8px;
+  transform:translateX(-50%);width:calc(var(--stroke) * 1.5);height:38px;background:var(--c2);}
+.c-flow .ar::after{content:"";position:absolute;left:50%;top:46px;
+  transform:translateX(-50%);width:0;height:0;
+  border-left:12px solid transparent;border-right:12px solid transparent;
+  border-top:16px solid var(--c2);}
+.c-flow .ar .rl{position:absolute;left:calc(50% + 30px);top:50%;
+  transform:translateY(-50%);font-size:calc(var(--fs-label) * .84);
+  color:var(--c2);letter-spacing:.04em;white-space:nowrap;}
+
+/* --------------------------------------------------------------------------
+   C14 阶梯堆叠：N 层递进，每往下一层左右各收一档，形成堆叠/漏斗感
+   与 C11 c-step 的区别：c-step 是等宽编号清单（并列），
+   c-stack 是宽度递减的层级（递进）。
+   元素数 = 层数，素材上限 3 层。
+   写法：<div class="c-stack"><div class="ly"><span class="t">一线</span><span class="v">15%</span></div>…</div>
+   用 margin-inline 做阶梯，不用 width:100% —— 后者在 shrink-to-fit 的
+   绝对定位组件里会形成循环依赖，宽度无法求解。
+   -------------------------------------------------------------------------- */
+.c-stack{display:flex;flex-direction:column;gap:14px;}
+.c-stack .ly{background:var(--card-fill);border:var(--stroke) solid var(--ink);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 26px;text-align:center;}
+.c-stack .ly .t{font-size:var(--fs-label);color:var(--ink-soft);letter-spacing:.06em;}
+.c-stack .ly .v{font-size:calc(var(--fs-num) * .34);font-weight:850;color:var(--c1);
+  font-variant-numeric:tabular-nums;margin-left:12px;}
+.c-stack .ly:nth-child(2){margin-inline:7%;}
+.c-stack .ly:nth-child(3){margin-inline:15%;}
+.c-stack .ly:nth-child(4){margin-inline:24%;}
+.c-stack .ly:nth-child(5){margin-inline:33%;}
+
+/* --------------------------------------------------------------------------
+   C15 上下对照：上下两块并列对照（A 对 B），中缝用分隔线 + 记号
+   与 C13 的区别：c-cmp 没有方向，是"这两种口径/两个方案放一起看"。
+   元素数 = 2 块 + 1 条关系 = 3（素材上限）。
+   写法：
+     <div class="c-cmp">
+       <div class="side a"><span class="lb">去年</span><span class="tx">12%</span></div>
+       <div class="vs">VS</div>
+       <div class="side b"><span class="lb">今年</span><span class="tx">37%</span></div>
+     </div>
+   -------------------------------------------------------------------------- */
+.c-cmp{display:flex;flex-direction:column;}
+.c-cmp .side{background:var(--card-fill);border:var(--stroke) solid var(--ink);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 28px;text-align:center;}
+.c-cmp .side .lb{font-size:calc(var(--fs-label) * .86);letter-spacing:.2em;color:var(--ink-soft);}
+.c-cmp .side .tx{display:block;font-size:var(--fs-h2);font-weight:800;line-height:1.18;margin-top:6px;
+  color:var(--c1);font-variant-numeric:tabular-nums;}
+.c-cmp .side.a .tx{color:var(--ink-soft);text-decoration:line-through;
+  text-decoration-color:var(--c1);text-decoration-thickness:calc(var(--stroke) * 1.6);}
+.c-cmp .side.b{border-color:var(--c1);}
+.c-cmp .vs{display:flex;align-items:center;gap:14px;height:64px;flex:0 0 auto;
+  font-size:calc(var(--fs-label) * .86);font-weight:800;letter-spacing:.2em;color:var(--c2);}
+.c-cmp .vs::before,.c-cmp .vs::after{content:"";flex:1 1 auto;height:var(--stroke);
+  background:var(--c2);opacity:.45;}
+
+/* ==========================================================================
+   区块 6 · 时间轴组件层
+   --------------------------------------------------------------------------
+   一个素材点 = 一块板上的**一组**元素。同一时刻只有一组，组间留透明空档。
+   定位方式：inset:0 + margin:auto 居中，宽度取满可用宽度。
+
+   ★ 刻意不用 transform 居中 —— 入场动效的关键帧会写 transform
+     （translateY / scale），用 transform:translate(-50%,-50%) 做居中，
+     动画一结束元素就会跳位。
+
+   ★ 不用 data-safe 泊位。板由用户摆到画面某处，"中央"这个参照物不存在。
+     关系型组件（箭头/分隔线）需要一条确定的列宽才画得出来，
+     所以这里用确定宽度而非 fit-content。
+   ========================================================================== */
+.tl-track{position:absolute;inset:0;z-index:1;}
+.comp{
+  position:absolute;
+  opacity:0;
+  max-width:52%;
+  will-change:transform,opacity;
+  left:0; right:0; top:0; bottom:0; margin:auto;
+  width:calc(100% - var(--pad-x) * 2);
+  max-width:calc(100% - var(--pad-x) * 2);
+  height:fit-content;
+  max-height:calc(100% - var(--pad-y) * 2);
+  text-align:center;
+}
+.comp.in{opacity:1;}
+
+/* 清单与引述居中会读得很累，明确左对齐 */
+.c-list,.c-quote{ text-align:left; }
+
+/* ==========================================================================
+   区块 7 · 动画层：10 种入场 + 4 种退场
+   --------------------------------------------------------------------------
+   .comp 上的 data-anim 决定入场；data-out-anim 决定退场。
+   ★ 只写关键帧，实际播放由 .animate class 与 .in class 控制。
+   ★ 第 8 项自检要求六风格合起来 ≥4 种不同 keyframes。
+   ========================================================================== */
+@keyframes fadein     { from{opacity:0}                          to{opacity:1} }
+@keyframes maskup     { from{opacity:0;transform:translateY(34px);clip-path:inset(100% 0 0 0)}
+                        to  {opacity:1;transform:none;clip-path:inset(0 0 0 0)} }
+@keyframes maskleft   { from{opacity:0;transform:translateX(-46px);clip-path:inset(0 100% 0 0)}
+                        to  {opacity:1;transform:none;clip-path:inset(0 0 0 0)} }
+@keyframes blurin     { from{opacity:0;filter:blur(18px);transform:scale(1.06)}
+                        to  {opacity:1;filter:blur(0);transform:none} }
+@keyframes drawin     { from{opacity:0;transform:scaleX(.04);transform-origin:left center}
+                        to  {opacity:1;transform:scaleX(1)} }
+@keyframes scalepop   { 0%{opacity:0;transform:scale(.62)} 62%{opacity:1;transform:scale(1.05)}
+                        100%{opacity:1;transform:scale(1)} }
+@keyframes staggerin  { from{opacity:0;transform:translateY(16px) rotate(-1.6deg)}
+                        to  {opacity:1;transform:none} }
+@keyframes hardin     { from{opacity:0;transform:translateY(-28px)} to{opacity:1;transform:none} }
+@keyframes popin      { 0%{opacity:0;transform:scale(.4)} 55%{opacity:1;transform:scale(1.14)}
+                        78%{transform:scale(.96)} 100%{opacity:1;transform:scale(1)} }
+@keyframes pixelin    { 0%{opacity:0;clip-path:inset(0 0 100% 0);transform:translateY(12px)}
+                        33%{opacity:1;clip-path:inset(0 0 62% 0)}
+                        66%{clip-path:inset(0 0 28% 0)} 100%{clip-path:inset(0 0 0 0);transform:none} }
+@keyframes grow       { from{opacity:0;transform:scaleY(.05);transform-origin:bottom center}
+                        to  {opacity:1;transform:scaleY(1)} }
+@keyframes handfloat  { 0%{transform:rotate(-.7deg) translateY(0)}
+                        50%{transform:rotate(.5deg) translateY(-5px)}
+                        100%{transform:rotate(-.7deg) translateY(0)} }
+@keyframes calmin     { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+@keyframes shiftin    { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:none} }
+
+/* 退场（4 选 1） */
+@keyframes fadeout    { to{opacity:0} }
+@keyframes fadeshift  { to{opacity:0;transform:translateY(-16px)} }
+@keyframes scaleout   { to{opacity:0;transform:scale(.9)} }
+@keyframes slideout   { to{opacity:0;transform:translateX(-34px)} }
+
+/* —— 入场触发：body.animate 时才播；阶段 A(ANIMATE=false) 完全无动画 —— */
+body.animate .comp.in[data-anim="MASK-UP"]     {animation:maskup    .62s cubic-bezier(.22,.85,.28,1) both}
+body.animate .comp.in[data-anim="MASK-LEFT"]   {animation:maskleft  .60s cubic-bezier(.22,.85,.28,1) both}
+body.animate .comp.in[data-anim="BLUR-IN"]     {animation:blurin    .68s ease-out both}
+body.animate .comp.in[data-anim="DRAW-UNDER"]  {animation:drawin    .55s cubic-bezier(.3,.9,.3,1) both}
+body.animate .comp.in[data-anim="SCALE-POP"]   {animation:scalepop  .62s cubic-bezier(.2,1.3,.4,1) both}
+body.animate .comp.in[data-anim="STAGGER-IN"]  {animation:staggerin .58s cubic-bezier(.22,.85,.28,1) both}
+body.animate .comp.in[data-anim="HARD-IN"]     {animation:hardin    .42s cubic-bezier(.6,0,.9,.4) both}
+body.animate .comp.in[data-anim="POP-IN"]      {animation:popin     .70s cubic-bezier(.2,1.35,.4,1) both}
+body.animate .comp.in[data-anim="PIXEL-IN"]    {animation:pixelin   .52s steps(4,end) both}
+body.animate .comp.in[data-anim="GROW"]        {animation:grow      .66s cubic-bezier(.22,.85,.28,1) both}
+body.animate .comp.in[data-anim="FADE-IN"]     {animation:fadein    .60s ease-out both}
+body.animate .comp.in[data-anim="CALM-IN"]     {animation:calmin    .70s cubic-bezier(.3,.8,.3,1) both}
+body.animate .comp.in[data-anim="SHIFT-IN"]    {animation:shiftin   .60s cubic-bezier(.22,.85,.28,1) both}
+body.animate .comp.in[data-anim="NONE"]        {opacity:1}
+
+/* 退场触发（0.4s，与 JS 里的 OUT_DUR 一致） */
+body.animate .comp.out[data-out-anim="FADE-SHIFT"]{animation:fadeshift .40s ease-in both}
+body.animate .comp.out[data-out-anim="SCALE-OUT"] {animation:scaleout  .40s ease-in both}
+body.animate .comp.out[data-out-anim="SLIDE-OUT"] {animation:slideout  .40s ease-in both}
+body.animate .comp.out[data-out-anim="FADE-OUT"]  {animation:fadeout   .40s ease-in both}
+
+/* 风格专属动效叠加：让六风格动画手感不同 */
+html[data-style="doodle"]    body.animate .comp.in{animation-name:handfloat}
+html[data-style="blueprint"] body.animate .comp.in[data-anim="GROW"]{animation:grow .7s steps(7,end) both}
+html[data-style="pixel"]     body.animate .comp.in[data-anim="MASK-UP"]{animation:maskup .5s steps(4,end) both}
+html[data-style="neon"]      body.animate .comp.in[data-anim="BLUR-IN"]{animation:blurin .62s ease-out both}
+
+/* 柱状图生长 / 折线描边 / 环形扫出（组件内部子元素） */
+body.animate .c-bar .fill{animation:none}
+body.animate .comp.in .c-bar .fill{animation:grow .8s cubic-bezier(.22,.85,.28,1) both}
+body.animate .c-ring .ring-fg{stroke-dasharray:var(--circ,440);stroke-dashoffset:var(--circ,440);
+  animation:none}
+body.animate .comp.in .c-ring .ring-fg{animation:ringdraw 1.1s cubic-bezier(.3,.9,.3,1) both}
+@keyframes ringdraw{to{stroke-dashoffset:var(--off,110)}}
+body.animate .c-line .line-path{stroke-dasharray:var(--len,600);stroke-dashoffset:var(--len,600);animation:none}
+body.animate .comp.in .c-line .line-path{animation:linedraw 1.2s cubic-bezier(.3,.9,.3,1) both}
+@keyframes linedraw{to{stroke-dashoffset:0}}
+
+/* 降低动效偏好 */
+@media (prefers-reduced-motion: reduce){
+  body.animate .comp.in,body.animate .comp.out{animation-duration:.01ms !important}
+}
+
+/* ==========================================================================
+   区块 8 · 透明背景降级（BG = transparent）
+   --------------------------------------------------------------------------
+   透明底没有"纸"，纹理与装饰必须全关，否则导出后变成浮动脏条纹。
+   深色风格（blueprint/neon/pixel）自动反色，保证叠在实拍上仍可读。
+   ========================================================================== */
+html.bg-transparent body{background:transparent;}
+html.bg-transparent #stage{background:transparent;}
+html.bg-transparent #stage::before,
+html.bg-transparent #stage::after{display:none !important;}
+html.bg-transparent .card,
+html.bg-transparent .c-data,
+html.bg-transparent .c-vs,
+html.bg-transparent .c-note,
+html.bg-transparent .c-flow .st,
+html.bg-transparent .c-cmp .side,
+html.bg-transparent .c-stack .ly{
+  background:var(--card-fill);
+  box-shadow:0 6px 22px rgba(0,0,0,.28);
+}
+/* 深色风格 -> 反色降级：文字转深、面板转浅，叠在亮实拍上也读得清 */
+html.bg-transparent[data-style="blueprint"]{
+  --ink:#0A2237; --ink-soft:rgba(10,34,55,.72);
+  --card-fill:rgba(255,255,255,.92); --card-bg:#FFFFFF;
+  --paper-line:rgba(10,34,55,.18);
+}
+html.bg-transparent[data-style="neon"]{
+  --ink:#101322; --ink-soft:rgba(16,19,34,.72);
+  --card-fill:rgba(255,255,255,.9); --card-bg:#FFFFFF;
+  --c1:#00B8A9; --c2:#D62A7E;
+  --glow:none; --shadow:0 6px 22px rgba(0,0,0,.26); --paper-line:rgba(16,19,34,.18);
+}
+html.bg-transparent[data-style="pixel"]{
+  --ink:#171229; --ink-soft:rgba(23,18,41,.72);
+  --card-fill:rgba(255,255,255,.92); --card-bg:#FFFFFF;
+  --paper-line:rgba(23,18,41,.18);
+}
+
+/* --------------------------------------------------------------------------
+   ★ 章节卡（c-step）面板底 —— 深色风格透明导出的必踩坑
+   --------------------------------------------------------------------------
+   3-B 结构层只给 .card / .c-data / .c-vs / .c-flow .st / .c-cmp .side /
+   .c-stack .ly 上了底色，.c-step .st 是裸的。透明底没有"纸"，
+   深色标题字直接叠在实拍上，暗画面里几乎隐形（实拍复现过）。
+   -------------------------------------------------------------------------- */
+html[data-style="pixel"] .c-step .st,
+html[data-style="blueprint"] .c-step .st,
+html[data-style="neon"] .c-step .st{
+  background:var(--card-fill);
+  border:var(--stroke) solid var(--c1);
+  padding:22px 30px;
+}
+html[data-style="pixel"] .c-step .st{box-shadow:6px 6px 0 rgba(0,0,0,.5);}
+html[data-style="neon"] .c-step .st{box-shadow:var(--shadow);}
+html[data-style="blueprint"] .c-step .st{border-style:dashed;backdrop-filter:blur(2px);}
+html.bg-transparent .c-step .st{
+  background:var(--card-fill);
+  box-shadow:0 6px 22px rgba(0,0,0,.28);
+  backdrop-filter:none;
+}
+
+/* ==========================================================================
+   区块 9 · HUD（页码 / 时间 / 进度）—— 导出前置 hidden
+   ========================================================================== */
+#hud{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:14px;z-index:100;
+  background:rgba(20,18,16,.82);color:#fff;border-radius:999px;
+  padding:9px 16px;font:600 14px/1 var(--font-mono);
+  backdrop-filter:blur(8px);transition:opacity .25s;
+}
+#hud.hidden{opacity:0;pointer-events:none;}
+#hud button{
+  width:28px;height:28px;border:0;border-radius:50%;cursor:pointer;
+  background:rgba(255,255,255,.16);color:#fff;font-size:17px;line-height:1;
+}
+#hud button:hover{background:rgba(255,255,255,.3);}
+#bar{position:fixed;left:0;bottom:0;height:3px;background:var(--c1);z-index:101;
+  width:0;transition:width .3s,opacity .25s;}
+#bar.hidden{opacity:0;}
+#kbd{
+  position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:100;
+  font:500 12px/1.5 var(--font-mono);color:rgba(255,255,255,.5);
+  text-align:center;transition:opacity .25s;
+}
+#kbd.hidden{opacity:0;}
+</style>
+</head>
+<body>
+
+<!-- ==========================================================================
+     合成根：data-* 由 JS 按 CONFIG 写入，渲染器从这些属性读取尺寸与时长
+     ========================================================================== -->
+<div id="stage" data-composition-id="infographic" data-hud="1">
+
+  <!-- ==========================================================================
+       【时间轴组件层】
+       一个 .comp = 一个素材点 = 一块板上的一组元素。
+       同一时刻只有一组；相邻素材点之间留 >=1.5s 纯透明空档。
+
+       data-in / data-out  相对视频起点的绝对秒数（不是相对上一句）
+       data-anim           入场动效，15 选 1，省略则 MASK-UP
+       data-out-anim       退场动效，4 选 1，省略则 FADE-SHIFT
+       不写 data-safe —— 板由用户摆放，没有"中央"要避。
+
+       组件库 15 种见 references/components.md。
+       下面三个素材点是可渲染的示例，写自己的内容时整段替换。
+       ========================================================================== -->
+  <div class="tl-track">
+
+    <!-- [素材点 1] C13 纵向流向：2 块 + 1 条关系 = 3 个元素，卡到上限
+         呼应点类型：数字/表格数据 -->
+    <div class="comp" data-in="12.4" data-out="16.8" data-anim="MASK-UP">
+      <div class="c-flow">
+        <div class="st"><div class="t">一线城市</div><div class="v">40%</div></div>
+        <div class="ar"><span class="rl">渠道下沉</span></div>
+        <div class="st to"><div class="t">三四线</div><div class="v">70%+</div></div>
+      </div>
+    </div>
+
+    <!-- [素材点 2] C15 上下对照：与上一组隔 3.1s 空档（>=1.5s 合规）
+         呼应点类型：关键概念 -->
+    <div class="comp" data-in="19.9" data-out="23.6" data-anim="MASK-LEFT" data-out-anim="SCALE-OUT">
+      <div class="c-cmp">
+        <div class="side a"><span class="lb">去年</span><span class="tx">12%</span></div>
+        <div class="vs">VS</div>
+        <div class="side b"><span class="lb">今年</span><span class="tx">37%</span></div>
+      </div>
+    </div>
+
+    <!-- [素材点 3] C01 数据卡片单点收尾：与上一组隔 3.5s 空档 -->
+    <div class="comp" data-in="27.1" data-out="31.0" data-anim="SCALE-POP" data-out-anim="FADE-OUT">
+      <div class="c-data">
+        <div class="v"><span class="num" data-to="37" data-prefix="+" data-suffix="%" data-dur="1">+0%</span></div>
+        <div class="k">同比增速 · 华东区</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div id="hud" data-hud>
+  <span id="pageNo">0.0s / 0s</span>
+</div>
+<div id="bar"></div>
+<div id="kbd">空格 播放/暂停 · H 隐藏（导出前必须隐藏）</div>
+
+<script>
+/* ==========================================================================
+   【区块 9】配置与运行时 —— 四项锁定（详见 SKILL.md 第三节）
+   ========================================================================== */
+const CONFIG = {
+  /* —— 用途：固定 overlay。这个模板只做叠加素材 —— */
+  PURPOSE : 'overlay',
+  /* —— 文稿：固定 timeline。素材点靠 data-in/data-out 卡别人的口播 —— */
+  BASE    : 'timeline',
+  /* —— 背景：固定 transparent。素材要能叠到实拍上 —— */
+  BG      : 'transparent',
+  /* —— 比例：默认 3:4（1080x1440 一块板，由用户自己摆）。一般不改 —— */
+  RATIO   : '3:4',
+  /* —— 风格：六选一，不混搭 —— */
+  STYLE   : 'doodle',       // doodle | riso | blueprint | minimal | neon | pixel
+
+  ANIMATE : false,          // false=先看静态布局  true=动画与导出
+  HIDE_HUD: true            // 固定 true：HUD/进度条被拍进素材就废了
+};
+
+/* 比例 -> 画布尺寸表 */
+const RATIO_SIZE = {
+  '16:9': { w: 1920, h: 1080 },
+  '9:16': { w: 1080, h: 1920 },
+  '4:3' : { w: 1440, h: 1080 },
+  '3:4' : { w: 1080, h: 1440 },
+};
+const SIZE = RATIO_SIZE[CONFIG.RATIO] || RATIO_SIZE['16:9'];
+const stage = document.getElementById('stage');
+const root  = document.documentElement;
+
+/* 应用配置：三个 data-* + 一个 class 驱动全部层叠规则
+   data-style  -> 变量层(区块 0 + 3-A) + 结构层(区块 3-B)
+   data-ratio  -> 布局族(区块 2 / 6) —— 固定 3:4
+   data-purpose-> 固定 overlay
+   data-base   -> 时间轴引擎(区块 10-B) —— 固定 timeline
+   bg-transparent -> 透明降级(区块 8) */
+root.dataset.style   = CONFIG.STYLE;
+root.dataset.ratio   = CONFIG.RATIO;
+root.dataset.purpose = CONFIG.PURPOSE;
+root.dataset.base    = CONFIG.BASE;
+
+if (CONFIG.BG === 'transparent') root.classList.add('bg-transparent');
+if (CONFIG.ANIMATE) document.body.classList.add('animate');
+/* HIDE_HUD —— 导出前必须置 true。要藏的是三样东西：
+     #hud 页码控件 · #kbd 快捷键提示 · #bar 底部进度条
+   ★ 只藏 #hud 是个坑：时间轴模式下 #bar 会按 ?t= 显示成一条彩色进度条，
+     叠到实拍上一眼就能看到，透明素材等于废了。 */
+if (CONFIG.HIDE_HUD){
+  ['hud', 'kbd', 'bar'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+}
+
+/* 舞台固定尺寸 + 随窗口缩放（CSS transform: scale） */
+stage.style.width  = SIZE.w + 'px';
+stage.style.height = SIZE.h + 'px';
+
+/* 合成根自同步：把真实尺寸与时长写回 data-*，
+   供渲染器读取（CLI 参数仍可覆写）
+   时长 = 所有素材点里最大的 data-out，即最后一块板退场后收尾 */
+stage.dataset.width  = String(SIZE.w);
+stage.dataset.height = String(SIZE.h);
+stage.dataset.duration = String(
+  [...document.querySelectorAll('.comp')]
+    .reduce((m, c) => Math.max(m, parseFloat(c.dataset.out || '0')), 0) || 0
+);
+
+function fitStage(){
+  const s = Math.min(window.innerWidth / SIZE.w, window.innerHeight / SIZE.h) * 0.94;
+  stage.style.transform = 'scale(' + s + ')';
+}
+window.addEventListener('resize', fitStage);
+fitStage();
+
+/* ==========================================================================
+   【区块 10】运行时：时间轴引擎
+   素材点按 data-in / data-out 绝对秒数决定在场状态。
+   暴露全局 TL = { t, playing, seek(s), duration }，供 shoot-at.mjs 做探针，
+   并支持 ?t=<秒> 定位（静态核对素材点用）。
+   ★ TL / curScene / .in 这三个名字不要改 —— 外层渲染脚本依赖它们。
+   ========================================================================== */
+const pageNo  = document.getElementById('pageNo');
+const progress= document.getElementById('bar');
+const hud     = document.getElementById('hud');
+const kbdHint = document.getElementById('kbd');
+
+/* 数字滚动：0 -> 目标值，持续 0.8-1.2s，加 easeOutCubic 缓动 */
+function runCounters(scope){
+  scope.querySelectorAll('.num').forEach(el => {
+    const to  = parseFloat(el.dataset.to || '0');
+    const dec = parseInt(el.dataset.dec || '0', 10);
+    const pre = el.dataset.prefix || '';
+    const suf = el.dataset.suffix || '';
+    const dur = parseFloat(el.dataset.dur || '1') * 1000;
+    if (!CONFIG.ANIMATE){ el.textContent = pre + to.toFixed(dec) + suf; return; }
+    /* ★ 兜底：不管 rAF 有没有被推进，dur 之后一定落到终值。
+       headless 的 --virtual-time-budget 会推进 setTimeout，但不保证推进 rAF，
+       少了这一条，按秒截图里的数字会永远停在 0。 */
+    setTimeout(() => { el.textContent = pre + to.toFixed(dec) + suf; }, dur + 60);
+    const t0 = performance.now();
+    (function step(t){
+      /* ★ k 必须夹到 [0,1]：headless 用 --virtual-time-budget 时，rAF 回调收到的
+         帧时间戳可能略早于 setTimeout 里 performance.now() 的采样点，
+         k 变成一个小负数会让 (to*e) 滚出一个负值（实测截到过 "+-1%"）。 */
+      const k = Math.min(1, Math.max(0, (t - t0) / dur));
+      const e = 1 - Math.pow(1 - k, 3);
+      el.textContent = pre + (to * e).toFixed(dec) + suf;
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
+  });
+}
+function resetCounters(scope){
+  scope.querySelectorAll('.num').forEach(el => { el.textContent = (el.dataset.prefix || '') + '0'; });
+}
+/* 静态核对（?t=）时把数字直接置为终值 —— 否则按秒截图里数字永远是 0，
+   看不出这张卡片要表达什么。只有播放态才走滚动动画。 */
+function freezeCounters(scope){
+  scope.querySelectorAll('.num').forEach(el => {
+    const to  = parseFloat(el.dataset.to || '0');
+    const dec = parseInt(el.dataset.dec || '0', 10);
+    el.textContent = (el.dataset.prefix || '') + to.toFixed(dec) + (el.dataset.suffix || '');
+  });
+}
+
+/* --------------------------------------------------------------------------
+   10-B 时间轴引擎
+   ★ TL / curScene / .in 这三个名字不要改 —— 外层渲染脚本依赖它们。
+   -------------------------------------------------------------------------- */
+const comps = [...document.querySelectorAll('.comp')];
+/* 折线图路径长度自动计算：写入 --len，无需手填 */
+document.querySelectorAll('.line-path').forEach(p => {
+  p.style.setProperty('--len', p.getTotalLength ? p.getTotalLength() : 0);
+});
+/* 环形周长自动计算 */
+document.querySelectorAll('.c-ring').forEach(r => {
+  const c = r.querySelector('.ring-fg');
+  if (!c) return;
+  const rad = c.r.baseVal.value || 62;
+  const circ = 2 * Math.PI * rad;
+  c.style.setProperty('--circ', circ.toFixed(2));
+  const pct = parseFloat(c.dataset.pct || '70') / 100;
+  c.style.setProperty('--off', (circ * (1 - pct)).toFixed(2));
+});
+
+/* 计算每个组件的在场状态：t 落在 [in, out) 内则 .in，落在 [out, out+退场) 内则 .out */
+function applyTimeline(t){
+  for (const c of comps){
+    const tin  = parseFloat(c.dataset.in  || '0');
+    const tout = parseFloat(c.dataset.out || '0');
+    const OUT_DUR = 0.4;                        /* 与 .comp.out 的 animation 时长一致 */
+    const on  = t >= tin && t < tout;
+    const off = t >= tout && t < tout + OUT_DUR;
+    const had = c.classList.contains('in');
+    /* 只加一次 .in，避免重复触发入场动画 */
+    if (on && !had){ c.classList.remove('out'); c.classList.add('in'); }
+    else if (!on && had && !off){ c.classList.remove('in'); }
+    if (off) c.classList.add('out');
+    else c.classList.remove('out');
+  }
+}
+function seek(t){
+  TL.t = t;
+  applyTimeline(t);
+  return TL.t;
+}
+function play(){
+  if (TL.playing) return;
+  TL.playing = true;
+  TL._t0 = performance.now() - TL.t * 1000;
+  const tick = (now) => {
+    if (!TL.playing) return;
+    TL.t = (now - TL._t0) / 1000;
+    applyTimeline(TL.t);
+    TL._raf = requestAnimationFrame(tick);
+  };
+  TL._raf = requestAnimationFrame(tick);
+}
+function pause(){
+  TL.playing = false;
+  if (TL._raf) cancelAnimationFrame(TL._raf);
+}
+/* TL 在 seek/play 之前先声明，避免函数提升导致的引用错误 */
+var TL = {
+  t: 0,
+  playing: false,
+  duration: parseFloat(stage.dataset.duration || '0'),
+  seek: seek,
+  play: play,
+  pause: pause,
+  _raf: null,
+  _t0: 0,
+};
+
+/* 初始化：把每个组件内嵌的 .num 归零（数字滚动的起点） */
+comps.forEach(c => resetCounters(c));
+
+/* ?t=<秒> 定位（静态核对）；不带参数则从头播放 */
+const qs   = new URLSearchParams(location.search);
+const seekT = parseFloat(qs.get('t'));
+if (Number.isFinite(seekT)){
+  pause();
+  seek(seekT);
+  freezeCounters(document);          /* 静态核对：数字直接给终值 */
+  if (progress) progress.style.width = Math.round(100 * seekT / Math.max(TL.duration, 1)) + '%';
+} else {
+  seek(0);
+  setTimeout(() => {
+    if (CONFIG.ANIMATE){ play(); }
+    comps.forEach(c => setTimeout(() => runCounters(c), 380));  /* 入场后再滚数字 */
+  }, 60);
+}
+/* 时间轴模式下 HUD 显示秒数 */
+if (pageNo){
+  setInterval(() => { pageNo.textContent = TL.t.toFixed(1) + 's / ' + TL.duration + 's'; }, 100);
+}
+
+/* --------------------------------------------------------------------------
+   10-C 键盘交互：播放/暂停、隐藏 HUD
+   -------------------------------------------------------------------------- */
+window.addEventListener('keydown', e => {
+  if (e.key === ' '){
+    e.preventDefault();
+    TL.playing ? pause() : play();
+  }
+  else if (e.key === 'h' || e.key === 'H'){
+    hud.classList.toggle('hidden');
+    kbdHint.classList.toggle('hidden');
+  }
+});
+/* curScene：外层探针需要它（本模板只有一条时间轴，恒为 0） */
+let curScene = 0;
+
+/* ==========================================================================
+   【区块 11】导出建议（按 BG 分流，与用途无关）
+   --------------------------------------------------------------------------
+   ① BG='transparent'（透明背景）：HIDE_HUD=true, ANIMATE=true
+      html/body/#stage 全透明 -> Remotion ProRes 4444 透明导出，
+      导入剪映/PR 叠加到实拍视频上。深色风格（blueprint/neon/pixel）已自动
+      反色降级，见【区块 8】；纹理与覆盖层会自动关闭。
+      截 PNG 时必须带 --default-background-color=00000000，否则 alpha 是假的
+      （两个截图脚本已内置；成片务必用 check-alpha.mjs 验一遍）。
+      绿幕替代方案：背景改 #00B140，并把所有绿色系元素换成橙/紫。
+   ② BG='opaque'（画面背景）：
+      带纸张/网格背景，可保留页码与进度条 -> H.264 导出 / 直接录屏，
+      用于投屏、会议汇报、录屏讲解视频。
+   --------------------------------------------------------------------------
+   BASE='timeline' 额外提醒：
+     导出前必须跑按秒截图核对卡点（shoot-at.mjs），确认每个组件的
+     入点严格对齐 SRT、且没有组件突然消失。渲染时长取各组件 data-out 的最大值。
+
+   素材模式（PURPOSE='overlay' + RATIO='3:4'）额外提醒：
+     · 它是「一段跟时间轴走的稀疏层」，成片里大段是全透明的，这是设计不是 bug。
+     · 抽帧时用 shoot.mjs --points，只在素材点附近取样，不要均匀铺满整条时间轴。
+     · 交付前跑 check-alpha.mjs，确认 a=0 像素占比 >30%。
+   ========================================================================== */
+</script>
+</body>
+</html>
