@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>霓虹终端 · 透明素材</title>
+<style>
+/* ==========================================================================
+   霓虹终端 · Neon Terminal —— 透明素材模板
+   --------------------------------------------------------------------------
+   这个文件干三件事，别混：
+
+     1) 引擎    .comp + data-in / data-out + IVH.seekAt(t)      ← 不要改
+     2) 样板间  <template id="kit">，每个 kind 一个真实例子       ← 照抄这里
+     3) 产物    #track 里放真实的素材点                          ← 改这里
+
+   抄法：从样板间挑 kind → 复制整个 div.comp → 换内容
+        → 按脚本填 data-in / data-out → 只从 #track 里留要用到的
+   ========================================================================== */
+
+/* ---------- 0 · 变量 ---------- */
+:root{
+  --void:rgba(4,12,8,.78);        /* 面板底 = 可读性 */
+  --deep:#0A2A18;                 /* 亮块内部填充 */
+  --neon:#39FF6A;                 /* 焦点 */
+  --cyan:#2BE7FF;                 /* 数据次维 */
+  --mag:#FF3D8B;                  /* 警示 */
+
+  --ink:#EAFFF2;                  /* 正文（近白，不用绿） */
+  --ink2:#7FA894;                 /* 说明、单位、轴 */
+
+  --glow:0 0 18px rgba(57,255,106,.50);
+  --glow-in:inset 0 0 22px rgba(57,255,106,.10);
+  --glow-c:0 0 18px rgba(43,231,255,.45);
+  --glow-m:0 0 18px rgba(255,61,139,.45);
+
+  --scan:repeating-linear-gradient(180deg,rgba(57,255,106,.07) 0 1px,transparent 1px 4px);
+  --mono:ui-monospace,"JetBrains Mono","Cascadia Mono",Consolas,"PingFang SC","Microsoft YaHei",monospace;
+  --ease:cubic-bezier(.2,.9,.25,1);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:transparent}
+
+#stage{
+  position:relative;
+  width:1080px;height:1440px;
+  font-family:"PingFang SC","Microsoft YaHei",Inter,system-ui,sans-serif;
+  font-weight:400;
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- 1 · 落位 ----------
+   没有承载板：元素自己带一层半透明暗底，落在三个位置之一。
+   一个点一个落位，同一时刻只有一组元素。 */
+.track{position:absolute;inset:0;display:grid;align-items:center;justify-items:center;padding:120px 96px}
+.comp{grid-area:1/1;opacity:0;width:100%;display:flex;justify-content:center}
+.comp.pos-tl{align-self:start;justify-self:start;width:auto}
+.comp.pos-tl .pnl{width:auto}
+.comp.pos-b{align-self:end}
+
+/* ---------- 2 · 壳 ----------
+   半透明暗底不是必须的。有底读起来稳，没底读起来冲 —— 两种都要有。
+   壳按 kind 定死（见 spec.md 第五节），别临场挑。
+
+     frame    有底有边有括标    图表、需要稳的东西
+     fold     同 frame，上下对开 表达"展开 / 对立"
+     bar      只有左边一条亮条  清单、进度
+     bracket  只有四角括标      标题、金句
+     bare     什么都没有        巨数字、词条 —— 字自己发光 */
+.pnl{position:relative;width:100%;padding:60px 64px;border-radius:4px}
+
+.pnl.frame,.pnl.fold{
+  border:1px solid var(--neon);
+  background-color:rgba(4,12,8,.82);
+  background-image:
+    linear-gradient(180deg,transparent 0,rgba(57,255,106,.16) 50%,transparent 100%),
+    var(--scan);
+  background-size:100% 140px,auto;
+  background-repeat:no-repeat,repeat;
+  background-position:0 -140px,0 0;
+  box-shadow:var(--glow),var(--glow-in);
+  overflow:hidden;
+}
+.pnl.frame::before,.pnl.frame::after,
+.pnl.fold::before,.pnl.fold::after{
+  content:"";position:absolute;width:18px;height:18px;border:2px solid var(--neon);
+}
+.pnl.frame::before,.pnl.fold::before{left:0;top:0;border-right:0;border-bottom:0}
+.pnl.frame::after,.pnl.fold::after{right:0;bottom:0;border-left:0;border-top:0}
+
+.pnl.bar{
+  padding:52px 56px;border-radius:0;
+  border:0;border-left:4px solid var(--neon);
+  background-color:rgba(4,12,8,.52);
+  background-image:linear-gradient(90deg,rgba(57,255,106,.16),transparent 45%),var(--scan);
+  box-shadow:0 0 30px rgba(57,255,106,.20);
+  overflow:hidden;
+}
+
+.pnl.bracket{padding:64px 78px;border:0;background:none;overflow:visible}
+.pnl.bracket::before,.pnl.bracket::after{
+  content:"";position:absolute;width:36px;height:36px;border:3px solid var(--neon);
+  filter:drop-shadow(0 0 12px rgba(57,255,106,.65));
+}
+.pnl.bracket::before{left:0;top:0;border-right:0;border-bottom:0}
+.pnl.bracket::after{right:0;bottom:0;border-left:0;border-top:0}
+
+.pnl.bare{padding:24px 12px;border:0;background:none;overflow:visible}
+
+/* 无底的两个壳：可读性靠暗描边，绿光只做身份。
+   这两行是本套"不加底也读得出来"的唯一保证，别删。 */
+.pnl.bare *,.pnl.bracket *{
+  text-shadow:0 0 4px rgba(2,8,5,.95),0 3px 16px rgba(2,8,5,.92),0 0 44px rgba(2,8,5,.72);
+}
+.pnl.bare .num,.pnl.bare .kw,.pnl.bare .tx,.pnl.bare .side b,
+.pnl.bracket .idx,.pnl.bracket .tx,.pnl.bracket .mark{
+  text-shadow:0 0 4px rgba(2,8,5,.95),0 3px 16px rgba(2,8,5,.92),0 0 44px rgba(2,8,5,.72),
+              0 0 30px rgba(57,255,106,.60);
+}
+
+/* 无底的两个壳：绿色留给线和括标，字一律近白 ——
+   荧光绿只做身份，不做颜色，浅色实拍上它就是读不清。 */
+.pnl.bare .kick .tx,.pnl.bracket .kick .tx{color:var(--ink)}
+.pnl.bare .lbl,.pnl.bracket .lbl{color:#D8EDE2}
+
+/* 扫光：每个有底的壳只在入场时自上而下走一遍，之后停住。
+   相位由 --hold 决定，所以定格到任何 t 都是同一帧。 */
+.comp.in .pnl.frame,.comp.in .pnl.fold{
+  animation:nt-scan 3.6s linear both paused;
+  animation-delay:calc(var(--hold,0s) * -1);
+}
+
+/* 零件：电流束、电磁波、四角括标的单件版 */
+.beam{position:absolute;top:0;bottom:0;left:-180px;width:180px;pointer-events:none;opacity:0;
+  background:linear-gradient(90deg,transparent,rgba(57,255,106,.34),transparent)}
+.comp.in .beam{animation:nt-beam 3.4s linear infinite paused;animation-delay:calc(var(--hold,0s) * -1)}
+.ripple{position:absolute;left:50%;top:50%;width:120px;height:120px;margin:-60px 0 0 -60px;
+  border:2px solid var(--neon);border-radius:50%;pointer-events:none;opacity:0}
+.comp.in .ripple{animation:nt-ripple 2.8s linear infinite paused;animation-delay:calc(var(--hold,0s) * -1)}
+
+/* ---------- 3 · 动效 ----------
+   灭 -> 亮是入场，亮 -> 灭是退场，亮着的时候还在闪。
+   所有相位只由 --hold（距入场多少秒）与 --i（第几个）算出，不依赖任何时钟。 */
+
+@keyframes nt-glitch{        /* 闪两下再稳住 */
+  0%  {opacity:0; transform:translateX(-16px)}
+  14% {opacity:1; transform:translateX(10px); filter:brightness(2.2)}
+  28% {opacity:.35; transform:translateX(-6px)}
+  44% {opacity:1; transform:translateX(4px); filter:brightness(1.7)}
+  60% {opacity:.7; transform:translateX(-2px)}
+  100%{opacity:1; transform:none; filter:none}
+}
+@keyframes nt-rise{          /* 逐行点亮 */
+  from{opacity:0; transform:translateY(16px)}
+  to  {opacity:1; transform:none}
+}
+@keyframes nt-slide{         /* 逐行滑入 */
+  from{opacity:0; transform:translateX(26px)}
+  to  {opacity:1; transform:none}
+}
+@keyframes nt-flash{         /* 一次过电 */
+  from{opacity:0; filter:brightness(2.6)}
+  to  {opacity:1; filter:none}
+}
+@keyframes nt-slam{          /* 1.4 倍砸下来 */
+  0%  {opacity:0; transform:scale(1.4); filter:brightness(3)}
+  55% {opacity:1; transform:scale(.97); filter:brightness(1.6)}
+  100%{opacity:1; transform:scale(1);   filter:none}
+}
+@keyframes nt-die{           /* 对照：本来亮着 -> 灭 */
+  0%  {border-color:var(--neon); color:var(--ink); box-shadow:var(--glow)}
+  100%{border-color:rgba(127,168,148,.55); color:var(--ink2); box-shadow:0 0 18px rgba(57,255,106,0)}
+}
+@keyframes nt-live{          /* 对照：本来灭 -> 亮 */
+  0%  {border-color:rgba(127,168,148,.55); color:var(--ink2); box-shadow:0 0 18px rgba(57,255,106,0)}
+  100%{border-color:var(--neon); color:var(--ink); box-shadow:var(--glow)}
+}
+@keyframes nt-fade{          /* 退场 = 断电 */
+  from{opacity:1; filter:none}
+  to  {opacity:0; filter:brightness(.35)}
+}
+@keyframes nt-pulse{ 0%,100%{opacity:1} 50%{opacity:.45} }
+@keyframes nt-breathe{
+  0%,100%{filter:drop-shadow(0 0 8px rgba(57,255,106,.9))}
+  50%    {filter:drop-shadow(0 0 24px rgba(57,255,106,.32))}
+}
+@keyframes nt-flick{ 0%,86%,100%{opacity:1} 90%{opacity:.45} 94%{opacity:1} 96%{opacity:.6} }
+@keyframes nt-dash{ to{background-position-x:26px} }
+@keyframes nt-flow{ 0%{top:-10px} 100%{top:100%} }
+
+@keyframes nt-beam{ 0%{left:-180px;opacity:0} 10%{opacity:1} 62%{left:100%;opacity:1} 70%,100%{left:100%;opacity:0} }
+@keyframes nt-ripple{ 0%{transform:scale(.2);opacity:.9} 46%{opacity:.45} 100%{transform:scale(3);opacity:0} }
+@keyframes nt-growx{ from{transform:scaleX(0)} to{transform:scaleX(1)} }   /* 横线长出来 */
+@keyframes nt-growy{ from{transform:scaleY(0)} to{transform:scaleY(1)} }   /* 竖线长出来 */
+@keyframes nt-growup{                  /* 内容从下往上顶出来 */
+  from{opacity:0;transform:translateY(28px) scaleY(.92)}
+  to  {opacity:1;transform:none}
+}
+@keyframes nt-fold{                     /* 沿中缝展开 */
+  from{transform:scaleY(.04);opacity:.25}
+  60% {opacity:1}
+  to  {transform:scaleY(1);opacity:1}
+}
+@keyframes nt-split-top{ from{transform:translateY(38px) scaleY(.5);opacity:0} to{transform:none;opacity:1} }
+@keyframes nt-split-bot{ from{transform:translateY(-38px) scaleY(.5);opacity:0} to{transform:none;opacity:1} }
+@keyframes nt-surgerun{                 /* 一道电流横着穿过 */
+  from{background-position:-190px 0,0 0}
+  46%,to{background-position:110% 0,0 0}
+}
+@keyframes nt-wave{                     /* 电磁波：被打了一下，抖完归位 */
+  0%,100%{transform:none;filter:none}
+  16%{transform:skewX(-2.6deg) translateX(-4px);filter:brightness(1.35)}
+  34%{transform:skewX(2.1deg)  translateX(4px)}
+  52%{transform:skewX(-1.3deg) translateX(-2px);filter:brightness(1.14)}
+  72%{transform:skewX(.7deg)   translateX(1px)}
+}
+@keyframes nt-wave-run{                 /* 持续态版：每 3.6s 打一下 */
+  0%,100%{transform:none;filter:none}
+  5% {transform:skewX(-1.7deg) translateX(-2px);filter:brightness(1.22)}
+  11%{transform:skewX(1.2deg)  translateX(2px)}
+  17%{transform:none;filter:none}
+}
+
+/* 入场：本体 */
+.comp.in[data-anim="GLITCH-IN"]{animation:nt-glitch 420ms var(--ease) both}
+.comp.in[data-anim="TRACE-IN"] {animation:nt-flash  520ms var(--ease) both}
+.comp.in[data-anim="BAR-IN"]   {animation:nt-flash  760ms var(--ease) both}
+.comp.in[data-anim="STEP-IN"]  {animation:nt-flash  520ms var(--ease) both}
+.comp.in[data-anim="LOG-IN"]   {animation:nt-flash  460ms var(--ease) both}
+.comp.in[data-anim="SWITCH-IN"]{animation:nt-flash  640ms var(--ease) both}
+.comp.in[data-anim="TYPE-IN"]  {animation:nt-flash  900ms var(--ease) both}
+.comp.in[data-anim="SLAM-IN"]  {animation:nt-slam   380ms var(--ease) both}
+.comp.in[data-anim="BLINK-IN"] {animation:nt-glitch 560ms var(--ease) both}
+.comp.in[data-anim="FOLD-IN"]  {animation:nt-fold      480ms var(--ease) both}
+.comp.in[data-anim="SPLIT-IN"] {animation:nt-flash     480ms var(--ease) both}
+.comp.in[data-anim="SURGE-IN"] {animation:nt-flash     620ms var(--ease) both}
+.comp.in[data-anim="WAVE-IN"]  {animation:nt-flash     560ms var(--ease) both}
+.comp.in[data-anim="GROW-IN"]  {animation:nt-flash     420ms var(--ease) both}
+.comp.in[data-anim="RISE-IN"]  {animation:nt-flash     460ms var(--ease) both}
+
+/* 对开：上排往下、下排往上，正好把"对立"演一遍 */
+.comp.in[data-anim="SPLIT-IN"] .c-vs .row.off{animation:nt-split-top 520ms var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1)}
+.comp.in[data-anim="SPLIT-IN"] .c-vs .row.on {animation:nt-split-bot 520ms var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1 - .12s)}
+
+/* 电流：面板从左边揭开，同时一道电流横穿过去 */
+@keyframes nt-surgein{ from{clip-path:inset(0 100% 0 0)} to{clip-path:inset(0 0 0 0)} }
+.comp.in[data-anim="SURGE-IN"] .pnl{
+  animation:nt-surgein 620ms linear both paused;
+  animation-delay:calc(var(--hold,0s) * -1);
+}
+
+/* 生长：装饰线先长，内容再顶出来 */
+.comp.in[data-anim="GROW-IN"]{animation:nt-flash 420ms var(--ease) both}
+.comp.in[data-anim="GROW-IN"] .c-huge,
+.comp.in[data-anim="GROW-IN"] .c-duel,
+.comp.in[data-anim="GROW-IN"] .c-donut,
+.comp.in[data-anim="GROW-IN"] .c-term,
+.comp.in[data-anim="GROW-IN"] .c-log,
+.comp.in[data-anim="GROW-IN"] .c-steps,
+.comp.in[data-anim="GROW-IN"] .c-flow,
+.comp.in[data-anim="GROW-IN"] .c-vs,
+.comp.in[data-anim="GROW-IN"] .c-chapter,
+.comp.in[data-anim="GROW-IN"] .c-quote{
+  animation:nt-growup 640ms var(--ease) both paused;
+  animation-delay:calc(var(--hold,0s) * -1 + .12s);
+}
+
+/* 浮起：整块面板从下往上 */
+.comp.in[data-anim="RISE-IN"]{animation:nt-flash 460ms var(--ease) both}
+.comp.in[data-anim="RISE-IN"] .pnl{
+  animation:nt-rise 560ms var(--ease) both paused;
+  animation-delay:calc(var(--hold,0s) * -1);
+}
+
+/* 描线：面板先亮，内容从左被画出来 */
+@keyframes nt-trace{ from{clip-path:inset(0 100% 0 0)} to{clip-path:inset(0 0 0 0)} }
+.comp.in[data-anim="TRACE-IN"] .c-flow,
+.comp.in[data-anim="TRACE-IN"] .c-trend,
+.comp.in[data-anim="TRACE-IN"] .c-bars,
+.comp.in[data-anim="TRACE-IN"] .c-steps,
+.comp.in[data-anim="TRACE-IN"] .c-log,
+.comp.in[data-anim="TRACE-IN"] .c-vs,
+.comp.in[data-anim="TRACE-IN"] .c-term{
+  animation:nt-trace 900ms linear both paused;
+  animation-delay:calc(var(--hold,0s) * -1);
+}
+
+/* 电磁波：主体被打了一下 */
+.comp.in[data-anim="WAVE-IN"] .c-huge,
+.comp.in[data-anim="WAVE-IN"] .c-duel,
+.comp.in[data-anim="WAVE-IN"] .c-donut,
+.comp.in[data-anim="WAVE-IN"] .c-term,
+.comp.in[data-anim="WAVE-IN"] .c-bars,
+.comp.in[data-anim="WAVE-IN"] .c-trend,
+.comp.in[data-anim="WAVE-IN"] .c-meter,
+.comp.in[data-anim="WAVE-IN"] .c-flow,
+.comp.in[data-anim="WAVE-IN"] .c-vs,
+.comp.in[data-anim="WAVE-IN"] .c-steps,
+.comp.in[data-anim="WAVE-IN"] .c-log,
+.comp.in[data-anim="WAVE-IN"] .c-quote,
+.comp.in[data-anim="WAVE-IN"] .c-chapter{
+  animation:nt-wave 900ms var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1);
+}
+.comp.out{animation:nt-fade 220ms var(--ease) both}
+
+/* 入场：子元素（逐个来）。--i = 第几个，--stg = 错峰间隔 */
+.comp.in .stg{
+  animation-duration:var(--dur,520ms);
+  animation-timing-function:var(--ease);
+  animation-fill-mode:both;
+  animation-play-state:paused;
+  animation-delay:calc(var(--hold,0s) * -1 + var(--i,0) * var(--stg,120ms));
+  animation-name:nt-rise;
+}
+.comp.in .stg.slide{animation-name:nt-slide; --dur:460ms; --stg:110ms}
+.comp.in .type{                               /* 打字机：宽度揭开，按字符步进 */
+  animation-name:nt-type; animation-duration:900ms; animation-timing-function:steps(22,end);
+  animation-fill-mode:both; animation-play-state:paused;
+  animation-delay:calc(var(--hold,0s) * -1 + var(--i,0) * var(--stg,0ms));
+}
+@keyframes nt-type{ from{clip-path:inset(0 100% 0 0)} to{clip-path:inset(0 0 0 0)} }
+.comp.in .stg.flash{animation-name:nt-flash}
+.comp.in .stg.die {animation-name:nt-die;  --dur:640ms; --stg:0ms}
+.comp.in .stg.live{animation-name:nt-live; --dur:640ms; --stg:0ms}
+
+/* 持续态：亮着的时候也在动 */
+.comp.in .pulse{animation:nt-pulse 2.4s linear infinite paused; animation-delay:calc(var(--hold,0s) * -1)}
+.comp.in .breathe{animation:nt-breathe 2.6s linear infinite paused; animation-delay:calc(var(--hold,0s) * -1)}
+.comp.in .flick{animation:nt-flick 4s   linear infinite paused; animation-delay:calc(var(--hold,0s) * -1)}
+.comp.in .wave {animation:nt-wave-run 3.6s linear infinite paused; animation-delay:calc(var(--hold,0s) * -1)}
+.comp.in .dash {animation:nt-dash  1.6s linear infinite paused; animation-delay:calc(var(--hold,0s) * -1)}
+.comp.in .flow {animation:nt-flow  2.2s linear infinite paused; animation-delay:calc(var(--hold,0s) * -1)}
+
+/* ---------- 4 · 零件 ---------- */
+.dot{                                  /* 光点 */
+  display:inline-block;width:8px;height:8px;border-radius:50%;
+  background:var(--neon);box-shadow:0 0 12px var(--neon);
+}
+.dot.off{background:transparent;box-shadow:none;border:1px solid var(--ink2)}
+.lbl{font-size:26px;letter-spacing:.12em;color:var(--ink2)}
+.unit{font-size:.28em;color:var(--ink2);font-weight:400;margin-left:.08em}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.line{                                 /* 面板里的一条亮线 */
+  height:2px;background:linear-gradient(90deg,var(--neon),rgba(57,255,106,.15));position:relative;
+}
+.dashed{                               /* 行尾虚线，会跑 */
+  flex:1;height:1px;
+  background-image:repeating-linear-gradient(90deg,rgba(127,168,148,.6) 0 6px,transparent 6px 13px);
+  background-size:26px 1px;
+}
+
+/* 小标题 kick —— 每张卡片的"眉"。
+   短横先长出来，标签再滑进来，下面一根渐变线跟着长。
+   这是本套"信息卡"的招牌动作：观众先看见一条线在画，再看见字。 */
+.kick{
+  position:relative;display:flex;align-items:center;gap:16px;
+  padding-bottom:20px;margin-bottom:34px;
+}
+.kick::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,rgba(57,255,106,.55),rgba(57,255,106,.05));
+  transform-origin:left center}
+.kick .tick{flex:none;width:44px;height:2px;background:var(--neon);
+  box-shadow:0 0 12px rgba(57,255,106,.7);transform-origin:left center}
+.kick .tx{font-family:var(--mono);font-size:23px;letter-spacing:.24em;color:var(--neon);white-space:nowrap}
+
+.rule{                                 /* 一根从中缝往两边长出来的横线 */
+  height:1px;margin:30px 0;
+  background:linear-gradient(90deg,transparent,rgba(57,255,106,.5),transparent);
+  transform-origin:center;transform:scaleX(0)}
+
+.comp.in .kick::after,
+.comp.in .kick .tick{animation:nt-growx .62s var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1)}
+.comp.in .kick .tx  {animation:nt-slide .5s  var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1 + .16s)}
+.comp.in .rule      {animation:nt-growx .7s  var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1 + .1s)}
+
+/* 本来就在那儿的连线，也改成"长出来" */
+.comp.in .c-chapter .bar,
+.comp.in .c-steps::before,
+.comp.in .c-flow .arw .bar{transform-origin:top center}
+.comp.in .c-chapter .bar{animation:nt-growy .5s var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1 + .1s)}
+.comp.in .c-steps::before{animation:nt-growy .8s var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1)}
+.comp.in .c-flow .arw .bar{animation:nt-growy .6s var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1 + .2s)}
+
+/* ---------- 5 · 块 ---------- */
+
+/* c-huge · 大数字 */
+.c-huge{text-align:center}
+.c-huge .lbl{margin-bottom:18px}
+.c-huge .num{
+  font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-size:190px;font-weight:700;line-height:1;color:var(--neon);
+  text-shadow:0 0 30px rgba(57,255,106,.55);
+}
+.c-huge .foot{display:flex;align-items:center;gap:18px;margin-top:34px}
+.c-huge .foot .line{flex:1}
+
+/* c-donut · 占比 */
+.c-donut{display:flex;flex-direction:column;align-items:center}
+.c-donut .dial{position:relative;width:380px;height:380px;display:grid;place-items:center}
+.c-donut svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.c-donut .ring{fill:none;stroke:rgba(127,168,148,.30);stroke-width:12;stroke-dasharray:4 7}
+.c-donut .arc{
+  fill:none;stroke:var(--neon);stroke-width:14;stroke-linecap:round;
+  stroke-dasharray:490;stroke-dashoffset:490;          /* 490 = 2*pi*78，引擎按 r 覆盖 */
+  filter:drop-shadow(0 0 10px rgba(57,255,106,.8));
+}
+.c-donut .mid b{
+  font-family:var(--mono);font-size:104px;font-weight:700;line-height:1;color:var(--neon);
+  text-shadow:0 0 26px rgba(57,255,106,.5);
+}
+.c-donut .cap{margin-top:26px}
+
+/* c-bars · 数值比大小 */
+.c-bars .row + .row{margin-top:34px}
+.c-bars .lb{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px}
+.c-bars .lb span{font-size:26px;letter-spacing:.04em;color:var(--ink2)}
+.c-bars .lb b{font-family:var(--mono);font-size:34px;font-weight:700}
+.c-bars .tr{position:relative;height:16px;
+  background-image:repeating-linear-gradient(90deg,rgba(127,168,148,.40) 0 6px,transparent 6px 13px);
+  background-size:26px 2px;background-repeat:repeat-x;background-position:0 center}
+.c-bars .fill{
+  position:absolute;left:0;top:0;height:100%;
+  background:var(--deep);border-right:2px solid var(--neon);
+  box-shadow:inset 0 0 18px rgba(57,255,106,.4),0 0 14px rgba(57,255,106,.45);
+  width:calc(var(--grow,0) * 100%);
+}
+.c-bars .win .lb b{color:var(--neon);text-shadow:0 0 18px rgba(57,255,106,.5)}
+
+/* c-trend · 趋势 */
+.c-trend .clip{clip-path:inset(0 calc((1 - var(--grow,0)) * 100%) 0 0)}
+.c-trend svg{display:block;width:100%;height:auto;overflow:visible}
+.c-trend .grid{fill:none;stroke:rgba(127,168,148,.22);stroke-width:2;stroke-dasharray:6 9}
+.c-trend .axis{fill:none;stroke:rgba(127,168,148,.55);stroke-width:2}
+.c-trend .lp{
+  fill:none;stroke:var(--neon);stroke-width:6;stroke-linejoin:round;stroke-linecap:round;
+  filter:drop-shadow(0 0 10px rgba(57,255,106,.7));
+}
+.c-trend .pdot{fill:var(--neon);filter:drop-shadow(0 0 12px var(--neon))}
+.c-trend .cap{margin-top:26px}
+
+/* c-meter · 进度 */
+.c-meter .hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:26px}
+.c-meter .hd span{font-size:26px;letter-spacing:.04em;color:var(--ink2)}
+.c-meter .hd b{font-family:var(--mono);font-size:56px;font-weight:700;color:var(--neon);
+  text-shadow:0 0 22px rgba(57,255,106,.45)}
+.c-meter .rail{position:relative;height:44px;
+  background-image:repeating-linear-gradient(90deg,rgba(127,168,148,.26) 0 26px,transparent 26px 32px)}
+.c-meter .fill{
+  position:absolute;left:0;top:0;bottom:0;width:calc(var(--grow,0) * 100%);
+  background-image:repeating-linear-gradient(90deg,var(--neon) 0 26px,transparent 26px 32px);
+  filter:drop-shadow(0 0 10px rgba(57,255,106,.75));
+}
+.c-meter .head{
+  position:absolute;top:-12px;bottom:-12px;width:2px;left:calc(var(--grow,0) * 100%);
+  background:var(--neon);box-shadow:0 0 16px var(--neon);
+}
+.c-meter .cap{margin-top:26px}
+
+/* c-duel · 数字对比 */
+.c-duel{display:flex;align-items:stretch}
+.c-duel .side{flex:1;text-align:center;padding:14px 8px}
+.c-duel .side b{display:block;font-family:var(--mono);font-size:124px;font-weight:700;line-height:1}
+.c-duel .side span{display:block;margin-top:20px;font-size:26px;letter-spacing:.04em;color:var(--ink2)}
+.c-duel .sep{width:1px;margin:6px 0;
+  background:linear-gradient(180deg,transparent,rgba(57,255,106,.55),transparent)}
+.c-duel .dim b{color:var(--ink2);opacity:.55}
+.c-duel .win b{color:var(--neon);text-shadow:0 0 26px rgba(57,255,106,.55)}
+.c-duel .win span{color:var(--ink)}
+
+/* c-flow · 转化 */
+.c-flow .node{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:34px 44px;border-radius:4px;
+  border:1px solid rgba(127,168,148,.5);background:rgba(127,168,148,.06);
+}
+.c-flow .node .t{font-size:36px;letter-spacing:.02em}
+.c-flow .node .v{font-family:var(--mono);font-size:44px;font-weight:700;color:var(--ink2)}
+.c-flow .node.to{border:1px solid var(--neon);background:var(--deep);
+  box-shadow:var(--glow),var(--glow-in)}
+.c-flow .node.to .v{color:var(--neon);text-shadow:0 0 22px rgba(57,255,106,.5)}
+.c-flow .arw{position:relative;height:118px}
+.c-flow .arw .bar{position:absolute;left:50%;top:0;bottom:12px;width:2px;margin-left:-1px;
+  background:linear-gradient(180deg,rgba(57,255,106,.25),var(--neon));
+  box-shadow:0 0 12px rgba(57,255,106,.5)}
+.c-flow .arw::after{content:"";position:absolute;left:50%;bottom:0;margin-left:-9px;
+  border-left:9px solid transparent;border-right:9px solid transparent;
+  border-top:13px solid var(--neon);filter:drop-shadow(0 0 8px var(--neon))}
+.c-flow .arw .flow{position:absolute;left:50%;margin-left:-5px;width:10px;height:10px;
+  border-radius:50%;background:#EAFFF2;box-shadow:0 0 18px var(--neon),0 0 6px #EAFFF2}
+.c-flow .arw span{position:absolute;left:calc(50% + 28px);top:50%;transform:translateY(-50%);
+  font-size:24px;letter-spacing:.08em;color:var(--ink2);white-space:nowrap}
+
+/* c-vs · 对照 */
+.c-vs .row{display:flex;align-items:baseline;justify-content:space-between;gap:24px;
+  padding:32px 42px;border-radius:4px}
+.c-vs .row + .row{margin-top:30px}
+.c-vs .row .lb{font-size:24px;letter-spacing:.14em;color:var(--ink2);white-space:nowrap}
+.c-vs .row .tx{font-size:70px;font-weight:700;letter-spacing:.005em;line-height:1.16}
+.c-vs .off{border:1px dashed rgba(127,168,148,.55)}
+.c-vs .off .tx{color:var(--ink2);text-decoration:line-through;
+  text-decoration-thickness:4px;text-decoration-color:rgba(255,61,139,.85)}
+.c-vs .on{border:1px solid var(--neon);background:var(--deep);box-shadow:var(--glow),var(--glow-in)}
+.c-vs .on .tx{color:var(--neon);text-shadow:0 0 22px rgba(57,255,106,.45)}
+
+/* c-steps · 三步递进 */
+.c-steps{position:relative;padding-left:70px}
+.c-steps::before{content:"";position:absolute;left:26px;top:18px;bottom:18px;width:1px;
+  background:linear-gradient(180deg,var(--neon),rgba(57,255,106,.12))}
+.c-steps .row{position:relative;display:flex;align-items:baseline;gap:22px}
+.c-steps .row + .row{margin-top:32px}
+.c-steps .row::before{content:"";position:absolute;left:-49px;top:14px;width:9px;height:9px;
+  border-radius:50%;background:var(--neon);box-shadow:0 0 14px var(--neon)}
+.c-steps .ix{font-family:var(--mono);font-size:26px;color:var(--neon);letter-spacing:.08em}
+.c-steps .t{flex:1;font-size:42px}
+.c-steps .v{font-family:var(--mono);font-size:42px;font-weight:700;color:var(--ink2)}
+.comp.in .c-steps .row:last-child::before{animation:nt-pulse 2.4s linear infinite paused;animation-delay:calc(var(--hold,0s) * -1)}
+
+/* c-term · 关键词 + 释义 */
+.c-term .kw{font-size:100px;font-weight:700;letter-spacing:.01em;line-height:1.06;text-align:center;
+  color:var(--neon);text-shadow:0 0 30px rgba(57,255,106,.5)}
+.c-term .def{display:flex;gap:18px;align-items:flex-start;margin-top:36px;padding-top:32px;
+  border-top:1px dashed rgba(127,168,148,.42)}
+.c-term .caret{font-size:38px;font-weight:700;line-height:1.3;color:var(--neon)}
+.c-term .tx{font-size:32px;line-height:1.5;letter-spacing:.01em}
+
+/* c-chapter · 章节标记（唯一不居中的） */
+.c-chapter{display:flex;align-items:center;gap:34px}
+.c-chapter .idx{
+  font-family:var(--mono);font-size:132px;font-weight:700;line-height:1;
+  color:transparent;-webkit-text-stroke:2px var(--neon);
+  filter:drop-shadow(0 0 16px rgba(57,255,106,.5));
+}
+.c-chapter .bar{width:4px;height:98px;background:var(--neon);box-shadow:0 0 18px var(--neon)}
+.c-chapter .title{font-size:68px;font-weight:700;letter-spacing:.01em;line-height:1.1}
+
+/* c-quote · 引语（落下方） */
+.c-quote .mark{font-family:Georgia,serif;font-size:110px;line-height:.55;color:var(--neon);
+  text-shadow:0 0 26px rgba(57,255,106,.5);opacity:.85}
+.c-quote .tx{font-size:44px;line-height:1.5;letter-spacing:.01em;margin-top:14px}
+.c-quote .by{margin-top:28px;font-size:24px;letter-spacing:.1em;color:var(--ink2)}
+
+/* c-log · 清单 */
+.c-log .row{display:flex;align-items:center;gap:20px}
+.c-log .row + .row{margin-top:28px}
+.c-log .tx{font-size:42px;letter-spacing:.01em}
+
+/* ---------- 6 · 预览控件（渲染时不存在，因为渲染带 ?t=） ---------- */
+#hud{
+  position:fixed;left:0;right:0;bottom:0;height:56px;display:none;
+  align-items:center;gap:16px;padding:0 18px;
+  background:rgba(18,22,28,.9);color:#E8ECF2;
+  font:13px/1 system-ui,sans-serif;z-index:9;
+}
+#hud.on{display:flex}
+#hud button{
+  width:34px;height:34px;border:0;border-radius:9px;cursor:pointer;
+  background:#2C333D;color:#E8ECF2;font-size:13px;
+}
+#hud input[type=range]{flex:1;accent-color:#39FF6A}
+#hud .tt{font-variant-numeric:tabular-nums;min-width:96px;text-align:right}
+</style>
+</head><body>
+
+<div id="stage">
+  <div class="track" id="track">
+
+      <!-- ↓↓↓ 产物区：把这里换成真实的素材点（从下面的样板间抄） ↓↓↓ -->
+
+      <!-- kind: 对照 -->
+      <div class="comp bare" data-in="1.3" data-out="7.2" data-anim="SPLIT-IN">
+        <div class="pnl fold">
+            <div class="kick"><i class="tick"></i><span class="tx">开场反题</span></div>
+          <div class="c-vs">
+          <div class="row off stg die" style="--i:0"><span class="lb">做法 A</span><span class="tx">知识库当摆设</span></div>
+          <div class="row on stg live" style="--i:1"><span class="lb">做法 B</span><span class="tx breathe">给员工配副驾</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 三步递进 -->
+      <div class="comp bare" data-in="10.7" data-out="14.6" data-anim="STEP-IN">
+        <div class="pnl bar">
+            <div class="kick"><i class="tick"></i><span class="tx">工作台三个区</span></div>
+          <div class="c-steps">
+          <div class="row stg" style="--i:0"><span class="ix">01</span><span class="t">左边</span><span class="v">客户列表</span></div>
+          <div class="row stg" style="--i:1"><span class="ix">02</span><span class="t">中间</span><span class="v">实时沟通</span></div>
+          <div class="row stg" style="--i:2"><span class="ix pulse">03</span><span class="t">右边</span><span class="v">数据画像</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 转化 -->
+      <div class="comp bare" data-in="16.3" data-out="20.4" data-anim="FOLD-IN">
+        <div class="pnl fold">
+          <i class="beam"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">对话到建议</span></div>
+          <div class="c-flow">
+          <div class="node stg" style="--i:0"><span class="t">对话内容</span><span class="v">原话</span></div>
+          <div class="arw"><i class="bar"></i><i class="flow"></i><span>实时提取特征</span></div>
+          <div class="node to stg" style="--i:1"><span class="t">跟进建议</span><span class="v">当场给</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 转化 -->
+      <div class="comp bare" data-in="22.2" data-out="26.6" data-anim="SURGE-IN">
+        <div class="pnl bar">
+            <div class="kick"><i class="tick"></i><span class="tx">线下也跑一遍</span></div>
+          <div class="c-flow">
+          <div class="node stg" style="--i:0"><span class="t">线下对话</span><span class="v">语音</span></div>
+          <div class="arw"><i class="bar"></i><i class="flow"></i><span>接入语音识别</span></div>
+          <div class="node to stg" style="--i:1"><span class="t">线下销售</span><span class="v">也能用</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 关键词 + 释义 -->
+      <div class="comp bare" data-in="30.3" data-out="34.4" data-anim="WAVE-IN">
+        <div class="pnl bare">
+          <i class="ripple"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">定义</span></div>
+          <div class="c-term">
+          <div class="kw stg flash" style="--i:0">业务闭环</div>
+          <div class="def">
+          <i class="caret pulse">›</i>
+          <span class="tx type" style="--i:0">AI 帮着员工把活干快，业绩跟着涨，这才叫闭环。</span>
+          </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 大数字 -->
+      <div class="comp bare" data-in="36" data-out="39.9" data-anim="GLITCH-IN">
+        <div class="pnl bracket">
+            <div class="kick"><i class="tick"></i><span class="tx">客户随口一句</span></div>
+          <div class="c-huge">
+          <div class="lbl">首付只有</div>
+          <div class="num wave"><span data-to="10" data-prefix="" data-suffix="万" data-dur="1.05"></span></div>
+          <div class="foot"><i class="line"></i><i class="dot pulse"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 清单 -->
+      <div class="comp bare" data-in="41.4" data-out="45" data-anim="LOG-IN">
+        <div class="pnl bare">
+            <div class="kick"><i class="tick"></i><span class="tx">随口一句里全是信号</span></div>
+          <div class="c-log">
+          <div class="row stg slide" style="--i:0"><i class="dot pulse"></i><span class="tx">别的钱都在理财</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:1"><i class="dot pulse"></i><span class="tx">首付凑不出来</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:2"><i class="dot pulse"></i><span class="tx">明年 8 月结婚</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:3"><i class="dot pulse"></i><span class="tx">没有替代方案</span><i class="dashed dash"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 对照 -->
+      <div class="comp bare" data-in="46.6" data-out="49.9" data-anim="SWITCH-IN">
+        <div class="pnl frame">
+          <i class="beam"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">一线 vs 后方</span></div>
+          <div class="c-vs">
+          <div class="row off stg die" style="--i:0"><span class="lb">一线</span><span class="tx">听得见每句原话</span></div>
+          <div class="row on stg live" style="--i:1"><span class="lb">后方</span><span class="tx breathe">只有滞后报表</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 清单 -->
+      <div class="comp bare" data-in="51.5" data-out="54.8" data-anim="STEP-IN">
+        <div class="pnl bar">
+            <div class="kick"><i class="tick"></i><span class="tx">管理盲区</span></div>
+          <div class="c-log">
+          <div class="row stg slide" style="--i:0"><i class="dot pulse"></i><span class="tx">过程看不见</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:1"><i class="dot pulse"></i><span class="tx">机会抓不住</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:2"><i class="dot pulse"></i><span class="tx">商机悄悄溜走</span><i class="dashed dash"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 章节标记 -->
+      <div class="comp bare pos-tl" data-in="58.2" data-out="62.2" data-anim="SLAM-IN">
+        <div class="pnl bracket">
+          <i class="ripple"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">破局</span></div>
+          <div class="c-chapter">
+          <span class="idx flick">01</span>
+          <i class="bar"></i>
+          <span class="title">三个核心逻辑</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 转化 -->
+      <div class="comp bare" data-in="63.8" data-out="68.8" data-anim="TRACE-IN">
+        <div class="pnl bar">
+            <div class="kick"><i class="tick"></i><span class="tx">语音变数据</span></div>
+          <div class="c-flow">
+          <div class="node stg" style="--i:0"><span class="t">对话语音</span><span class="v">原始</span></div>
+          <div class="arw"><i class="bar"></i><i class="flow"></i><span>转成文字</span></div>
+          <div class="node to stg" style="--i:1"><span class="t">文字稿</span><span class="v">可检索</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 清单 -->
+      <div class="comp bare" data-in="70.4" data-out="73.4" data-anim="GROW-IN">
+        <div class="pnl bracket">
+            <div class="kick"><i class="tick"></i><span class="tx">存下来才算数</span></div>
+          <div class="c-log">
+          <div class="row stg slide" style="--i:0"><i class="dot pulse"></i><span class="tx">自然语言转成文字</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:1"><i class="dot pulse"></i><span class="tx">文字抽成结构化字段</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:2"><i class="dot pulse"></i><span class="tx">存进系统，随时能分析</span><i class="dashed dash"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 章节标记 -->
+      <div class="comp bare pos-tl" data-in="75.4" data-out="78.5" data-anim="SLAM-IN">
+        <div class="pnl frame">
+          <i class="ripple"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">第二步</span></div>
+          <div class="c-chapter">
+          <span class="idx flick">02</span>
+          <i class="bar"></i>
+          <span class="title">建议要实时</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 对照 -->
+      <div class="comp bare" data-in="80" data-out="83.2" data-anim="SPLIT-IN">
+        <div class="pnl bare">
+            <div class="kick"><i class="tick"></i><span class="tx">不是…而是…</span></div>
+          <div class="c-vs">
+          <div class="row off stg die" style="--i:0"><span class="lb">以前</span><span class="tx">客户走了才复盘</span></div>
+          <div class="row on stg live" style="--i:1"><span class="lb">现在</span><span class="tx breathe">还在聊就提醒</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 清单 -->
+      <div class="comp bare" data-in="84.8" data-out="89.6" data-anim="LOG-IN">
+        <div class="pnl bar">
+            <div class="kick"><i class="tick"></i><span class="tx">右边三件事</span></div>
+          <div class="c-log">
+          <div class="row stg slide" style="--i:0"><i class="dot pulse"></i><span class="tx">提取对话要点</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:1"><i class="dot pulse"></i><span class="tx">确认任务清单</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:2"><i class="dot pulse"></i><span class="tx">风险亮红灯预警</span><i class="dashed dash"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 转化 -->
+      <div class="comp bare" data-in="91.1" data-out="94.3" data-anim="FOLD-IN">
+        <div class="pnl fold">
+            <div class="kick"><i class="tick"></i><span class="tx">从预警到话术</span></div>
+          <div class="c-flow">
+          <div class="node stg" style="--i:0"><span class="t">风险项</span><span class="v">亮红灯</span></div>
+          <div class="arw"><i class="bar"></i><i class="flow"></i><span>同步给出</span></div>
+          <div class="node to stg" style="--i:1"><span class="t">推荐话术</span><span class="v">直接能用</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 章节标记 -->
+      <div class="comp bare pos-tl" data-in="95.8" data-out="98.8" data-anim="SLAM-IN">
+        <div class="pnl bracket">
+          <i class="ripple"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">第三步</span></div>
+          <div class="c-chapter">
+          <span class="idx flick">03</span>
+          <i class="bar"></i>
+          <span class="title">业务要透明</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 清单 -->
+      <div class="comp bare" data-in="101.3" data-out="104.8" data-anim="GROW-IN">
+        <div class="pnl frame">
+            <div class="kick"><i class="tick"></i><span class="tx">后台能做什么</span></div>
+          <div class="c-log">
+          <div class="row stg slide" style="--i:0"><i class="dot pulse"></i><span class="tx">后台同步跟进</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:1"><i class="dot pulse"></i><span class="tx">多个客户并行</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:2"><i class="dot pulse"></i><span class="tx">随时介入指导</span><i class="dashed dash"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 关键词 + 释义 -->
+      <div class="comp bare" data-in="106.3" data-out="109.3" data-anim="WAVE-IN">
+        <div class="pnl bare">
+          <i class="ripple"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">管理者视角</span></div>
+          <div class="c-term">
+          <div class="kw stg flash" style="--i:0">实时介入</div>
+          <div class="def">
+          <i class="caret pulse">›</i>
+          <span class="tx type" style="--i:0">不用等客户走了再复盘，当场就能给建议。</span>
+          </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 对照 -->
+      <div class="comp bare" data-in="110.8" data-out="113.8" data-anim="RISE-IN">
+        <div class="pnl frame">
+          <i class="beam"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">以前 vs 现在</span></div>
+          <div class="c-vs">
+          <div class="row off stg die" style="--i:0"><span class="lb">以前</span><span class="tx">晚上开会、月底追责</span></div>
+          <div class="row on stg live" style="--i:1"><span class="lb">现在</span><span class="tx breathe">当场就能纠偏</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 关键词 + 释义 -->
+      <div class="comp bare" data-in="115.3" data-out="118.3" data-anim="TYPE-IN">
+        <div class="pnl bracket">
+            <div class="kick"><i class="tick"></i><span class="tx">论点句</span></div>
+          <div class="c-term">
+          <div class="kw stg flash" style="--i:0">提效的本质</div>
+          <div class="def">
+          <i class="caret pulse">›</i>
+          <span class="tx type" style="--i:0">不是用 AI 替代人，是给一线装一个外脑。</span>
+          </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 引语 -->
+      <div class="comp bare pos-b" data-in="119.8" data-out="123.3" data-anim="BLINK-IN">
+        <div class="pnl fold">
+            <div class="kick"><i class="tick"></i><span class="tx">金句</span></div>
+          <div class="c-quote">
+          <div class="mark pulse">“</div>
+          <div class="tx">AI 在前线当销售的外脑，在后方当管理者的天眼。</div>
+          <div class="by">友方 · 企业AI转型实战派</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 关键词 + 释义 -->
+      <div class="comp bare" data-in="124.8" data-out="127.8" data-anim="GROW-IN">
+        <div class="pnl bare">
+            <div class="kick"><i class="tick"></i><span class="tx">落点</span></div>
+          <div class="c-term">
+          <div class="kw stg flash" style="--i:0">用数据决策</div>
+          <div class="def">
+          <i class="caret pulse">›</i>
+          <span class="tx type" style="--i:0">把 AI 嵌进核心业务，不是外挂一个工具。</span>
+          </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 清单 -->
+      <div class="comp bare" data-in="129.3" data-out="132.3" data-anim="LOG-IN">
+        <div class="pnl bracket">
+            <div class="kick"><i class="tick"></i><span class="tx">你是不是这样</span></div>
+          <div class="c-log">
+          <div class="row stg slide" style="--i:0"><i class="dot pulse"></i><span class="tx">业绩黑箱，过程看不见</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:1"><i class="dot pulse"></i><span class="tx">管理缺乏抓手</span><i class="dashed dash"></i></div>
+          <div class="row stg slide" style="--i:2"><i class="dot pulse"></i><span class="tx">想用 AI 提效但没落地</span><i class="dashed dash"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kind: 引语 -->
+      <div class="comp bare pos-b" data-in="133.8" data-out="136.8" data-anim="BLINK-IN">
+        <div class="pnl frame">
+            <div class="kick"><i class="tick"></i><span class="tx">结尾动作</span></div>
+          <div class="c-quote">
+          <div class="mark pulse">“</div>
+          <div class="tx">你的行业，AI 该怎么落地？</div>
+          <div class="by">评论区留行业 · 一对一帮你分析</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ↑↑↑ 产物区 ↑↑↑ -->
+
+  </div>
+</div>
+
+<!-- ==========================================================================
+     样板间 · 每个 kind 一个真实例子
+     --------------------------------------------------------------------------
+     每个块上方有一行锚点注释 `kind: xxx`；同一 kind 的变体写成 `kind: xxx | 说明`，与 spec.md 第五节的表一一对应。
+     形态类恒为 `bare`（本套没有容器，视觉全在 .pnl 上）；落位由 `pos-c` / `pos-tl` / `pos-b` 决定。
+
+     壳只有这五种，写在 .pnl 上。同一个 kind 换壳 = 换个长相，内容一个字不用改：
+
+       frame    有底 + 亮边 + 四角括标   稳的东西（图表、需要压住实拍的内容）
+       fold     同 frame，配合 FOLD-IN 沿中缝展开   表达"展开 / 对立"
+       bar      只有左边一条 4px 亮条 + 半透明渐变底   清单、进度
+       bracket  无底，只有四角括标   标题、金句 —— 实拍直接露出来
+       bare     什么都没有，字自己发光   巨数字、词条
+
+     无底的两个壳（bracket / bare）靠 .pnl.bare * 那层暗描边保证可读，在任何颜色的实拍上都读得出来。
+     绿底不是每个点都要有 —— 有底读起来稳，没底读起来冲，混着用才不平。
+      · 写脚本：只读 spec.md 的表，不要读这里
+      · 生成 HTML：从这里挑 kind，整块复制到 #track，改内容、改 data-in / data-out
+      · 浏览器加 ?kit=1 可以把这里全部演示一遍
+     ========================================================================== -->
+<template id="kit">
+
+  <!-- kind: 大数字 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="GLITCH-IN">
+    <div class="pnl bare">
+      <div class="kick"><i class="tick"></i><span class="tx">增速</span></div>
+      <div class="c-huge">
+        <div class="lbl">同比增速 · 华东区</div>
+        <div class="num wave"><span data-to="37" data-prefix="+" data-suffix="%" data-dur="1.05"></span></div>
+        <div class="foot"><i class="line"></i><i class="dot pulse"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 占比 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="WAVE-IN">
+    <div class="pnl frame">
+      <i class="ripple"></i>
+      <div class="kick"><i class="tick"></i><span class="tx">渠道结构</span></div>
+      <div class="c-donut">
+        <div class="dial">
+          <svg viewBox="0 0 200 200">
+            <circle class="ring" cx="100" cy="100" r="78"/>
+            <circle class="arc breathe" cx="100" cy="100" r="78" data-grow=".62"/>
+          </svg>
+          <div class="mid"><b data-to="62" data-suffix="%"></b></div>
+        </div>
+        <div class="cap lbl">三线及以下占比</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 数值比大小 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="BAR-IN">
+    <div class="pnl frame">
+      <i class="beam"></i>
+      <div class="kick"><i class="tick"></i><span class="tx">城市分层</span></div>
+      <div class="c-bars">
+        <div class="row win stg" style="--i:0">
+          <div class="lb"><span>三线及以下</span><b>54%</b></div>
+          <div class="tr dash"><i class="fill" data-grow=".54"></i></div>
+        </div>
+        <div class="row stg" style="--i:1">
+          <div class="lb"><span>二线</span><b>31%</b></div>
+          <div class="tr dash"><i class="fill" data-grow=".31"></i></div>
+        </div>
+        <div class="row stg" style="--i:2">
+          <div class="lb"><span>一线</span><b>15%</b></div>
+          <div class="tr dash"><i class="fill" data-grow=".15"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 趋势 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="TRACE-IN">
+    <div class="pnl frame">
+      <div class="kick"><i class="tick"></i><span class="tx">三年走势</span></div>
+      <div class="c-trend">
+        <div class="clip" data-grow="1">
+          <svg viewBox="0 0 560 200" preserveAspectRatio="none">
+            <path class="grid" d="M0 62 H560 M0 124 H560"/>
+            <path class="axis" d="M0 184 H560"/>
+            <path class="lp" d="M16 152 L140 120 L264 132 L388 80 L544 40"/>
+            <circle class="pdot pulse" cx="544" cy="40" r="9"/>
+          </svg>
+        </div>
+        <div class="cap lbl">2023 → 2026 三四线渗透率</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 进度 -->
+  <div class="comp bare pos-b" data-in="0" data-out="5" data-anim="SURGE-IN">
+    <div class="pnl bar">
+      <i class="beam"></i>
+      <div class="kick"><i class="tick"></i><span class="tx">推进节奏</span></div>
+      <div class="c-meter">
+        <div class="hd"><span>渠道改造</span><b data-to="62" data-suffix="%"></b></div>
+        <div class="rail"><i class="fill" data-grow=".62"></i><i class="head pulse"></i></div>
+        <div class="cap lbl">按季度推进 · 目标 90%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 数字对比 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="GLITCH-IN">
+    <div class="pnl bare">
+      <div class="kick"><i class="tick"></i><span class="tx">效果落差</span></div>
+      <div class="c-duel">
+        <div class="side win stg" style="--i:0"><b data-to="68" data-suffix="%"></b><span>动效叠加</span></div>
+        <i class="sep pulse"></i>
+        <div class="side dim stg" style="--i:1"><b data-to="32" data-suffix="%"></b><span>纯口播</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 转化 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="FOLD-IN">
+    <div class="pnl fold">
+      <div class="kick"><i class="tick"></i><span class="tx">动作链路</span></div>
+      <div class="c-flow">
+        <div class="node stg" style="--i:0"><span class="t">一线城市</span><span class="v">40%</span></div>
+        <div class="arw"><i class="bar"></i><i class="flow"></i><span>渠道下沉</span></div>
+        <div class="node to stg" style="--i:1"><span class="t">三四线</span><span class="v">70%+</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 对照 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="SPLIT-IN">
+    <div class="pnl fold">
+      <i class="beam"></i>
+      <div class="kick"><i class="tick"></i><span class="tx">前后对比</span></div>
+      <div class="c-vs">
+        <div class="row off stg die" style="--i:0"><span class="lb">以前</span><span class="tx">开会追责</span></div>
+        <div class="row on stg live" style="--i:1"><span class="lb">现在</span><span class="tx breathe">当场纠偏</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 三步递进 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="STEP-IN">
+    <div class="pnl bar">
+      <i class="beam"></i>
+      <div class="kick"><i class="tick"></i><span class="tx">三个层级</span></div>
+      <div class="c-steps">
+        <div class="row stg" style="--i:0"><span class="ix">01</span><span class="t">三线及以下</span><span class="v">54%</span></div>
+        <div class="row stg" style="--i:1"><span class="ix">02</span><span class="t">二线</span><span class="v">31%</span></div>
+        <div class="row stg" style="--i:2"><span class="ix pulse">03</span><span class="t">一线</span><span class="v">15%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 关键词 + 释义 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="WAVE-IN">
+    <div class="pnl bare">
+      <div class="kick"><i class="tick"></i><span class="tx">概念</span></div>
+      <div class="c-term">
+        <div class="kw stg flash" style="--i:0">渠道下沉</div>
+        <div class="def">
+          <i class="caret pulse">›</i>
+          <span class="tx type" style="--i:0">把货铺到低线城市，而不是继续在一线抢存量。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 章节标记 -->
+  <div class="comp bare pos-tl" data-in="0" data-out="5" data-anim="SLAM-IN">
+    <div class="pnl bracket">
+      <i class="ripple"></i>
+      <div class="kick"><i class="tick"></i><span class="tx">章节</span></div>
+      <div class="c-chapter">
+        <span class="idx flick">02</span>
+        <i class="bar"></i>
+        <span class="title">渠道结构变化</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 引语 -->
+  <div class="comp bare pos-b" data-in="0" data-out="5" data-anim="BLINK-IN">
+    <div class="pnl bracket">
+      <div class="kick"><i class="tick"></i><span class="tx">金句</span></div>
+      <div class="c-quote">
+        <div class="mark pulse">“</div>
+        <div class="tx">动效不是装饰，是把声音里看不见的结构，翻译成眼睛能抓住的形状。</div>
+        <div class="by">2026 · 内容策略复盘</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 清单 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="LOG-IN">
+    <div class="pnl bar">
+      <div class="kick"><i class="tick"></i><span class="tx">三个动作</span></div>
+      <div class="c-log">
+        <div class="row stg slide" style="--i:0"><i class="dot pulse"></i><span class="tx">降低理解成本</span><i class="dashed dash"></i></div>
+        <div class="row stg slide" style="--i:1"><i class="dot pulse"></i><span class="tx">建立信息层级</span><i class="dashed dash"></i></div>
+        <div class="row stg slide" style="--i:2"><i class="dot pulse"></i><span class="tx">提供视觉锚点</span><i class="dashed dash"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 对照 | 变体：无壳 + RISE-IN -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="RISE-IN">
+    <div class="pnl bare">
+      <div class="kick"><i class="tick"></i><span class="tx">被否掉 vs 站得住</span></div>
+      <div class="c-vs">
+        <div class="row off stg die" style="--i:0"><span class="lb">旧说法</span><span class="tx">渠道下沉很重要</span></div>
+        <div class="row on stg live" style="--i:1"><span class="lb">新说法</span><span class="tx breathe">一线见顶，增量在三四线</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 关键词 + 释义 | 变体：亮条 + GROW-IN -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="GROW-IN">
+    <div class="pnl bar">
+      <i class="beam"></i>
+      <div class="kick"><i class="tick"></i><span class="tx">定义</span></div>
+      <div class="c-term">
+        <div class="kw stg flash" style="--i:0">渠道下沉</div>
+        <div class="rule"></div>
+        <div class="def">
+          <i class="caret pulse">›</i>
+          <span class="tx type" style="--i:0">把货铺到低线城市。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</template>
+
+<div id="hud">
+  <button id="play">▶</button>
+  <input id="seek" type="range" min="0" max="1000" value="0">
+  <span class="tt" id="tt">0.00 / 0.00</span>
+</div><script>
+/* ==========================================================================
+   产物配置 —— ④ 渲染器（ivh-render/scripts/render.mjs）读这一段决定怎么出片。
+   它靠这段认出「这是 3:4 透明素材，不是 16:9 成片」，读不到就按成片处理并直接报错。
+
+     PURPOSE   overlay        附着在别人的口播上，只做关键强调
+     BASE      timeline       素材点按 data-in / data-out 卡点
+     BG        transparent    底透明，出 ProRes 4444（带 alpha）
+     RATIO     3:4            1080x1440 一屏
+     STYLE     neon-terminal  本风格名字，只出现在出片日志里
+     ANIMATE   true           出片带动效
+     HIDE_HUD  true           导出前必须藏 HUD，否则底部进度条会被拍进素材
+   ========================================================================== */
+const CONFIG = {
+  PURPOSE : 'overlay',
+  BASE    : 'timeline',
+  BG      : 'transparent',
+  RATIO   : '3:4',
+  STYLE   : 'neon-terminal',
+  ANIMATE : true,
+  HIDE_HUD: true
+};
+(function(){
+  "use strict";
+
+  /* 退场时长，必须与 CSS 里 .comp.out 的 220ms 一致 */
+  var OUT_DUR = 0.22;
+
+  var stage = document.getElementById('stage');
+  var track = document.getElementById('track');
+  var qs = location.search;
+
+  var comps = [];
+  var duration = 0;
+  var rafId = 0;
+  var playing = false;
+  var clockStart = 0;      /* 只在 play() 的循环里用，seekAt 永远不碰时钟 */
+
+  /* ---------------- 采样 ---------------- */
+
+  function scan(){
+    comps = Array.prototype.slice.call(track.querySelectorAll('.comp')).map(function(el){
+      return {
+        el: el,
+        inT: parseFloat(el.getAttribute('data-in')) || 0,
+        outT: parseFloat(el.getAttribute('data-out')) || 0,
+        nums: Array.prototype.slice.call(el.querySelectorAll('[data-to]')),
+        grows: Array.prototype.slice.call(el.querySelectorAll('[data-grow]'))
+      };
+    });
+    duration = comps.length
+      ? Math.max.apply(null, comps.map(function(c){ return c.outT + OUT_DUR; }))
+      : 0;
+    document.documentElement.setAttribute('data-duration', duration.toFixed(2));
+  }
+
+  /* ---------------- 定格 ----------------
+     给定 t，把每个 .comp 摆到它该在的相位。
+     手法：负 animation-delay + paused —— 相位由 t 唯一决定，
+     不依赖任何时钟，所以同一个 t 永远渲染出同一帧。
+
+     子元素的入场（.stg）与持续态（.pulse / .breathe / .dash / .flow / .flick）
+     不由引擎直接控制：它们读 .comp 上的 --hold（距入场多少秒）自己算相位。
+     所以要动的东西，永远只能挂在 .comp 的子树里。 */
+
+  function seekAt(t){
+    for (var i = 0; i < comps.length; i++){
+      var c = comps[i], el = c.el;
+      var state, dt = 0;
+
+      if (t < c.inT){ state = 'before'; }
+      else if (t < c.outT){ state = 'in'; dt = t - c.inT; }
+      else if (t < c.outT + OUT_DUR){ state = 'out'; dt = t - c.outT; }
+      else { state = 'after'; }
+
+      el.classList.remove('in', 'out');
+      if (state === 'in' || state === 'out'){
+        el.classList.add(state);
+        el.style.animationDelay = (-dt).toFixed(3) + 's';
+        el.style.animationPlayState = 'paused';
+      } else {
+        el.style.animationDelay = '';
+        el.style.animationPlayState = '';
+      }
+      el.style.setProperty('--hold', dt.toFixed(3) + 's');
+
+      /* 数字与生长量：直接从 t 算出来写进去，不用 rAF、不用时钟 */
+      var elapsed = state === 'before' ? 0 : (state === 'in' ? dt : 1e9);
+
+      for (var j = 0; j < c.nums.length; j++){
+        var n = c.nums[j];
+        var to = parseFloat(n.getAttribute('data-to')) || 0;
+        var dur = parseFloat(n.getAttribute('data-dur') || '1');
+        var dec = parseInt(n.getAttribute('data-dec') || '0', 10);
+        var p = Math.min(1, elapsed / dur);
+        var s = (to * p).toFixed(dec);
+        if (n.getAttribute('data-group') === '1'){
+          s = s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        n.textContent = (n.getAttribute('data-prefix') || '') + s + (n.getAttribute('data-suffix') || '');
+      }
+
+      for (var k = 0; k < c.grows.length; k++){
+        var g = c.grows[k];
+        var target = parseFloat(g.getAttribute('data-grow')) || 0;
+        var gdur = parseFloat(g.getAttribute('data-dur') || '1');
+        var v = Math.min(1, elapsed / gdur) * target;
+        if (g.classList.contains('arc')){
+          var rr = parseFloat(g.getAttribute('r') || '78');
+          var C = 2 * Math.PI * rr;
+          g.style.strokeDasharray = C.toFixed(2);
+          g.style.strokeDashoffset = (C * (1 - v)).toFixed(2);
+        } else {
+          g.style.setProperty('--grow', v.toFixed(4));
+        }
+      }
+    }
+  }
+
+  /* ---------------- 预览播放（只有人看时用） ---------------- */
+
+  function tick(){
+    if (!playing) return;
+    var t = (performance.now() - clockStart) / 1000;
+    if (t >= duration){
+      render(duration);
+      playing = false;
+      setBtn();
+      return;
+    }
+    render(t);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  /* 播放路径与定格路径共用同一个 render()，区别只在谁来推进 t：
+     定格由渲染器给 t，播放由 rAF 给 t。seekAt 本身不碰时钟。 */
+  function render(t){ seekAt(t); sync(t); }
+
+  function start(){
+    if (playing) return;
+    playing = true;
+    clockStart = performance.now() - current * 1000;
+    setBtn();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stop(){
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+    playing = false;
+    setBtn();
+  }
+
+  /* ---------------- 预览控件 ---------------- */
+
+  var current = 0;
+  var hud = document.getElementById('hud');
+  var btn = document.getElementById('play');
+  var range = document.getElementById('seek');
+  var tt = document.getElementById('tt');
+
+  function setBtn(){ if (btn) btn.textContent = playing ? '❚❚' : '▶'; }
+
+  function sync(t){
+    current = t;
+    if (range) range.value = duration ? String(Math.round(t / duration * 1000)) : '0';
+    if (tt) tt.textContent = t.toFixed(2) + ' / ' + duration.toFixed(2);
+  }
+
+  /* ---------------- 对外契约 ---------------- */
+
+  var IVH = {
+    seekAt: function(t){
+      stop();
+      var v = Math.max(0, Math.min(duration, t));
+      seekAt(v);
+      sync(v);
+    },
+    play: start,
+    pause: stop,
+    get duration(){ return duration; }
+  };
+  window.IVH = IVH;
+  window.TL = IVH;   /* 兼容旧名字 */
+
+  /* ---------------- 起跑 ---------------- */
+
+  /* 两条路，别混：
+       render —— 不加任何查询参数打开，不铺底、不缩放、没有 HUD，逐帧寻址。
+                 渲染器就是这么用的（它自己调 IVH.seekAt(t)，不带任何参数）。
+       view   —— ?view=1 / ?kit=1 才有深底、缩放和播放条，给人看。 */
+  function boot(){
+    var kitMode = /[?&]kit=1/.test(qs);
+    var hasT    = /[?&]t=/.test(qs);
+    var view    = /[?&]view=1/.test(qs) || kitMode;
+
+    if (kitMode){
+      track.innerHTML = '';
+      var frag = document.getElementById('kit').content;
+      var nodes = Array.prototype.slice.call(frag.querySelectorAll('.comp'));
+      for (var i = 0; i < nodes.length; i++){
+        var node = document.importNode(nodes[i], true);
+        node.setAttribute('data-in', String(i * 5.4 + 0.4));
+        node.setAttribute('data-out', String(i * 5.4 + 5.0));
+        track.appendChild(node);
+      }
+    }
+
+    scan();
+
+    var m = qs.match(/[?&]t=([\d.]+)/);
+    var t0 = m ? parseFloat(m[1]) : (kitMode ? 0.4 : 0);
+
+    /* 默认路径 = 出片状态。深底和 HUD 一旦铺上，每一帧都会带上它们 ——
+       透明素材会整份变成不透明的。 */
+    if (!view){ IVH.seekAt(t0); return; }
+
+    /* 预览路径：缩放到窗口内，给个深底 —— 透明产物在浏览器里默认是白底，看不出效果 */
+    var fit = Math.min(window.innerWidth / 1080, (window.innerHeight - 56) / 1440);
+    stage.style.transformOrigin = 'top center';
+    stage.style.transform = 'scale(' + fit + ')';
+    document.body.style.height = (1440 * fit + 56) + 'px';
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.background = '#0A0E14';
+
+    if (hud) hud.classList.add('on');
+    if (btn) btn.addEventListener('click', function(){ playing ? stop() : start(); });
+    if (range) range.addEventListener('input', function(){
+      IVH.seekAt(parseFloat(range.value) / 1000 * duration);
+    });
+    document.addEventListener('keydown', function(e){
+      if (e.code === 'Space'){ e.preventDefault(); playing ? stop() : start(); }
+    });
+
+    IVH.seekAt(t0);
+    if (!hasT) start();          /* 给了 ?t= 就是要定格看，别自己播起来 */
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>

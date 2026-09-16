@@ -103,6 +103,16 @@ html,body{margin:0;padding:0;background:transparent}
   0%,100%{box-shadow:var(--sh-raise)}
   50%    {box-shadow:-3px -3px 7px var(--lit), 3px 3px 9px var(--dim)}
 }
+@keyframes sr-platebreathe{             /* 持续态：整块板在实拍上极缓慢地起落 */
+  0%,100%{box-shadow:10px 14px 30px rgba(20,28,40,.22)}
+  50%    {box-shadow:6px  9px 22px rgba(20,28,40,.14)}
+}
+/* 相位由引擎写的 --hold 决定 —— 同一个 t 永远同一帧，渲染器才拍得准。 */
+.comp.in::before{
+  animation:sr-platebreathe 3.2s ease-in-out infinite;
+  animation-play-state:paused;
+  animation-delay:calc(var(--hold,0s) * -1);
+}
 
 .comp.in[data-anim="EMBOSS-IN"]{animation:emboss 360ms var(--ease) both}
 .comp.in[data-anim="PRESS-IN"] {animation:press  300ms var(--ease) both}
@@ -221,15 +231,6 @@ html,body{margin:0;padding:0;background:transparent}
 .c-cmp .blk.a .tx{color:var(--ink3);text-decoration:line-through;text-decoration-thickness:4px}
 .c-cmp .blk.b .tx{color:var(--hot)}
 .c-cmp .seam{margin:26px auto;width:56%}
-
-/* c-vs · 对照（左右，仅当两侧各 <=4 字才用） */
-.c-vs{display:flex;align-items:center;gap:24px}
-.c-vs .side{
-  flex:1;background:var(--plate);border-radius:var(--r-card);box-shadow:var(--sh-raise);
-  padding:36px 18px;text-align:center;font-size:40px;font-weight:700;
-}
-.c-vs .side:first-child{font-weight:500;font-size:34px;color:var(--ink3);text-decoration:line-through}
-.c-vs .mid{width:6px;height:72px;border-radius:3px;background:var(--plate);box-shadow:var(--sh-groove)}
 
 /* c-stack · 三步递进（宽度递减靠 margin-inline，不用 width） */
 .c-stack .row{
@@ -397,15 +398,6 @@ html,body{margin:0;padding:0;background:transparent}
     </div>
   </div>
 
-  <!-- kind: 对照 | 左右（仅当两侧各 ≤4 字） -->
-  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
-    <div class="c-vs">
-      <div class="side">技术问题</div>
-      <div class="mid"></div>
-      <div class="side">组织问题</div>
-    </div>
-  </div>
-
   <!-- kind: 三步递进 -->
   <div class="comp bare" data-in="0" data-out="5" data-anim="PRESS-IN">
     <div class="c-stack">
@@ -537,6 +529,8 @@ const CONFIG = {
         el.style.animationDelay = '';
         el.style.animationPlayState = '';
       }
+      /* 子元素的持续态靠它算相位（距入场多少秒） */
+      el.style.setProperty('--hold', dt.toFixed(3) + 's');
 
       /* 数字与生长量：直接从 t 算出来写进去，不用 rAF、不用时钟 */
       var elapsed = state === 'before' ? 0 : (state === 'in' ? dt : 1e9);

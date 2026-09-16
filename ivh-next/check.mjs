@@ -27,9 +27,9 @@ const MIN_GAP  = 1.5;      /* 相邻两点之间的纯透明空档下限（秒�
 
 const DENSITY = {
   data:      [8, 12, "研报 / 口播 / 复盘"],
-  narrative: [4, 7,  "故事 / 案例 / 科普"],
+  narrative: [6, 10, "故事 / 案例 / 科普"],
   drama:     [3, 5,  "剧情 / 短剧"],
-  opinion:   [5, 8,  "观点 / 评论"],
+  opinion:   [10, 14, "观点 / 评论"],
 };
 
 let fails = 0, warns = 0;
@@ -183,6 +183,12 @@ for (let i = 1; i < sorted.length; i++) {
 }
 if (!fails) ok("停留与空档都在线内");
 
+if (sorted.length && END !== Infinity) {
+  const tail = END - sorted[sorted.length - 1].end;
+  if (tail > 6) fail("最后一个点距片尾还有 " + tail.toFixed(1) + "s —— 素材盖不到结尾，最后一段会空");
+  else ok("盖到片尾（末尾留 " + tail.toFixed(1) + "s）");
+}
+
 /* ---------- 6 · 内容形状 ---------- */
 
 head("6. 内容形状");
@@ -222,7 +228,7 @@ head("7. 密度");
     const [lo, hi, label] = band;
     const per60 = sorted.length / Math.max(meta.duration, 1) * 60;
     const txt = lo + "~" + hi + " 个/60s（" + meta.contentType + " · " + label + "）";
-    if (per60 < lo * 0.6) warn("每 60s 只有 " + per60.toFixed(1) + " 个 —— 低于 " + txt + "，检查有没有该强调的漏了");
+    if (per60 < lo) warn("每 60s 只有 " + per60.toFixed(1) + " 个 —— 低于 " + txt + "，检查有没有该强调的漏了");
     else if (per60 > hi * 1.2) fail("每 60s 有 " + per60.toFixed(1) + " 个 —— 超出 " + txt + "，叠加层会变成第二块屏");
     else ok("密度 " + per60.toFixed(1) + " 个/60s，落在 " + txt + " 内");
   }
@@ -256,6 +262,8 @@ if (!htmlFile) {
 } else {
   const html = fs.readFileSync(htmlFile, "utf8");
   const tpl  = fs.readFileSync(tplPath, "utf8");
+  /* 形态修饰类由各风格的样板间定义，名字不写死 */
+  const forms = new Set([...tpl.matchAll(/class="comp ([a-z][\w-]*)/g)].map(m => m[1]));
 
   /* 只取产物区：#track 到样板间之间 */
   const t0 = html.indexOf('id="track"');
@@ -271,7 +279,7 @@ if (!htmlFile) {
     const blocks = anchors.map((m, i) => {
       const chunk = track.slice(m.index, i + 1 < anchors.length ? anchors[i + 1].index : track.length);
       const g = name => (chunk.match(new RegExp(name + '="([^"]*)"')) || [])[1];
-      const pm = chunk.match(/class="comp (raise|sunk|bare)/);
+      const pm = chunk.match(/class="comp ([a-z][\w-]*)/);
       return {
         kind: m[1].trim(),
         inT: parseFloat(g("data-in")),
@@ -293,7 +301,8 @@ if (!htmlFile) {
         if (!(Math.abs(b.inT - pt.start) < 0.001)) bad.push(at + " data-in=" + b.inT + "，脚本是 " + pt.start);
         if (!(Math.abs(b.outT - pt.end) < 0.001)) bad.push(at + " data-out=" + b.outT + "，脚本是 " + pt.end);
         if (!b.anim) bad.push(at + " 没有 data-anim");
-        if (!b.phase) bad.push(at + " 没有 comp 的三态之一（raise / sunk / bare）");
+        if (!b.phase) bad.push(at + " 没有 comp 的形态修饰类 —— 抄样板间时漏了 class");
+        else if (!forms.has(b.phase)) bad.push(at + " 的 comp 形态类 `" + b.phase + "` 在本风格样板间里没有（有：" + [...forms].join(" / ") + "）");
       });
       bad.length ? bad.forEach(fail) : ok(blocks.length + " 块与脚本逐点对上（kind / 入点 / 出点）");
 

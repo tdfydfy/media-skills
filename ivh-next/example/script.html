@@ -103,6 +103,16 @@ html,body{margin:0;padding:0;background:transparent}
   0%,100%{box-shadow:var(--sh-raise)}
   50%    {box-shadow:-3px -3px 7px var(--lit), 3px 3px 9px var(--dim)}
 }
+@keyframes sr-platebreathe{             /* 持续态：整块板在实拍上极缓慢地起落 */
+  0%,100%{box-shadow:10px 14px 30px rgba(20,28,40,.22)}
+  50%    {box-shadow:6px  9px 22px rgba(20,28,40,.14)}
+}
+/* 相位由引擎写的 --hold 决定 —— 同一个 t 永远同一帧，渲染器才拍得准。 */
+.comp.in::before{
+  animation:sr-platebreathe 3.2s ease-in-out infinite;
+  animation-play-state:paused;
+  animation-delay:calc(var(--hold,0s) * -1);
+}
 
 .comp.in[data-anim="EMBOSS-IN"]{animation:emboss 360ms var(--ease) both}
 .comp.in[data-anim="PRESS-IN"] {animation:press  300ms var(--ease) both}
@@ -629,6 +639,8 @@ const CONFIG = {
         el.style.animationDelay = '';
         el.style.animationPlayState = '';
       }
+      /* 子元素的持续态靠它算相位（距入场多少秒） */
+      el.style.setProperty('--hold', dt.toFixed(3) + 's');
 
       /* 数字与生长量：直接从 t 算出来写进去，不用 rAF、不用时钟 */
       var elapsed = state === 'before' ? 0 : (state === 'in' ? dt : 1e9);
