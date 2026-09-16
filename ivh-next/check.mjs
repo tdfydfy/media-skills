@@ -304,6 +304,15 @@ if (!htmlFile) {
       if (made.length) fail("产物用了本风格没有的动效名：" + made.join(" / ") + "（只有 " + allowed.join(" / ") + "）");
       else ok("动效名都在本风格内：" + used.join(" / "));
 
+      /* ②→④ 契约：渲染器靠 CONFIG 认出「3:4 透明素材」 */
+      const need = [["PURPOSE", "overlay"], ["BASE", "timeline"], ["BG", "transparent"], ["RATIO", "3:4"]];
+      const miss = need.filter(function(kv){
+        return !new RegExp("\\b" + kv[0] + "\\s*:\\s*'" + kv[1] + "'").test(html);
+      });
+      miss.length === 0 ? ok("CONFIG 段在（④ 渲染器靠它认出这是 3:4 透明素材）")
+                        : fail("产物缺 CONFIG 的 " + miss.map(function(kv){ return kv[0] + ": '" + kv[1] + "'"; }).join(" / ")
+                            + " —— 会被当成 16:9 成片，渲染器直接报错。CONFIG 在模板里，别删");
+
       /* 全片至少 3 种入场手感 */
       if (blocks.length >= 3 && used.length < 3) {
         warn("全片只用了 " + used.length + " 种入场手感 —— spec 第八节要求至少 3 种");

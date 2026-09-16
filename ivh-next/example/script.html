@@ -14,7 +14,7 @@
      2) 样板间  <template id="kit">，每个 kind 一个真实例子       ← 照抄这里
      3) 产物    #track 里放真实的素材点                          ← 改这里
 
-   抄法：从样板间挑 kind → 复制整个 <div class="comp"> → 换内容
+   抄法：从样板间挑 kind → 复制整个 div.comp → 换内容
         → 按脚本填 data-in / data-out → 只从 #track 里留要用到的
    ========================================================================== */
 
@@ -55,23 +55,20 @@ html,body{margin:0;padding:0;background:transparent}
 }
 
 /* ---------- 1 · 承载板 ----------
-   为什么必须有板：这套语言靠"底色 + 两侧柔影"制造凸凹。底一旦透明，柔影没有依托，
+   为什么板必须跟着点走：这套语言靠"底色 + 两侧柔影"制造凸凹。底一旦透明，柔影没有依托，
    凸起的东西会看起来像悬浮的污渍。
    板只加单侧暗投影 —— 亮影在透明底上会变成白色光晕。 */
-.plate{
-  position:absolute; left:50%; top:42%;
-  transform:translate(-50%,-50%);
-  width:72%;
-  padding:64px 56px;
-  background:var(--plate);
-  border-radius:var(--r-plate);
-  box-shadow:10px 14px 30px rgba(20,28,40,.22);   /* 单侧暗影，贴到实拍上 */
+/* 板跟着点走：点进板进，点走板走 —— 一块板就是一个点。
+   板绝不能做成常驻元素：常驻的话空档里也留着一块板，实拍露不出来，
+   而且渲染器实测空档帧不是全透明时会直接拒绝复用（它就是靠这个抓错）。 */
+.track{position:absolute; inset:0; display:grid; align-items:center; justify-items:center}
+.comp{grid-area:1/1; position:relative; width:64%; opacity:0}
+.comp::before{                                   /* ← 承载板：比内容大一圈 */
+  content:""; position:absolute; inset:-40px;
+  background:var(--plate); border-radius:var(--r-plate);
+  box-shadow:10px 14px 30px rgba(20,28,40,.22);  /* 单侧暗影，贴到实拍上 */
 }
-.track{
-  display:grid; align-items:center;   /* 同一时刻只显示一块，所以所有块共用一个格；
-                                         高度由最高的那块定 —— 靠居中，矮的那块才不会贴顶 */
-}
-.comp{grid-area:1/1; opacity:0}
+.comp > *{position:relative; z-index:1}           /* 内容压在板上 */
 
 /* comp 的三种身份 */
 .comp.raise{
@@ -288,8 +285,7 @@ html,body{margin:0;padding:0;background:transparent}
 <body>
 
 <div id="stage">
-  <div class="plate">
-    <div class="track" id="track">
+  <div class="track" id="track">
 
       <!-- ↓↓↓ 产物区：把这里换成真实的素材点（从下面的样板间抄） ↓↓↓ -->
       <!-- 点 1 · 4.0s「先看第二部分，渠道结构发生了什么变化。」 -->
@@ -395,7 +391,6 @@ html,body{margin:0;padding:0;background:transparent}
       </div>
       <!-- ↑↑↑ 产物区 ↑↑↑ -->
 
-    </div>
   </div>
 </div>
 
@@ -554,6 +549,27 @@ html,body{margin:0;padding:0;background:transparent}
 </div>
 
 <script>
+/* ==========================================================================
+   产物配置 —— ④ 渲染器（ivh-render/scripts/render.mjs）读这一段决定怎么出片。
+   它靠这段认出「这是 3:4 透明素材，不是 16:9 成片」，读不到就按成片处理并直接报错。
+
+     PURPOSE   overlay      附着在别人的口播上，只做关键强调
+     BASE      timeline     素材点按 data-in / data-out 卡点
+     BG        transparent  底透明，出 ProRes 4444（带 alpha）
+     RATIO     3:4          1080x1440 一块板
+     STYLE     soft-relief  本风格名字，只出现在出片日志里
+     ANIMATE   true         出片带动效
+     HIDE_HUD  true         导出前必须藏 HUD，否则底部进度条会被拍进素材
+   ========================================================================== */
+const CONFIG = {
+  PURPOSE : 'overlay',
+  BASE    : 'timeline',
+  BG      : 'transparent',
+  RATIO   : '3:4',
+  STYLE   : 'soft-relief',
+  ANIMATE : true,
+  HIDE_HUD: true
+};
 (function(){
   "use strict";
 
@@ -718,9 +734,14 @@ html,body{margin:0;padding:0;background:transparent}
 
   /* ---------------- 起跑 ---------------- */
 
+  /* 两条路，别混：
+       render —— 不加任何查询参数打开，不铺底、不缩放、没有 HUD，逐帧寻址。
+                 渲染器就是这么用的（它自己调 IVH.seekAt(t)，不带任何参数）。
+       view   —— ?view=1 / ?kit=1 才有深底、缩放和播放条，给人看。 */
   function boot(){
     var kitMode = /[?&]kit=1/.test(qs);
-    var hasT = /[?&]t=/.test(qs);
+    var hasT    = /[?&]t=/.test(qs);
+    var view    = /[?&]view=1/.test(qs) || kitMode;
 
     if (kitMode){
       track.innerHTML = '';
@@ -736,12 +757,12 @@ html,body{margin:0;padding:0;background:transparent}
 
     scan();
 
-    if (hasT){
-      /* 渲染路径：视口由渲染器给 1080x1440，不要缩放 */
-      var m = qs.match(/[?&]t=([\d.]+)/);
-      IVH.seekAt(m ? parseFloat(m[1]) : 0);
-      return;
-    }
+    var m = qs.match(/[?&]t=([\d.]+)/);
+    var t0 = m ? parseFloat(m[1]) : (kitMode ? 0.4 : 0);
+
+    /* 默认路径 = 出片状态。深底和 HUD 一旦铺上，每一帧都会带上它们 ——
+       透明素材会整份变成不透明的。 */
+    if (!view){ IVH.seekAt(t0); return; }
 
     /* 预览路径：缩放到窗口内，给个深底 —— 透明产物在浏览器里默认是白底，看不出效果 */
     var fit = Math.min(window.innerWidth / 1080, (window.innerHeight - 56) / 1440);
@@ -760,8 +781,8 @@ html,body{margin:0;padding:0;background:transparent}
       if (e.code === 'Space'){ e.preventDefault(); playing ? stop() : start(); }
     });
 
-    IVH.seekAt(kitMode ? 0.4 : 0);
-    start();
+    IVH.seekAt(t0);
+    if (!hasT) start();          /* 给了 ?t= 就是要定格看，别自己播起来 */
   }
 
   if (document.readyState === 'loading'){
