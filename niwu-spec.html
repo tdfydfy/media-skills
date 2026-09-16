@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>柔面凸凹 · Soft Relief · 组件库</title>
+<style>
+:root{
+  --sr-bg:#E4E9F0; --sr-light:#FFFFFF; --sr-dark:#A3B1C6;
+  --sr-t1:#3D4A5C; --sr-t2:#6B7A90; --sr-t3:#97A3B5;
+  --sr-accent:#E8555A; --sr-alt:#4A90D9;
+  --sr-r-sm:16px; --sr-r-md:28px; --sr-r-lg:40px;
+  --sr-out:-6px -6px 12px rgba(255,255,255,.92),
+            6px  6px 14px rgba(163,177,198,.55);
+  --sr-out-hi:-8px -8px 16px rgba(255,255,255,.95),
+               9px  9px 20px rgba(163,177,198,.6);
+  --sr-in:inset -5px -5px 10px rgba(255,255,255,.92),
+          inset  5px  5px 12px rgba(163,177,198,.50);
+  --sr-in-sm:inset -4px -4px 9px rgba(255,255,255,.92),
+             inset  4px  4px 10px rgba(163,177,198,.50);
+  --sr-ease:cubic-bezier(.34,1.32,.64,1);
+  --sr-ease-soft:cubic-bezier(.22,.9,.28,1);
+  --sr-font:'Inter',-apple-system,'SF Pro Display','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+}
+@property --nv  {syntax:"<integer>"; initial-value:0; inherits:false}
+@property --nto {syntax:"<integer>"; initial-value:0; inherits:false}
+
+*,*::before,*::after{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;background:var(--sr-bg);color:var(--sr-t1);
+  font-family:var(--sr-font);font-weight:500;
+  -webkit-font-smoothing:antialiased;line-height:1.6;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+svg{display:block;}
+.wrap{max-width:1240px;margin:0 auto;padding:0 48px;}
+section{padding:88px 0;}
+
+.section-head{margin-bottom:48px;}
+.section-head .kicker{
+  font-size:13px;letter-spacing:.2em;color:var(--sr-t3);
+  font-weight:500;text-transform:uppercase;margin-bottom:16px;
+}
+.section-head h2{
+  font-size:44px;font-weight:700;letter-spacing:-.022em;
+  margin:0 0 14px;line-height:1.15;color:var(--sr-t1);
+}
+.section-head p{margin:0;color:var(--sr-t2);font-size:17px;max-width:760px;font-weight:500;}
+
+/* HERO */
+.hero{padding:120px 0 72px;}
+.hero .tag{
+  display:inline-block;font-size:13px;letter-spacing:.2em;
+  color:var(--sr-t3);background:var(--sr-bg);
+  border-radius:999px;box-shadow:var(--sr-in-sm);
+  padding:10px 22px;margin-bottom:36px;font-weight:500;
+}
+.hero h1{font-size:80px;font-weight:700;letter-spacing:-.025em;line-height:1.05;margin:0 0 28px;color:var(--sr-t1);max-width:18ch;}
+.hero p{font-size:20px;color:var(--sr-t2);max-width:620px;margin:0 0 52px;}
+.hero-stats{display:flex;gap:22px;flex-wrap:wrap;}
+.hero-stats div{background:var(--sr-bg);border-radius:var(--sr-r-sm);box-shadow:var(--sr-in);padding:20px 30px;min-width:110px;}
+.hero-stats div b{display:block;font-size:38px;font-weight:700;color:var(--sr-t1);line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-bottom:8px;}
+.hero-stats div span{font-size:13px;color:var(--sr-t3);letter-spacing:.08em;}
+
+/* 色板 */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:20px;}
+.sw{background:var(--sr-bg);border-radius:var(--sr-r-sm);box-shadow:var(--sr-out);padding:12px;}
+.sw .chip{height:82px;border-radius:10px;box-shadow:inset 0 0 0 1px rgba(163,177,198,.25);}
+.sw .meta{padding:12px 6px 4px;}
+.sw .meta b{display:block;font-size:14px;font-weight:700;color:var(--sr-t1);}
+.sw .meta span{font-size:11.5px;color:var(--sr-t3);font-variant-numeric:tabular-nums;}
+
+/* 层次 */
+.elev-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:24px;}
+.elev-card{background:var(--sr-bg);border-radius:var(--sr-r-md);padding:32px 24px 26px;text-align:center;}
+.elev-demo{width:100%;height:88px;border-radius:var(--sr-r-sm);background:var(--sr-bg);margin-bottom:22px;display:grid;place-items:center;}
+.elev-demo.l1{box-shadow:var(--sr-out);}
+.elev-demo.l2{box-shadow:var(--sr-out-hi);transform:translateY(-2px);}
+.elev-demo.l3{box-shadow:var(--sr-in);}
+.elev-demo.l4{background:var(--sr-accent);box-shadow:0 6px 16px rgba(232,85,90,.32);}
+.elev-name{font-size:15px;font-weight:700;color:var(--sr-t1);}
+.elev-desc{font-size:12.5px;color:var(--sr-t3);margin-top:5px;}
+
+/* 舞台 / 场景 */
+.stage-shell{background:var(--sr-bg);border-radius:var(--sr-r-lg);box-shadow:var(--sr-out);padding:28px;}
+#viewport{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:20px;background:var(--sr-bg);box-shadow:var(--sr-in);}
+#stage{position:absolute;top:0;left:0;width:1920px;height:1080px;transform-origin:top left;}
+.scene{position:absolute;inset:0;display:none;background:var(--sr-bg);overflow:hidden;}
+.scene.active{display:block;}
+.scene-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;padding:8%;}
+.scene-title{position:absolute;left:8%;top:10%;font-size:22px;letter-spacing:.18em;color:var(--sr-t3);font-weight:500;text-transform:uppercase;}
+.a{opacity:0;transform:translateY(16px);transition:opacity 480ms var(--sr-ease),transform 480ms var(--sr-ease);transition-delay:var(--d,0ms);}
+.scene.active .a{opacity:1;transform:none;}
+
+.stage-bar{display:flex;align-items:center;gap:18px;margin-top:24px;flex-wrap:wrap;}
+.ctrl{width:44px;height:44px;border-radius:50%;background:var(--sr-bg);box-shadow:var(--sr-out);display:grid;place-items:center;font-size:18px;color:var(--sr-t2);transition:box-shadow 240ms var(--sr-ease),transform 240ms var(--sr-ease);}
+.ctrl:hover{box-shadow:var(--sr-out-hi);transform:translateY(-2px);}
+.scene-dots{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;}
+.scene-dots button{width:30px;height:6px;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);transition:box-shadow 240ms var(--sr-ease),width 240ms var(--sr-ease);}
+.scene-dots button.on{box-shadow:var(--sr-out);width:52px;}
+#sceneLabel{font-size:13px;color:var(--sr-t3);letter-spacing:.06em;min-width:200px;}
+
+/* 组件卡 */
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:28px;}
+.comp-card{background:var(--sr-bg);border-radius:var(--sr-r-md);box-shadow:var(--sr-out);overflow:hidden;cursor:pointer;transition:box-shadow 360ms var(--sr-ease),transform 360ms var(--sr-ease);}
+.comp-card:hover{box-shadow:var(--sr-out-hi);transform:translateY(-2px);}
+.comp-preview{height:200px;padding:28px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;background:var(--sr-bg);}
+.comp-info{padding:0 24px 22px;}
+.comp-info b{display:block;font-size:15px;font-weight:700;color:var(--sr-t1);}
+.comp-info code{font-size:11px;color:var(--sr-t2);font-family:ui-monospace,Menlo,monospace;font-weight:500;letter-spacing:.02em;}
+.comp-info p{margin:6px 0 0;font-size:12.5px;color:var(--sr-t3);line-height:1.55;}
+
+/* 15 个组件 · 最多两层 */
+.c-data{background:var(--sr-bg);border-radius:var(--sr-r-md);box-shadow:var(--sr-out);padding:34px 44px;display:flex;align-items:baseline;gap:8px;font-size:56px;font-weight:700;color:var(--sr-t1);letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;}
+.c-data i{font-style:normal;font-size:18px;color:var(--sr-t3);font-weight:500;}
+.c-capsule{display:inline-block;background:var(--sr-bg);border-radius:999px;box-shadow:var(--sr-in-sm);padding:10px 22px;font-size:13px;font-weight:500;color:var(--sr-t2);letter-spacing:.14em;}
+.c-kw{font-size:42px;font-weight:700;color:var(--sr-t1);letter-spacing:-.02em;line-height:1.1;text-align:center;}
+.c-vs{display:grid;grid-template-columns:1fr 6px 1fr;gap:14px;align-items:stretch;width:100%;}
+.c-vs-side{background:var(--sr-bg);border-radius:var(--sr-r-sm);box-shadow:var(--sr-out);padding:22px 12px;text-align:center;font-size:14px;color:var(--sr-t2);font-weight:500;display:flex;align-items:center;justify-content:center;}
+.c-vs-side.hi{color:var(--sr-t1);font-weight:700;}
+.c-vs-gap{background:var(--sr-bg);border-radius:999px;box-shadow:var(--sr-in-sm);}
+.c-quote{background:var(--sr-bg);border-radius:var(--sr-r-md);box-shadow:var(--sr-in);padding:28px 30px;font-size:15px;font-weight:500;line-height:1.7;color:var(--sr-t1);text-align:center;}
+.c-quote::before{content:"“";font-size:34px;line-height:.6;color:var(--sr-t3);display:block;margin-bottom:12px;font-weight:700;}
+.c-rule{width:100%;height:6px;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);}
+.c-list{display:flex;flex-direction:column;gap:10px;width:100%;}
+.c-list-row{background:var(--sr-bg);border-radius:12px;box-shadow:var(--sr-in-sm);padding:13px 20px;font-size:14px;color:var(--sr-t1);font-weight:500;}
+.c-step{background:var(--sr-bg);border-radius:var(--sr-r-md);box-shadow:var(--sr-out);padding:18px 22px;display:flex;align-items:center;gap:16px;width:100%;}
+.c-step-num{width:46px;height:46px;border-radius:14px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);display:grid;place-items:center;font-size:15px;font-weight:700;color:var(--sr-t2);flex:none;font-variant-numeric:tabular-nums;}
+.c-step-title{font-size:15px;font-weight:700;color:var(--sr-t1);letter-spacing:-.01em;}
+.c-step-desc{font-size:12.5px;color:var(--sr-t2);margin-top:2px;}
+.c-note{background:var(--sr-bg);border-radius:var(--sr-r-sm);box-shadow:var(--sr-out);padding:16px 22px;font-size:13.5px;color:var(--sr-t2);line-height:1.55;width:100%;}
+.c-flow{display:flex;align-items:center;gap:10px;width:100%;}
+.c-flow-node{flex:1;background:var(--sr-bg);border-radius:12px;box-shadow:var(--sr-out);padding:16px 6px;text-align:center;font-size:13px;font-weight:500;color:var(--sr-t1);}
+.c-flow-arrow{width:24px;height:4px;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);position:relative;flex:none;}
+.c-flow-arrow::after{content:"";position:absolute;right:-5px;top:50%;width:10px;height:10px;background:var(--sr-bg);box-shadow:-2px -2px 4px rgba(255,255,255,.92),2px 2px 5px rgba(163,177,198,.5);transform:translateY(-50%) rotate(45deg);border-radius:2px;}
+.c-stack{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;}
+.c-stack-row{background:var(--sr-bg);border-radius:12px;box-shadow:var(--sr-out);padding:11px 0;text-align:center;font-size:13px;font-weight:500;color:var(--sr-t1);}
+.c-cmp{display:flex;flex-direction:column;gap:10px;width:100%;}
+.c-cmp-block{background:var(--sr-bg);border-radius:var(--sr-r-sm);box-shadow:var(--sr-out);padding:16px 20px;font-size:13px;font-weight:500;color:var(--sr-t2);text-align:center;}
+.c-cmp-block.hi{font-size:20px;font-weight:700;color:var(--sr-t1);padding:22px 20px;letter-spacing:-.01em;}
+.c-cmp-gap{height:6px;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);}
+
+/* 小元素 */
+.micro-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:24px;}
+.micro-card{background:var(--sr-bg);border-radius:var(--sr-r-md);padding:32px 24px 24px;text-align:center;}
+.micro-stage{height:72px;display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:22px;}
+.micro-name{font-size:14.5px;font-weight:700;color:var(--sr-t1);}
+.micro-desc{font-size:12px;color:var(--sr-t3);margin-top:4px;}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--sr-bg);}
+.dot-on{box-shadow:var(--sr-out);}
+.dot-off{box-shadow:var(--sr-in-sm);}
+.dot-active{box-shadow:var(--sr-in-sm);position:relative;}
+.dot-active::after{content:"";position:absolute;inset:2.5px;border-radius:50%;background:var(--sr-bg);box-shadow:var(--sr-out);}
+.badge{width:34px;height:34px;border-radius:11px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);display:grid;place-items:center;font-size:15px;font-weight:700;color:var(--sr-t2);font-variant-numeric:tabular-nums;}
+.arrow{width:38px;height:4px;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);position:relative;}
+.arrow::after{content:"";position:absolute;right:-6px;top:50%;width:10px;height:10px;background:var(--sr-bg);box-shadow:-2px -2px 4px rgba(255,255,255,.92),2px 2px 5px rgba(163,177,198,.5);transform:translateY(-50%) rotate(45deg);border-radius:2px;}
+.switch{width:52px;height:30px;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);position:relative;padding:3px;display:flex;align-items:center;}
+.switch.on{justify-content:flex-end;}
+.switch-knob{width:24px;height:24px;border-radius:50%;background:var(--sr-bg);box-shadow:var(--sr-out);}
+.checkbox{width:18px;height:18px;border-radius:5px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);display:grid;place-items:center;}
+.unit{display:flex;align-items:baseline;gap:4px;}
+.unit-num{font-size:36px;font-weight:700;color:var(--sr-t1);letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums;}
+.unit-tag{font-size:11px;font-weight:500;color:var(--sr-t3);}
+.axis{width:100%;height:3px;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);position:relative;}
+.axis::before,.axis::after{content:"";position:absolute;top:50%;width:8px;height:8px;border-radius:50%;background:var(--sr-bg);box-shadow:var(--sr-in-sm);transform:translate(-50%,-50%);}
+.axis::before{left:30%;}
+.axis::after{left:70%;}
+
+/* 数据可视化 */
+.viz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:28px;}
+.viz-card{background:var(--sr-bg);border-radius:var(--sr-r-md);box-shadow:var(--sr-out);overflow:hidden;cursor:pointer;transition:box-shadow 360ms var(--sr-ease),transform 360ms var(--sr-ease);}
+.viz-card:hover{box-shadow:var(--sr-out-hi);transform:translateY(-2px);}
+.viz-stage{height:260px;padding:32px;background:var(--sr-bg);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+.viz-info{padding:0 24px 22px;}
+.viz-info b{display:block;font-size:15px;font-weight:700;color:var(--sr-t1);}
+.viz-info code{font-size:11px;color:var(--sr-t2);font-family:ui-monospace,Menlo,monospace;font-weight:500;}
+.viz-info p{margin:6px 0 0;font-size:12.5px;color:var(--sr-t3);line-height:1.55;}
+.viz-tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.1em;padding:3px 9px;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);color:var(--sr-t2);margin-right:6px;vertical-align:middle;}
+
+/* 柱状图：从下往上生长 */
+.vbar-v{width:100%;display:flex;align-items:flex-end;gap:14px;height:200px;padding:0 8px;}
+.vbar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:10px;height:100%;}
+.vbar-track{
+  flex:1;width:100%;border-radius:14px;background:var(--sr-bg);
+  box-shadow:var(--sr-in-sm);
+  display:flex;flex-direction:column;justify-content:flex-end;
+  padding:4px;overflow:hidden;
+}
+.vbar-fill{
+  width:100%;border-radius:10px;background:var(--sr-bg);box-shadow:var(--sr-out);
+  height:0;
+  transition:height 1050ms var(--sr-ease-soft);
+}
+.vbar-label{font-size:12px;font-weight:700;color:var(--sr-t2);font-variant-numeric:tabular-nums;}
+
+/* 进度条：从左往右生长 */
+.vprog-v{width:100%;display:flex;flex-direction:column;gap:18px;}
+.vprog-row{display:flex;flex-direction:column;gap:7px;}
+.vprog-head{display:flex;justify-content:space-between;font-size:12px;color:var(--sr-t2);font-weight:500;}
+.vprog-head b{color:var(--sr-t1);font-weight:700;font-variant-numeric:tabular-nums;}
+.vprog-track{height:18px;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);padding:3px;}
+.vprog-fill{height:100%;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-out);width:0;transition:width 1050ms var(--sr-ease-soft);}
+
+/* 圆环：环形生长 */
+.vring{position:relative;width:170px;height:170px;display:grid;place-items:center;}
+.vring svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);}
+.vring circle{fill:none;stroke:var(--sr-t1);stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset 1200ms var(--sr-ease-soft);}
+.vring-num{font-size:32px;font-weight:700;color:var(--sr-t1);font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+
+/* 折线：线段与点一起生长 */
+.vline-clip{width:100%;max-width:340px;clip-path:inset(0 100% 0 0);transition:clip-path 1400ms var(--sr-ease-soft);}
+.viz-card.play .vline-clip{clip-path:inset(0 0 0 0);}
+.vline-svg{width:100%;height:auto;}
+.vline-svg polyline{fill:none;stroke:var(--sr-t1);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
+.vline-svg circle{fill:var(--sr-bg);stroke:var(--sr-t2);stroke-width:2;}
+
+/* 数字对比：等大 → 一大一小 */
+.vcmp{display:flex;align-items:baseline;justify-content:center;gap:32px;}
+.vcmp-num{
+  font-family:var(--sr-font);font-weight:700;color:var(--sr-t1);
+  font-size:52px;letter-spacing:-.03em;line-height:1;
+  font-variant-numeric:tabular-nums;
+  transition:font-size 1050ms var(--sr-ease-soft), color 1050ms var(--sr-ease-soft);
+  display:inline-block;
+}
+.vcmp-side{display:flex;flex-direction:column;align-items:center;gap:14px;}
+.vcmp-label{font-size:12px;color:var(--sr-t3);letter-spacing:.12em;transition:color 1050ms var(--sr-ease-soft);}
+.viz-card.play .vcmp-big .vcmp-num{font-size:86px;}
+.viz-card.play .vcmp-big .vcmp-label{color:var(--sr-t1);font-weight:700;}
+.viz-card.play .vcmp-small .vcmp-num{font-size:24px;color:var(--sr-t3);}
+.viz-card.play .vcmp-small .vcmp-label{color:var(--sr-t3);}
+
+/* 动效 */
+.motion-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:24px;}
+.motion-card{background:var(--sr-bg);border-radius:var(--sr-r-md);padding:24px;cursor:pointer;box-shadow:var(--sr-out);transition:box-shadow 360ms var(--sr-ease),transform 360ms var(--sr-ease);}
+.motion-card:hover{box-shadow:var(--sr-out-hi);transform:translateY(-2px);}
+.motion-stage{height:130px;border-radius:var(--sr-r-sm);background:var(--sr-bg);box-shadow:var(--sr-in);display:grid;place-items:center;overflow:hidden;margin-bottom:20px;padding:16px;}
+.motion-name{font-size:14px;font-weight:700;color:var(--sr-t1);}
+.motion-name code{font-size:11px;color:var(--sr-t2);font-weight:500;font-family:ui-monospace,Menlo,monospace;letter-spacing:.02em;margin-left:6px;}
+.motion-hint{font-size:12px;color:var(--sr-t3);margin-top:4px;}
+
+/* Keyframes */
+@keyframes embossin{
+  0%  {opacity:0;transform:scale(.965);
+       box-shadow:inset -4px -4px 9px rgba(255,255,255,.92),
+                  inset  4px  4px 10px rgba(163,177,198,.50);}
+  38% {opacity:1;}
+  100%{opacity:1;transform:scale(1);
+       box-shadow:-6px -6px 12px rgba(255,255,255,.92),
+                   6px  6px 14px rgba(163,177,198,.55);}
+}
+@keyframes sinkout{
+  0%  {opacity:1;transform:scale(1);
+       box-shadow:-6px -6px 12px rgba(255,255,255,.92),
+                   6px  6px 14px rgba(163,177,198,.55);}
+  100%{opacity:0;transform:scale(.972);
+       box-shadow:inset -4px -4px 9px rgba(255,255,255,.92),
+                  inset  4px  4px 10px rgba(163,177,198,.50);}
+}
+@keyframes numkick{
+  0%,100%{box-shadow:var(--sr-out);}
+  45%{box-shadow:-8px -8px 16px rgba(255,255,255,.95),
+                   9px  9px 20px rgba(163,177,198,.62);}
+}
+@keyframes numcount{from{--nv:0} to{--nv:var(--nto)}}
+@keyframes pressin{
+  0%  {opacity:0;transform:translateY(-7px);
+       box-shadow:inset -7px -7px 14px rgba(255,255,255,.95),
+                  inset  7px  7px 15px rgba(163,177,198,.62);}
+  100%{opacity:1;transform:none;box-shadow:var(--sr-in-sm);}
+}
+@keyframes breathe{
+  0%,100%{box-shadow:var(--sr-in);}
+  50%    {box-shadow:inset -6px -6px 13px rgba(255,255,255,.94),
+                     inset  6px  6px 15px rgba(163,177,198,.58);}
+}
+@keyframes line-reveal{to{clip-path:inset(0 0 0 0);}}
+
+.num-up{counter-reset:nv var(--nv);animation:numcount 1.05s var(--sr-ease-soft) both;animation-delay:.34s;}
+.num-up::after{content:counter(nv)}
+
+/* 布局 */
+.layout-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px;}
+.layout-card{background:var(--sr-bg);border-radius:var(--sr-r-md);padding:20px;}
+.layout-diagram{position:relative;aspect-ratio:16/9;background:var(--sr-bg);border-radius:var(--sr-r-sm);box-shadow:var(--sr-in-sm);margin-bottom:18px;padding:14px;}
+.layout-diagram .blk{position:absolute;border-radius:10px;background:var(--sr-bg);}
+.layout-diagram .blk.out{box-shadow:var(--sr-out);}
+.layout-diagram .blk.in{box-shadow:var(--sr-in-sm);}
+.layout-name{font-size:14.5px;font-weight:700;color:var(--sr-t1);}
+.layout-desc{font-size:12px;color:var(--sr-t3);margin-top:4px;}
+
+/* 深色 */
+.dark-demo{
+  --sr-bg:#2A2F3A;
+  --sr-t1:#DCE3ED; --sr-t2:#9AA6B8; --sr-t3:#6E7A8C;
+  --sr-out:-6px -6px 12px rgba(255,255,255,.06),6px 6px 14px rgba(0,0,0,.30);
+  --sr-out-hi:-8px -8px 16px rgba(255,255,255,.08),9px 9px 20px rgba(0,0,0,.38);
+  --sr-in:inset -5px -5px 10px rgba(255,255,255,.06),inset 5px 5px 12px rgba(0,0,0,.32);
+  --sr-in-sm:inset -4px -4px 9px rgba(255,255,255,.06),inset 4px 4px 10px rgba(0,0,0,.30);
+  background:var(--sr-bg);border-radius:var(--sr-r-lg);padding:44px 40px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:24px;
+}
+.dark-demo > *{border-radius:var(--sr-r-sm);padding:22px;text-align:center;font-weight:700;color:var(--sr-t1);font-size:16px;}
+.dark-demo .d1{box-shadow:var(--sr-out);}
+.dark-demo .d2{box-shadow:var(--sr-in);}
+.dark-demo .d3{box-shadow:var(--sr-out-hi);}
+.dark-demo .d4{color:var(--sr-t3);font-size:13px;font-weight:500;box-shadow:var(--sr-in-sm);}
+
+footer{padding:56px 0;color:var(--sr-t3);font-size:13.5px;letter-spacing:.04em;}
+footer b{color:var(--sr-t1);font-weight:700;font-size:15px;letter-spacing:-.01em;}
+
+/* 场景大尺寸 */
+.s-big-kw{font-size:120px;font-weight:700;letter-spacing:-.03em;line-height:1.05;color:var(--sr-t1);text-align:center;}
+.s-big-data{background:var(--sr-bg);border-radius:var(--sr-r-lg);box-shadow:var(--sr-out);padding:60px 90px;display:flex;align-items:baseline;gap:12px;font-size:180px;font-weight:700;color:var(--sr-t1);letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums;}
+.s-big-data i{font-style:normal;font-size:44px;color:var(--sr-t3);font-weight:500;}
+.s-big-cap{font-size:24px;color:var(--sr-t2);letter-spacing:.12em;text-transform:uppercase;}
+.s-quote-big{background:var(--sr-bg);border-radius:var(--sr-r-lg);box-shadow:var(--sr-in);padding:64px 80px;font-size:44px;font-weight:700;line-height:1.4;color:var(--sr-t1);text-align:center;letter-spacing:-.02em;max-width:1200px;}
+.s-quote-big::before{content:"“";font-size:80px;line-height:.5;color:var(--sr-t3);display:block;margin-bottom:24px;font-weight:700;}
+.s-vs-big{display:grid;grid-template-columns:1fr 10px 1fr;gap:32px;width:80%;max-width:1200px;}
+.s-vs-side{background:var(--sr-bg);border-radius:var(--sr-r-lg);box-shadow:var(--sr-out);padding:60px 40px;text-align:center;font-size:34px;color:var(--sr-t2);font-weight:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.s-vs-side.hi{color:var(--sr-t1);font-weight:700;}
+.s-vs-side b{font-size:64px;font-weight:700;color:var(--sr-t1);letter-spacing:-.03em;font-variant-numeric:tabular-nums;}
+.s-vs-gap{background:var(--sr-bg);border-radius:999px;box-shadow:var(--sr-in);}
+.s-step-big{background:var(--sr-bg);border-radius:var(--sr-r-lg);box-shadow:var(--sr-out);padding:36px 44px;display:flex;align-items:center;gap:32px;width:76%;max-width:1100px;}
+.s-step-big .c-step-num{width:80px;height:80px;border-radius:20px;font-size:26px;}
+.s-step-big .c-step-title{font-size:36px;font-weight:700;letter-spacing:-.02em;}
+.s-step-big .c-step-desc{font-size:20px;color:var(--sr-t2);margin-top:6px;}
+.s-list-big{width:70%;max-width:1000px;display:flex;flex-direction:column;gap:22px;}
+.s-list-big .c-list-row{font-size:30px;padding:28px 40px;border-radius:22px;font-weight:500;}
+.s-bar-big{width:70%;max-width:1000px;display:flex;flex-direction:column;gap:32px;}
+.s-bar-big .c-bar-scene{height:44px;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-in-sm);padding:6px;position:relative;display:flex;align-items:center;}
+.s-bar-big .c-bar-fill-scene{height:100%;border-radius:999px;background:var(--sr-bg);box-shadow:var(--sr-out);width:0;transition:width 1050ms var(--sr-ease-soft);}
+.s-bar-big .c-bar-label-scene{position:absolute;right:24px;top:50%;transform:translateY(-50%);font-size:20px;font-weight:700;color:var(--sr-t2);font-variant-numeric:tabular-nums;}
+.s-ring-big .c-ring{width:300px;height:300px;}
+.s-ring-big .c-ring-num{font-size:52px;}
+.s-ring-big .c-ring-svg circle{stroke-width:6;}
+.s-line-big{width:70%;max-width:1000px;}
+.s-cta{background:var(--sr-bg);border-radius:999px;box-shadow:var(--sr-out);padding:28px 64px;font-size:32px;font-weight:700;color:var(--sr-t1);letter-spacing:-.01em;}
+
+/* 场景中的大圈 */
+.c-ring{width:150px;height:150px;border-radius:50%;background:var(--sr-bg);box-shadow:var(--sr-in);position:relative;display:grid;place-items:center;}
+.c-ring-svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);}
+.c-ring-svg circle{fill:none;stroke:var(--sr-t1);stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset 1200ms var(--sr-ease-soft);}
+.c-ring-num{font-size:26px;font-weight:700;color:var(--sr-t1);font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+
+@media (max-width:880px){
+  .wrap{padding:0 24px;}
+  section{padding:56px 0;}
+  .hero h1{font-size:44px;}
+  .section-head h2{font-size:30px;}
+  .hero-stats{gap:14px;}
+  .hero-stats div{padding:14px 20px;min-width:84px;}
+  .hero-stats div b{font-size:28px;}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="tag">柔面凸凹 · SOFT RELIEF</span>
+    <h1>整个画面只有一个颜色</h1>
+    <p>所有东西靠同一道光源的两侧柔影，从底色上被"托起来"或"压下去"。<br>soft / tactile / quiet · 画面本身就是一件物件。</p>
+    <div class="hero-stats">
+      <div><b>12</b><span>内容组件</span></div>
+      <div><b>7</b><span>小元素</span></div>
+      <div><b>5</b><span>可视化组件</span></div>
+      <div><b>5</b><span>专属动效</span></div>
+      <div><b>10</b><span>场景模板</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- 01 色板 -->
+<section id="tokens">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">01 · Tokens</div>
+      <h2>色彩与材质</h2>
+      <p>亮影白与暗影灰是材质，不是颜色，不参与配色计算。明度序：越深越重要。</p>
+    </div>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#E4E9F0"></div><div class="meta"><b>画布</b><span>#E4E9F0 · 78%</span></div></div>
+      <div class="sw"><div class="chip" style="background:#FFFFFF"></div><div class="meta"><b>亮影白</b><span>#FFFFFF · 材质</span></div></div>
+      <div class="sw"><div class="chip" style="background:#A3B1C6"></div><div class="meta"><b>暗影灰</b><span>#A3B1C6 · 材质</span></div></div>
+      <div class="sw"><div class="chip" style="background:#3D4A5C"></div><div class="meta"><b>主文字</b><span>#3D4A5C · 主张</span></div></div>
+      <div class="sw"><div class="chip" style="background:#6B7A90"></div><div class="meta"><b>次文字</b><span>#6B7A90 · 说明</span></div></div>
+      <div class="sw"><div class="chip" style="background:#97A3B5"></div><div class="meta"><b>弱文字</b><span>#97A3B5 · 标签 ≥24px</span></div></div>
+      <div class="sw"><div class="chip" style="background:#E8555A"></div><div class="meta"><b>强调红</b><span>#E8555A · ≤3%</span></div></div>
+      <div class="sw"><div class="chip" style="background:#4A90D9"></div><div class="meta"><b>对照蓝</b><span>#4A90D9 · ≤8%</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 层次 -->
+<section id="elevation">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">02 · Elevation</div>
+      <h2>光源恒定，层次只由柔影承担</h2>
+      <p>光源左上 315°，永不改变。凸起用外影，凹陷用内影。最深到 L3，不做遮罩与模态。</p>
+    </div>
+    <div class="elev-row">
+      <div class="elev-card"><div class="elev-demo l1"></div><div class="elev-name">L1 微凸</div><div class="elev-desc">元素默认态</div></div>
+      <div class="elev-card"><div class="elev-demo l2"></div><div class="elev-name">L2 抬起</div><div class="elev-desc">悬停 / 当前项</div></div>
+      <div class="elev-card"><div class="elev-demo l3"></div><div class="elev-name">L3 凹陷</div><div class="elev-desc">输入位 / 轨道 / 选中</div></div>
+      <div class="elev-card"><div class="elev-demo l4"></div><div class="elev-name">L4 焦点</div><div class="elev-desc">全屏唯一，≤3%</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 场景模板 -->
+<section id="stage-sec">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">03 · Scenes</div>
+      <h2>10 个场景模板</h2>
+      <p>一屏一幕，组件块体积大，不做幕内叠加。点击圆点跳转，自动播放按停留时长切换。这里是所有动效的基准参照。</p>
+    </div>
+
+    <div class="stage-shell">
+      <div id="viewport">
+        <div id="stage">
+
+          <!-- 01 概念 -->
+          <section class="scene" data-hold="4000">
+            <div class="scene-inner">
+              <div class="s-big-kw a" style="--d:120ms">柔面凸凹</div>
+              <div class="c-capsule a" style="--d:300ms">SOFT RELIEF</div>
+            </div>
+            <div class="scene-title a" style="--d:0ms">01 · 概念</div>
+          </section>
+
+          <!-- 02 数据 -->
+          <section class="scene" data-hold="4500">
+            <div class="scene-inner">
+              <div class="s-big-data a" style="--d:120ms"><span class="num-up" style="--nto:78"></span><i>%</i></div>
+              <div class="s-big-cap a" style="--d:340ms">信息留存率</div>
+            </div>
+            <div class="scene-title a" style="--d:0ms">02 · 数据</div>
+          </section>
+
+          <!-- 03 对比 -->
+          <section class="scene" data-hold="5000">
+            <div class="scene-inner">
+              <div class="s-vs-big">
+                <div class="s-vs-side a" style="--d:120ms">纯口播<b>32%</b></div>
+                <div class="s-vs-gap a" style="--d:240ms"></div>
+                <div class="s-vs-side hi a" style="--d:360ms">动效叠加<b>68%</b></div>
+              </div>
+            </div>
+            <div class="scene-title a" style="--d:0ms">03 · 对比</div>
+          </section>
+
+          <!-- 04 步骤 -->
+          <section class="scene" data-hold="5000">
+            <div class="scene-inner" style="gap:24px;">
+              <div class="s-step-big a" style="--d:120ms">
+                <div class="c-step-num">01</div>
+                <div><div class="c-step-title">解析口播</div><div class="c-step-desc">切分语义单元，识别章节与要点</div></div>
+              </div>
+              <div class="s-step-big a" style="--d:280ms">
+                <div class="c-step-num">02</div>
+                <div><div class="c-step-title">匹配场景</div><div class="c-step-desc">按意图挑选组件、布局与动效</div></div>
+              </div>
+              <div class="s-step-big a" style="--d:440ms">
+                <div class="c-step-num">03</div>
+                <div><div class="c-step-title">对齐时间轴</div><div class="c-step-desc">以口播为主时钟，输出透明叠加层</div></div>
+              </div>
+            </div>
+            <div class="scene-title a" style="--d:0ms">04 · 步骤</div>
+          </section>
+
+          <!-- 05 引语 -->
+          <section class="scene" data-hold="4500">
+            <div class="scene-inner">
+              <div class="s-quote-big a" style="--d:120ms">动效不是装饰，是把声音里看不见的结构，翻译成眼睛能抓住的形状。</div>
+            </div>
+            <div class="scene-title a" style="--d:0ms">05 · 引语</div>
+          </section>
+
+          <!-- 06 进度条：从左往右 -->
+          <section class="scene" data-hold="5200">
+            <div class="scene-inner">
+              <div class="s-bar-big">
+                <div class="c-bar-scene a" style="--d:120ms">
+                  <div class="c-bar-fill-scene" data-to="75%"></div>
+                  <span class="c-bar-label-scene">75%</span>
+                </div>
+                <div class="c-bar-scene a" style="--d:240ms">
+                  <div class="c-bar-fill-scene" data-to="45%"></div>
+                  <span class="c-bar-label-scene">45%</span>
+                </div>
+                <div class="c-bar-scene a" style="--d:360ms">
+                  <div class="c-bar-fill-scene" data-to="92%"></div>
+                  <span class="c-bar-label-scene">92%</span>
+                </div>
+              </div>
+            </div>
+            <div class="scene-title a" style="--d:0ms">06 · 进度</div>
+          </section>
+
+          <!-- 07 圆环：环形生长 -->
+          <section class="scene" data-hold="5200">
+            <div class="scene-inner s-ring-big">
+              <div class="c-ring a" style="--d:120ms">
+                <svg class="c-ring-svg" viewBox="0 0 140 140">
+                  <circle class="ring-scene" cx="70" cy="70" r="55"
+                          stroke-dasharray="345.6" stroke-dashoffset="345.6" data-to="117"/>
+                </svg>
+                <div class="c-ring-num"><span class="num-up" style="--nto:66"></span>%</div>
+              </div>
+            </div>
+            <div class="scene-title a" style="--d:0ms">07 · 圆环</div>
+          </section>
+
+          <!-- 08 折线：线段与点一起生长（clip-path） -->
+          <section class="scene" data-hold="5200">
+            <div class="scene-inner s-line-big">
+              <div class="a" style="--d:120ms;width:100%;">
+                <div class="vline-clip line-clip-scene">
+                  <svg class="vline-svg" viewBox="0 0 340 130" preserveAspectRatio="xMidYMid meet">
+                    <polyline points="20,110 80,72 140,86 200,40 260,54 320,20"/>
+                    <circle cx="20" cy="110" r="5"/>
+                    <circle cx="80" cy="72" r="5"/>
+                    <circle cx="140" cy="86" r="5"/>
+                    <circle cx="200" cy="40" r="5"/>
+                    <circle cx="260" cy="54" r="5"/>
+                    <circle cx="320" cy="20" r="5"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div class="scene-title a" style="--d:0ms">08 · 折线</div>
+          </section>
+
+          <!-- 09 清单 -->
+          <section class="scene" data-hold="5200">
+            <div class="scene-inner">
+              <div class="s-list-big">
+                <div class="c-list-row a" style="--d:120ms">先定语义，再选场景</div>
+                <div class="c-list-row a" style="--d:240ms">组件与动效从固定库里取</div>
+                <div class="c-list-row a" style="--d:360ms">时间轴以口播为主时钟</div>
+              </div>
+            </div>
+            <div class="scene-title a" style="--d:0ms">09 · 清单</div>
+          </section>
+
+          <!-- 10 总结 -->
+          <section class="scene" data-hold="4000">
+            <div class="scene-inner">
+              <div class="s-big-kw a" style="--d:120ms">三句话<br>记住这套系统</div>
+              <div class="s-cta a" style="--d:340ms">开始生成</div>
+            </div>
+            <div class="scene-title a" style="--d:0ms">10 · 总结</div>
+          </section>
+
+        </div>
+      </div>
+
+      <div class="stage-bar">
+        <button class="ctrl" id="prev" aria-label="上一个">‹</button>
+        <button class="ctrl" id="play" aria-label="播放/暂停">❚❚</button>
+        <button class="ctrl" id="next" aria-label="下一个">›</button>
+        <span id="sceneLabel"></span>
+        <div class="scene-dots" id="dots"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 内容组件 -->
+<section id="components">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">04 · Content Components</div>
+      <h2>12 个内容组件，最多两层</h2>
+      <p>一个托盘层 + 最多再一层凹槽或凸起。文字直接放在凹槽或凸起层里，不再套框。分隔一律用凹陷横槽。</p>
+    </div>
+    <div class="comp-grid" id="compGrid">
+
+      <div class="comp-card"><div class="comp-preview"><div class="c-data"><span>78</span><i>%</i></div></div>
+        <div class="comp-info"><b>数据卡</b><code>c-data</code><p>凸起面板，数字直接放面板上</p></div></div>
+
+      <div class="comp-card"><div class="comp-preview"><div class="c-capsule">当前章节 · 03</div></div>
+        <div class="comp-info"><b>凹陷胶囊</b><code>c-capsule</code><p>章节序号、状态标签</p></div></div>
+
+      <div class="comp-card"><div class="comp-preview"><div class="c-kw">柔面凸凹</div></div>
+        <div class="comp-info"><b>关键词</b><code>c-kw</code><p>无容器，只靠字号与留白</p></div></div>
+
+      <div class="comp-card">
+        <div class="comp-preview"><div class="c-vs"><div class="c-vs-side">纯口播</div><div class="c-vs-gap"></div><div class="c-vs-side hi">动效叠加</div></div></div>
+        <div class="comp-info"><b>左右对比</b><code>c-vs</code><p>两块凸起 + 中缝凹陷缝</p></div></div>
+
+      <div class="comp-card"><div class="comp-preview"><div class="c-quote">动效不是装饰，是结构的翻译。</div></div>
+        <div class="comp-info"><b>引语</b><code>c-quote</code><p>整块凹陷，文字直接放槽里</p></div></div>
+
+      <div class="comp-card">
+        <div class="comp-preview" style="flex-direction:column;gap:20px;">
+          <div class="c-rule"></div><div class="c-rule" style="width:70%"></div>
+        </div>
+        <div class="comp-info"><b>凹陷细槽</b><code>c-rule</code><p>唯一分隔手法。高 6px，禁止 border</p></div></div>
+
+      <div class="comp-card">
+        <div class="comp-preview"><div class="c-list">
+          <div class="c-list-row">降低理解成本</div>
+          <div class="c-list-row">建立信息层级</div>
+          <div class="c-list-row">提供视觉锚点</div>
+        </div></div>
+        <div class="comp-info"><b>清单</b><code>c-list</code><p>每行一个凹陷槽，文字直接放槽里</p></div></div>
+
+      <div class="comp-card">
+        <div class="comp-preview">
+          <div class="c-step">
+            <div class="c-step-num">01</div>
+            <div><div class="c-step-title">解析口播</div><div class="c-step-desc">切分语义单元</div></div>
+          </div>
+        </div>
+        <div class="comp-info"><b>步骤</b><code>c-step</code><p>凸起面板 + 凹陷序号槽</p></div></div>
+
+      <div class="comp-card"><div class="comp-preview"><div class="c-note">旁注：凸起用外影，凹陷用内影。</div></div>
+        <div class="comp-info"><b>便签</b><code>c-note</code><p>凸起小面板，文字直接放</p></div></div>
+
+      <div class="comp-card">
+        <div class="comp-preview">
+          <div class="c-flow">
+            <div class="c-flow-node">解析</div><div class="c-flow-arrow"></div>
+            <div class="c-flow-node">匹配</div><div class="c-flow-arrow"></div>
+            <div class="c-flow-node">渲染</div>
+          </div>
+        </div>
+        <div class="comp-info"><b>流程</b><code>c-flow</code><p>凸起节点 + 凹陷箭头</p></div></div>
+
+      <div class="comp-card">
+        <div class="comp-preview">
+          <div class="c-stack">
+            <div class="c-stack-row" style="width:40%">战略</div>
+            <div class="c-stack-row" style="width:60%">模式</div>
+            <div class="c-stack-row" style="width:80%">业务</div>
+            <div class="c-stack-row" style="width:100%">基础</div>
+          </div>
+        </div>
+        <div class="comp-info"><b>阶梯</b><code>c-stack</code><p>每级一个凸起块，宽度递减</p></div></div>
+
+      <div class="comp-card">
+        <div class="comp-preview">
+          <div class="c-cmp">
+            <div class="c-cmp-block hi">动效叠加 · 68%</div>
+            <div class="c-cmp-gap"></div>
+            <div class="c-cmp-block">纯口播 · 32%</div>
+          </div>
+        </div>
+        <div class="comp-info"><b>上下对比</b><code>c-cmp</code><p>上下凸起 + 中缝凹陷</p></div></div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 05 小元素 -->
+<section id="micro">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">05 · Micro</div>
+      <h2>7 个小元素</h2>
+      <p>状态点、序号徽章、连接箭头、开关、复选框、单位角标、坐标轴。</p>
+    </div>
+    <div class="micro-grid">
+      <div class="micro-card"><div class="micro-stage"><div class="dot dot-on"></div><div class="dot dot-off"></div><div class="dot dot-active"></div></div><div class="micro-name">状态点</div><div class="micro-desc">凸=亮起 · 凹=关闭 · 凹陷+内圈=进行中</div></div>
+      <div class="micro-card"><div class="micro-stage"><div class="badge">03</div></div><div class="micro-name">序号徽章</div><div class="micro-desc">34×34 凹陷方槽，圆角 11px</div></div>
+      <div class="micro-card"><div class="micro-stage"><div class="arrow"></div></div><div class="micro-name">连接箭头</div><div class="micro-desc">4px 凹陷槽 + 槽端凸起三角</div></div>
+      <div class="micro-card"><div class="micro-stage"><div class="switch"><div class="switch-knob"></div></div><div class="switch on"><div class="switch-knob"></div></div></div><div class="micro-name">开关</div><div class="micro-desc">凹陷胶囊 52×30 + 凸起圆钮 24px</div></div>
+      <div class="micro-card"><div class="micro-stage"><div class="checkbox"><svg viewBox="0 0 12 12" width="11" height="11"><polyline points="2,6.5 4.8,9 10,3" fill="none" stroke="#3D4A5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="micro-name">复选框</div><div class="micro-desc">18×18 凹陷方角槽 + 凸起对勾</div></div>
+      <div class="micro-card"><div class="micro-stage"><div class="unit"><span class="unit-num">78</span><span class="unit-tag">%</span></div></div><div class="micro-name">单位角标</div><div class="micro-desc">主数字 30% 字号，色 #97A3B5，底对齐</div></div>
+      <div class="micro-card"><div class="micro-stage" style="padding:0 24px;"><div class="axis"></div></div><div class="micro-name">坐标轴</div><div class="micro-desc">轴=凹陷细槽 3px；刻度点=8px 凹陷小孔</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 06 数据可视化 -->
+<section id="viz">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">06 · Data Viz</div>
+      <h2>5 个数据可视化组件</h2>
+      <p>与场景里的动效一致：柱状图从下往上、进度条从左往右、圆环环形、折线线段与点一起生长、数字对比从等大到一大一小。点击卡片重播。</p>
+    </div>
+    <div class="viz-grid" id="vizGrid">
+
+      <!-- 柱状图：从下往上 -->
+      <div class="viz-card" data-viz="bar">
+        <div class="viz-stage">
+          <div class="vbar-v">
+            <div class="vbar-col">
+              <div class="vbar-track"><div class="vbar-fill" data-h="75%"></div></div>
+              <div class="vbar-label">75%</div>
+            </div>
+            <div class="vbar-col">
+              <div class="vbar-track"><div class="vbar-fill" data-h="45%"></div></div>
+              <div class="vbar-label">45%</div>
+            </div>
+            <div class="vbar-col">
+              <div class="vbar-track"><div class="vbar-fill" data-h="92%"></div></div>
+              <div class="vbar-label">92%</div>
+            </div>
+            <div class="vbar-col">
+              <div class="vbar-track"><div class="vbar-fill" data-h="60%"></div></div>
+              <div class="vbar-label">60%</div>
+            </div>
+          </div>
+        </div>
+        <div class="viz-info"><b>柱状图</b><code>v-bar</code><p><span class="viz-tag">从下往上</span>柱体从基线向上生长，错峰 140ms</p></div>
+      </div>
+
+      <!-- 进度条：从左往右 -->
+      <div class="viz-card" data-viz="progress">
+        <div class="viz-stage">
+          <div class="vprog-v">
+            <div class="vprog-row">
+              <div class="vprog-head"><span>信息留存</span><b>75%</b></div>
+              <div class="vprog-track"><div class="vprog-fill" data-w="75%"></div></div>
+            </div>
+            <div class="vprog-row">
+              <div class="vprog-head"><span>完成率</span><b>45%</b></div>
+              <div class="vprog-track"><div class="vprog-fill" data-w="45%"></div></div>
+            </div>
+            <div class="vprog-row">
+              <div class="vprog-head"><span>触达率</span><b>92%</b></div>
+              <div class="vprog-track"><div class="vprog-fill" data-w="92%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="viz-info"><b>进度条</b><code>v-progress</code><p><span class="viz-tag">从左往右</span>宽度从 0 生长到目标值，错峰 160ms</p></div>
+      </div>
+
+      <!-- 圆环：环形 -->
+      <div class="viz-card" data-viz="ring">
+        <div class="viz-stage">
+          <div class="vring">
+            <svg viewBox="0 0 140 140">
+              <circle class="ring-el" cx="70" cy="70" r="55"
+                      stroke-dasharray="345.6" stroke-dashoffset="345.6" data-to="117"/>
+            </svg>
+            <div class="vring-num"><span class="num-up" style="--nto:66"></span>%</div>
+          </div>
+        </div>
+        <div class="viz-info"><b>圆环</b><code>v-ring</code><p><span class="viz-tag">环形</span>从 12 点顺时针环形生长，数字同步滚动</p></div>
+      </div>
+
+      <!-- 折线：线段与点一起生长 -->
+      <div class="viz-card" data-viz="line">
+        <div class="viz-stage">
+          <div class="vline-clip">
+            <svg class="vline-svg" viewBox="0 0 340 130">
+              <polyline points="20,110 80,72 140,86 200,40 260,54 320,20"/>
+              <circle cx="20" cy="110" r="5"/>
+              <circle cx="80" cy="72" r="5"/>
+              <circle cx="140" cy="86" r="5"/>
+              <circle cx="200" cy="40" r="5"/>
+              <circle cx="260" cy="54" r="5"/>
+              <circle cx="320" cy="20" r="5"/>
+            </svg>
+          </div>
+        </div>
+        <div class="viz-info"><b>折线图</b><code>v-line</code><p><span class="viz-tag">线点同步</span>clip-path 从左到右一起揭开线与点</p></div>
+      </div>
+
+      <!-- 数字对比：等大 → 一大一小 -->
+      <div class="viz-card" data-viz="cmp">
+        <div class="viz-stage">
+          <div class="vcmp">
+            <div class="vcmp-side vcmp-big">
+              <div class="vcmp-num">68%</div>
+              <div class="vcmp-label">动效叠加</div>
+            </div>
+            <div class="vcmp-side vcmp-small">
+              <div class="vcmp-num">32%</div>
+              <div class="vcmp-label">纯口播</div>
+            </div>
+          </div>
+        </div>
+        <div class="viz-info"><b>数字对比</b><code>v-compare</code><p><span class="viz-tag">等大 → 大小</span>起始等大等色，随后大的放大、小的缩小</p></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 07 专属动效 -->
+<section id="motion">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">07 · Motion</div>
+      <h2>5 个专属动效</h2>
+      <p>只保留不与可视化重复的通用动效。本套的「动」由影的深浅与形状的进出承担。点击任意卡片重新播放。</p>
+    </div>
+    <div class="motion-grid" id="motionGrid">
+
+      <div class="motion-card" data-anim="emboss">
+        <div class="motion-stage"><div class="motion-demo emboss-target">01</div></div>
+        <div class="motion-name">由凹到凸<code>EMBOSS-IN</code></div>
+        <div class="motion-hint">360ms · 内影顶出为外影</div>
+      </div>
+
+      <div class="motion-card" data-anim="sink">
+        <div class="motion-stage"><div class="motion-demo sink-target">02</div></div>
+        <div class="motion-name">压回凹陷<code>SINK-OUT</code></div>
+        <div class="motion-hint">240ms · 外影收回为内影</div>
+      </div>
+
+      <div class="motion-card" data-anim="num">
+        <div class="motion-stage">
+          <div class="motion-demo numplate num-target"><span class="num-up" style="--nto:78"></span></div>
+        </div>
+        <div class="motion-name">数字跳涨<code>NUM-UP</code></div>
+        <div class="motion-hint">1050ms · CSS counter 驱动</div>
+      </div>
+
+      <div class="motion-card" data-anim="press">
+        <div class="motion-stage" style="padding:8px;">
+          <div class="motion-demo press-target" style="width:170px;height:32px;border-radius:10px;font-size:11px;font-weight:500;color:#6B7A90;box-shadow:var(--sr-in-sm);">从更深地压进底面</div>
+        </div>
+        <div class="motion-name">行压入<code>PRESS-IN</code></div>
+        <div class="motion-hint">300ms · 位移 7px</div>
+      </div>
+
+      <div class="motion-card" data-anim="breathe">
+        <div class="motion-stage">
+          <div class="motion-demo breathe-target" style="width:100px;height:60px;border-radius:16px;"></div>
+        </div>
+        <div class="motion-name">柔影呼吸<code>BREATHE</code></div>
+        <div class="motion-hint">全片只留一处，唯一循环动效</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 08 版式骨架 -->
+<section id="layouts">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">08 · Layout</div>
+      <h2>3 种版式骨架</h2>
+      <p>视觉重心落在垂直 42% 处。一屏凸起 ≤3 个、凹陷 ≤5 个。宁可不对齐也不压间距。</p>
+    </div>
+    <div class="layout-grid">
+      <div class="layout-card">
+        <div class="layout-diagram"><div class="blk out" style="left:50%;top:42%;transform:translate(-50%,-50%);width:64%;height:52%;"></div></div>
+        <div class="layout-name">单件式</div><div class="layout-desc">一个大凸起居中偏上 · 单一概念</div>
+      </div>
+      <div class="layout-card">
+        <div class="layout-diagram">
+          <div class="blk in" style="left:12%;top:22%;width:76%;height:60%;"></div>
+          <div class="blk out" style="left:20%;top:32%;width:26%;height:34%;"></div>
+          <div class="blk out" style="left:52%;top:32%;width:26%;height:34%;"></div>
+        </div>
+        <div class="layout-name">托盘式</div><div class="layout-desc">凹陷大盘托住 2–3 个凸起小块 · 并列与对比</div>
+      </div>
+      <div class="layout-card">
+        <div class="layout-diagram">
+          <div class="blk out" style="left:8%;top:22%;width:32%;height:56%;"></div>
+          <div class="blk out" style="left:46%;top:22%;width:46%;height:56%;"></div>
+        </div>
+        <div class="layout-name">侧列式</div><div class="layout-desc">左 38% 文字 + 右 62% 物件 · 说明型</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 09 深色降级 -->
+<section id="dark">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">09 · Dark Fallback</div>
+      <h2>深色降级</h2>
+      <p>只在必须深底时使用。画布 #2A2F3A，亮影降至 6%，暗影加深至 30%，只保留 L1 / L2。</p>
+    </div>
+    <div class="dark-demo">
+      <div class="d1">L1 微凸</div>
+      <div class="d2">L3 凹陷</div>
+      <div class="d3">L2 抬起</div>
+      <div class="d4">只保留 L1 / L2，不做遮罩与模态</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <b>柔面凸凹 · Soft Relief</b><br>
+    soft / tactile / quiet · 画面本身就是一件物件
+  </div>
+</footer>
+
+<script>
+/* ==================== 舞台自适应 ==================== */
+const stage = document.getElementById('stage');
+const viewport = document.getElementById('viewport');
+function fitStage(){ stage.style.transform = `scale(${viewport.clientWidth / 1920})`; }
+window.addEventListener('resize', fitStage); fitStage();
+
+/* ==================== 场景调度 ==================== */
+const scenes = Array.from(document.querySelectorAll('.scene'));
+const dotsBox = document.getElementById('dots');
+const label = document.getElementById('sceneLabel');
+const SCENE_NAMES = [
+  '01 · 概念','02 · 数据','03 · 对比','04 · 步骤','05 · 引语',
+  '06 · 进度','07 · 圆环','08 · 折线','09 · 清单','10 · 总结'
+];
+let cur = -1, playing = true, timer = null;
+
+scenes.forEach((_, i) => {
+  const b = document.createElement('button');
+  b.setAttribute('aria-label', '场景 ' + (i + 1));
+  b.addEventListener('click', () => { play(i); restart(); });
+  dotsBox.appendChild(b);
+});
+const dots = Array.from(dotsBox.children);
+
+function resetSceneViz(scope){
+  /* 进度条重置 */
+  scope.querySelectorAll('.c-bar-fill-scene').forEach(el => { el.style.width = '0'; });
+  /* 圆环重置 */
+  scope.querySelectorAll('.ring-scene').forEach(el => { el.style.strokeDashoffset = '345.6'; });
+  /* 折线重置 */
+  scope.querySelectorAll('.line-clip-scene').forEach(el => { el.style.clipPath = 'inset(0 100% 0 0)'; });
+  /* 数字重置 */
+  scope.querySelectorAll('.num-up').forEach(el => {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+  });
+}
+
+function playSceneViz(scope){
+  /* 进度条：从左往右生长 */
+  scope.querySelectorAll('.c-bar-fill-scene').forEach((el, i) => {
+    const to = el.dataset.to;
+    setTimeout(() => { el.style.width = to; }, 400 + i * 160);
+  });
+  /* 圆环：环形生长 */
+  scope.querySelectorAll('.ring-scene').forEach(el => {
+    const to = el.dataset.to;
+    setTimeout(() => { el.style.strokeDashoffset = to; }, 400);
+  });
+  /* 折线：clip-path 线点同步揭示 */
+  scope.querySelectorAll('.line-clip-scene').forEach(el => {
+    setTimeout(() => {
+      el.style.animation = 'line-reveal 1400ms cubic-bezier(.22,.9,.28,1) both';
+    }, 400);
+  });
+  /* 数字跳涨 */
+  scope.querySelectorAll('.num-up').forEach(el => {
+    void el.offsetWidth;
+    el.style.animation = 'numcount 1.05s cubic-bezier(.22,.9,.28,1) .34s both';
+  });
+}
+
+function play(i){
+  scenes.forEach((s, j) => {
+    s.classList.remove('active');
+    s.style.display = (j === i) ? 'block' : 'none';
+    resetSceneViz(s);
+  });
+  const s = scenes[i];
+  void s.offsetWidth;
+  s.classList.add('active');
+  playSceneViz(s);
+  cur = i;
+  dots.forEach((d, j) => d.classList.toggle('on', j === i));
+  label.textContent = SCENE_NAMES[i] || ('场景 ' + (i + 1));
+}
+function schedule(){
+  clearTimeout(timer);
+  if (!playing) return;
+  const hold = parseInt(scenes[cur].dataset.hold || 5000, 10);
+  timer = setTimeout(() => next(), hold);
+}
+function next(){ play((cur + 1) % scenes.length); schedule(); }
+function prev(){ play((cur - 1 + scenes.length) % scenes.length); schedule(); }
+function restart(){ schedule(); }
+
+document.getElementById('next').addEventListener('click', next);
+document.getElementById('prev').addEventListener('click', prev);
+document.getElementById('play').addEventListener('click', (e) => {
+  playing = !playing;
+  e.currentTarget.textContent = playing ? '❚❚' : '▶';
+  if (playing) schedule(); else clearTimeout(timer);
+});
+play(0); schedule();
+
+/* ==================== 内容组件：EMBOSS-IN ==================== */
+document.querySelectorAll('.comp-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const root = card.querySelector('.comp-preview');
+    const list = [];
+    root.querySelectorAll('*').forEach(el => {
+      if (el.children.length === 0
+          || el.classList.contains('c-data') || el.classList.contains('c-capsule')
+          || el.classList.contains('c-kw') || el.classList.contains('c-vs-side')
+          || el.classList.contains('c-vs-gap') || el.classList.contains('c-quote')
+          || el.classList.contains('c-rule') || el.classList.contains('c-list-row')
+          || el.classList.contains('c-step') || el.classList.contains('c-note')
+          || el.classList.contains('c-flow-node') || el.classList.contains('c-flow-arrow')
+          || el.classList.contains('c-stack-row') || el.classList.contains('c-cmp-block')
+          || el.classList.contains('c-cmp-gap')){
+        list.push(el);
+      }
+    });
+    list.forEach((el, i) => {
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.animation = 'embossin 360ms cubic-bezier(.34,1.32,.64,1) both';
+      el.style.animationDelay = (i * 60) + 'ms';
+    });
+  });
+});
+
+/* ==================== 数据可视化：与场景一致 ==================== */
+function replayViz(card){
+  const type = card.dataset.viz;
+  const s = card.querySelector('.viz-stage');
+  card.classList.remove('play');
+  void card.offsetWidth;
+
+  if (type === 'bar'){
+    s.querySelectorAll('.vbar-fill').forEach(el => { el.style.height = '0'; });
+    s.querySelectorAll('.vbar-fill').forEach((el, i) => {
+      const h = el.dataset.h;
+      setTimeout(() => { el.style.height = h; }, 120 + i * 140);
+    });
+  }
+  if (type === 'progress'){
+    s.querySelectorAll('.vprog-fill').forEach(el => { el.style.width = '0'; });
+    s.querySelectorAll('.vprog-fill').forEach((el, i) => {
+      const w = el.dataset.w;
+      setTimeout(() => { el.style.width = w; }, 120 + i * 160);
+    });
+  }
+  if (type === 'ring'){
+    s.querySelectorAll('.ring-el').forEach(el => {
+      el.style.strokeDashoffset = '345.6';
+      const to = el.dataset.to;
+      setTimeout(() => { el.style.strokeDashoffset = to; }, 120);
+    });
+    s.querySelectorAll('.num-up').forEach(el => {
+      el.style.animation = 'none'; void el.offsetWidth;
+      el.style.animation = 'numcount 1.05s cubic-bezier(.22,.9,.28,1) .34s both';
+    });
+  }
+  if (type === 'line'){
+    card.classList.add('play');
+  }
+  if (type === 'cmp'){
+    card.classList.add('play');
+  }
+}
+document.querySelectorAll('.viz-card').forEach(card => {
+  card.addEventListener('click', () => replayViz(card));
+});
+
+/* ==================== 动效卡片 ==================== */
+document.querySelectorAll('.motion-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const type = card.dataset.anim;
+    if (type === 'emboss'){
+      const el = card.querySelector('.emboss-target');
+      el.style.animation = 'none'; void el.offsetWidth;
+      el.style.animation = 'embossin 360ms cubic-bezier(.34,1.32,.64,1) both';
+    }
+    if (type === 'sink'){
+      const el = card.querySelector('.sink-target');
+      el.style.animation = 'none'; void el.offsetWidth;
+      el.style.animation = 'sinkout 240ms ease-in both, embossin 360ms cubic-bezier(.34,1.32,.64,1) 320ms both';
+    }
+    if (type === 'num'){
+      const plate = card.querySelector('.num-target');
+      const span = card.querySelector('.num-up');
+      plate.style.animation = 'none'; void plate.offsetWidth;
+      plate.style.animation = 'numkick 1050ms ease-out both, embossin 360ms cubic-bezier(.34,1.32,.64,1) both';
+      span.style.animation = 'none'; void span.offsetWidth;
+      span.style.animation = 'numcount 1.05s cubic-bezier(.22,.9,.28,1) .34s both';
+    }
+    if (type === 'press'){
+      const el = card.querySelector('.press-target');
+      el.style.animation = 'none'; void el.offsetWidth;
+      el.style.animation = 'pressin 360ms cubic-bezier(.34,1.32,.64,1) both';
+    }
+    if (type === 'breathe'){
+      const el = card.querySelector('.breathe-target');
+      el.style.animation = 'none'; void el.offsetWidth;
+      el.style.animation = 'breathe 2400ms ease-in-out infinite';
+    }
+  });
+});
+
+/* ==================== 首屏自动播放一轮 ==================== */
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.querySelectorAll('.viz-card').forEach((card, i) => {
+      setTimeout(() => replayViz(card), i * 220);
+    });
+  }, 400);
+  setTimeout(() => {
+    document.querySelectorAll('.motion-card').forEach((card, i) => {
+      setTimeout(() => card.click(), i * 200);
+    });
+  }, 1400);
+});
+</script>
+</body>
+</html>

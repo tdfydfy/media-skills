@@ -1,0 +1,775 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>柔面凸凹 · 透明素材</title>
+<style>
+/* ==========================================================================
+   柔面凸凹 · Soft Relief —— 透明素材模板
+   --------------------------------------------------------------------------
+   这个文件干三件事，别混：
+
+     1) 引擎    .comp + data-in / data-out + IVH.seekAt(t)      ← 不要改
+     2) 样板间  <template id="kit">，每个 kind 一个真实例子       ← 照抄这里
+     3) 产物    #track 里放真实的素材点                          ← 改这里
+
+   抄法：从样板间挑 kind → 复制整个 <div class="comp"> → 换内容
+        → 按脚本填 data-in / data-out → 只从 #track 里留要用到的
+   ========================================================================== */
+
+/* ---------- 0 · 变量 ---------- */
+:root{
+  --plate:#E4E9F0;               /* 承载板 = 唯一的底色 */
+  --lit:rgba(255,255,255,.92);   /* 亮影白 · 材质 */
+  --dim:rgba(163,177,198,.55);   /* 暗影灰 · 材质 */
+  --dim-in:rgba(163,177,198,.50);
+
+  --ink:#3D4A5C;                 /* 主张与数字 */
+  --ink2:#6B7A90;                /* 说明与单位 */
+  --ink3:#97A3B5;                /* 标签与序号（仅 >=24px） */
+  --hot:#E8555A;                 /* 唯一焦点 <=3% */
+  --cool:#4A90D9;                /* 对照项 <=8% */
+
+  --r-plate:40px; --r-card:28px; --r-slot:16px;
+
+  --sh-raise:-6px -6px 12px var(--lit), 6px 6px 14px var(--dim);
+  --sh-raise-sm:-3px -3px 6px var(--lit), 3px 3px 8px var(--dim);
+  --sh-sink:inset -5px -5px 10px var(--lit), inset 5px 5px 12px var(--dim-in);
+  --sh-deep:inset -7px -7px 14px var(--lit), inset 7px 7px 16px var(--dim-in);
+  --sh-groove:inset -3px -3px 5px var(--lit), inset 3px 3px 6px var(--dim-in);
+
+  --ease:cubic-bezier(.22,.9,.28,1);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:transparent}
+
+#stage{
+  position:relative;
+  width:1080px;height:1440px;
+  font-family:Inter,"SF Pro Text","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-weight:500;
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- 1 · 承载板 ----------
+   为什么必须有板：这套语言靠"底色 + 两侧柔影"制造凸凹。底一旦透明，柔影没有依托，
+   凸起的东西会看起来像悬浮的污渍。
+   板只加单侧暗投影 —— 亮影在透明底上会变成白色光晕。 */
+.plate{
+  position:absolute; left:50%; top:42%;
+  transform:translate(-50%,-50%);
+  width:72%;
+  padding:64px 56px;
+  background:var(--plate);
+  border-radius:var(--r-plate);
+  box-shadow:10px 14px 30px rgba(20,28,40,.22);   /* 单侧暗影，贴到实拍上 */
+}
+.track{
+  display:grid; align-items:center;   /* 同一时刻只显示一块，所以所有块共用一个格；
+                                         高度由最高的那块定 —— 靠居中，矮的那块才不会贴顶 */
+}
+.comp{grid-area:1/1; opacity:0}
+
+/* comp 的三种身份 */
+.comp.raise{
+  --sh-to:var(--sh-raise); --sh-from:var(--sh-deep);
+  padding:52px 44px; background:var(--plate);
+  border-radius:var(--r-card); box-shadow:var(--sh-raise);
+}
+.comp.sunk{
+  --sh-to:var(--sh-sink); --sh-from:var(--sh-deep);
+  padding:52px 44px; background:var(--plate);
+  border-radius:var(--r-card); box-shadow:var(--sh-sink);
+}
+.comp.bare{
+  --sh-to:none; --sh-from:none;
+  padding:20px 8px; background:transparent;
+}
+
+/* ---------- 2 · 动效 ---------- */
+@keyframes emboss{                      /* 由凹到凸：内影顶出为外影 */
+  from{opacity:0; transform:scale(.965); box-shadow:var(--sh-from)}
+  to  {opacity:1; transform:scale(1);    box-shadow:var(--sh-to)}
+}
+@keyframes press{                       /* 从更深地压进底面，位移 7px */
+  from{opacity:0; transform:translateY(-7px)}
+  to  {opacity:1; transform:translateY(0)}
+}
+@keyframes sink{                        /* 压回凹陷 */
+  from{opacity:1; transform:scale(1)}
+  to  {opacity:0; transform:scale(.975)}
+}
+@keyframes breathe{                     /* 柔影呼吸 —— 全片只留一处 */
+  0%,100%{box-shadow:var(--sh-raise)}
+  50%    {box-shadow:-3px -3px 7px var(--lit), 3px 3px 9px var(--dim)}
+}
+
+.comp.in[data-anim="EMBOSS-IN"]{animation:emboss 360ms var(--ease) both}
+.comp.in[data-anim="PRESS-IN"] {animation:press  300ms var(--ease) both}
+.comp.in[data-anim="QUOTE-IN"] {animation:emboss 440ms var(--ease) both}
+.comp.out[data-out-anim="SINK-OUT"]{animation:sink 240ms var(--ease) both}
+
+/* ---------- 3 · 零件 ---------- */
+.micro-idx{                       /* 凹陷序号槽 34x34 */
+  display:grid;place-items:center;width:34px;height:34px;
+  border-radius:11px;background:var(--plate);box-shadow:var(--sh-groove);
+  font-size:15px;font-weight:700;color:var(--ink3);
+}
+.micro-unit{                      /* 单位角标：主数字的 30%，底对齐 */
+  font-size:.3em;color:var(--ink3);font-weight:500;margin-left:.06em;
+}
+.groove{                          /* 唯一的分隔手法：凹陷横槽，高 6px，禁止 border */
+  height:6px;border-radius:3px;background:var(--plate);box-shadow:var(--sh-groove);
+}
+
+/* ---------- 4 · 块 ---------- */
+
+/* c-data · 大数字 */
+.c-data{text-align:center}
+.c-data .num{font-size:150px;font-weight:700;letter-spacing:-.02em;line-height:.95}
+.c-data .cap{
+  display:inline-block;margin-top:28px;padding:14px 28px;
+  border-radius:var(--r-slot);background:var(--plate);box-shadow:var(--sh-sink);
+  font-size:26px;color:var(--ink2);
+}
+
+/* v-ring · 占比 */
+.c-ring{display:flex;flex-direction:column;align-items:center}
+.c-ring .dial{
+  position:relative;width:300px;height:300px;border-radius:50%;
+  background:var(--plate);box-shadow:var(--sh-sink);
+  display:grid;place-items:center;
+}
+.c-ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.c-ring .arc{
+  fill:none;stroke:var(--cool);stroke-width:10;stroke-linecap:round;
+  stroke-dasharray:490;stroke-dashoffset:490;   /* 490 = 2*pi*78 */
+}
+.c-ring .mid{position:relative;text-align:center}
+.c-ring .mid b{display:block;font-size:64px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.c-ring .mid span{display:block;margin-top:8px;font-size:24px;color:var(--ink2)}
+.c-ring .cap{margin-top:28px;font-size:26px;color:var(--ink2)}
+
+/* v-bar · 数值比大小 */
+.c-bar .row + .row{margin-top:26px}
+.c-bar .lb{display:flex;justify-content:space-between;font-size:26px;color:var(--ink2);margin-bottom:10px}
+.c-bar .lb b{color:var(--ink);font-weight:700}
+.c-bar .tr{height:32px;border-radius:16px;background:var(--plate);box-shadow:var(--sh-sink);padding:7px}
+.c-bar .fill{
+  height:100%;border-radius:11px;background:var(--plate);
+  box-shadow:var(--sh-raise-sm);
+  width:calc(var(--grow,0) * 100%);
+}
+
+/* v-progress · 进度 */
+.c-prog .hd{display:flex;justify-content:space-between;align-items:baseline;font-size:26px;color:var(--ink2);margin-bottom:14px}
+.c-prog .hd b{font-size:40px;font-weight:700;color:var(--ink)}
+.c-prog .tr{height:40px;border-radius:20px;background:var(--plate);box-shadow:var(--sh-sink);padding:8px}
+.c-prog .fill{height:100%;border-radius:14px;background:var(--plate);box-shadow:var(--sh-raise-sm);width:calc(var(--grow,0) * 100%)}
+
+/* v-line · 趋势（不参与凸凹：线没有体积，只靠明度与粗细） */
+.c-line .clip{
+  clip-path:inset(0 calc((1 - var(--grow,0)) * 100%) 0 0);
+}
+.c-line svg{display:block;width:100%;height:auto}
+.c-line .axis{fill:none;stroke:#C6CFDC;stroke-width:3;stroke-linecap:round}
+.c-line .lp{fill:none;stroke:var(--ink);stroke-width:6;stroke-linejoin:round;stroke-linecap:round}
+.c-line .dot{fill:var(--plate);stroke:var(--ink);stroke-width:6}
+.c-line .cap{margin-top:22px;font-size:26px;color:var(--ink2)}
+
+/* v-compare · 数字对比 */
+.c-vcmp{display:flex;gap:28px;align-items:center}
+.c-vcmp .vc-side{
+  flex:1;background:var(--plate);border-radius:var(--r-card);box-shadow:var(--sh-raise);
+  padding:44px 16px;text-align:center;
+  transform:scale(var(--sc,1));
+}
+.c-vcmp .vc-side b{display:block;font-size:72px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.c-vcmp .vc-side span{display:block;margin-top:16px;font-size:24px;color:var(--ink2)}
+.c-vcmp .vc-side.win b{color:var(--hot)}
+
+/* c-flow · 转化 */
+.c-flow .node{
+  background:var(--plate);border-radius:var(--r-card);box-shadow:var(--sh-raise);
+  padding:32px 40px;display:flex;justify-content:space-between;align-items:baseline;
+}
+.c-flow .node .t{font-size:32px}
+.c-flow .node .v{font-size:48px;font-weight:700;color:var(--ink2)}
+.c-flow .node.to .v{color:var(--hot)}
+.c-flow .arw{position:relative;height:96px;display:flex;align-items:center;justify-content:center}
+.c-flow .arw::before{
+  content:"";position:absolute;top:0;width:6px;height:58px;border-radius:3px;
+  background:var(--plate);box-shadow:var(--sh-groove);
+}
+.c-flow .arw::after{
+  content:"";position:absolute;top:52px;width:0;height:0;
+  border-left:13px solid transparent;border-right:13px solid transparent;
+  border-top:22px solid var(--plate);
+  filter:drop-shadow(2px 3px 4px rgba(163,177,198,.7));
+}
+.c-flow .arw span{
+  position:absolute;left:calc(50% + 34px);font-size:24px;color:var(--ink2);white-space:nowrap;
+}
+
+/* c-cmp · 对照（上下） */
+.c-cmp .blk{
+  background:var(--plate);border-radius:var(--r-card);box-shadow:var(--sh-raise);
+  padding:36px 44px;display:flex;justify-content:space-between;align-items:baseline;
+}
+.c-cmp .blk .lb{font-size:26px;color:var(--ink2)}
+.c-cmp .blk .tx{font-size:64px;font-weight:700;letter-spacing:-.02em}
+.c-cmp .blk.a .tx{color:var(--ink3);text-decoration:line-through;text-decoration-thickness:4px}
+.c-cmp .blk.b .tx{color:var(--hot)}
+.c-cmp .seam{margin:26px auto;width:56%}
+
+/* c-vs · 对照（左右，仅当两侧各 <=4 字才用） */
+.c-vs{display:flex;align-items:center;gap:24px}
+.c-vs .side{
+  flex:1;background:var(--plate);border-radius:var(--r-card);box-shadow:var(--sh-raise);
+  padding:36px 18px;text-align:center;font-size:40px;font-weight:700;
+}
+.c-vs .side:first-child{font-weight:500;font-size:34px;color:var(--ink3);text-decoration:line-through}
+.c-vs .mid{width:6px;height:72px;border-radius:3px;background:var(--plate);box-shadow:var(--sh-groove)}
+
+/* c-stack · 三步递进（宽度递减靠 margin-inline，不用 width） */
+.c-stack .row{
+  margin-inline:calc(var(--i) * 36px);
+  background:var(--plate);border-radius:var(--r-card);box-shadow:var(--sh-raise);
+  padding:28px 34px;display:flex;justify-content:space-between;align-items:baseline;
+}
+.c-stack .row + .row{margin-top:22px}
+.c-stack .row .t{font-size:32px}
+.c-stack .row .v{font-size:44px;font-weight:700;color:var(--ink2)}
+
+/* c-kw + c-note · 关键词 + 释义（关键词无容器，只靠字号与留白） */
+.c-kw .kw{font-size:96px;font-weight:700;letter-spacing:-.02em;line-height:1.05;text-align:center}
+.c-kw .note{
+  margin-top:36px;padding:30px 34px;border-radius:var(--r-slot);
+  background:var(--plate);box-shadow:var(--sh-sink);
+  font-size:28px;color:var(--ink2);line-height:1.5;
+}
+
+/* c-step · 章节标记 */
+.c-step{display:flex;align-items:center;gap:26px}
+.c-step .title{font-size:44px;font-weight:700;letter-spacing:-.01em}
+
+/* c-quote · 引语（整块凹陷） */
+.c-quote{text-align:center}
+.c-quote .tx{font-size:44px;font-weight:500;line-height:1.45;letter-spacing:-.01em}
+.c-quote .by{margin-top:26px;font-size:24px;color:var(--ink3)}
+
+/* c-list · 清单（每行一个凹陷槽，不用分隔线） */
+.c-list .row{
+  padding:26px 32px;border-radius:var(--r-slot);
+  background:var(--plate);box-shadow:var(--sh-sink);
+  font-size:30px;
+}
+.c-list .row + .row{margin-top:20px}
+
+/* ---------- 5 · 预览控件（渲染时不存在，因为渲染带 ?t=） ---------- */
+#hud{
+  position:fixed;left:0;right:0;bottom:0;height:56px;display:none;
+  align-items:center;gap:16px;padding:0 18px;
+  background:rgba(18,22,28,.9);color:#E8ECF2;
+  font:13px/1 system-ui,sans-serif;z-index:9;
+}
+#hud.on{display:flex}
+#hud button{
+  width:34px;height:34px;border:0;border-radius:9px;cursor:pointer;
+  background:#2C333D;color:#E8ECF2;font-size:13px;
+}
+#hud input[type=range]{flex:1;accent-color:#4A90D9}
+#hud .tt{font-variant-numeric:tabular-nums;min-width:96px;text-align:right}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div class="plate">
+    <div class="track" id="track">
+
+      <!-- ↓↓↓ 产物区：把这里换成真实的素材点（从下面的样板间抄） ↓↓↓ -->
+      <!-- 点 1 · 4.0s「先看第二部分，渠道结构发生了什么变化。」 -->
+      <!-- kind: 章节标记 -->
+      <div class="comp raise" data-in="4.0" data-out="7.5" data-anim="PRESS-IN">
+        <div class="c-step">
+          <span class="micro-idx">02</span>
+          <span class="title">渠道结构变化</span>
+        </div>
+      </div>
+
+      <!-- 点 2 · 11.1s「所有增量里，三四线贡献了百分之五十四。」 -->
+      <!-- kind: 大数字 -->
+      <div class="comp raise" data-in="11.1" data-out="15.0" data-anim="EMBOSS-IN">
+        <div class="c-data">
+          <div class="num"><span data-to="54" data-suffix="%" data-dur="1.05"></span></div>
+          <div class="cap">增量贡献 · 三四线</div>
+        </div>
+      </div>
+
+      <!-- 点 3 · 18.6s「过去一年，一线从四成掉到三四线七成以上。」 -->
+      <!-- kind: 转化 -->
+      <div class="comp bare" data-in="18.6" data-out="22.5" data-anim="EMBOSS-IN">
+        <div class="c-flow">
+          <div class="node"><span class="t">一线城市</span><span class="v">40%</span></div>
+          <div class="arw"><span>渠道下沉</span></div>
+          <div class="node to"><span class="t">三四线</span><span class="v">70%+</span></div>
+        </div>
+      </div>
+
+      <!-- 点 4 · 25.1s「三线及以下占五成四，二线三成一，一线只剩一成五。」 -->
+      <!-- kind: 数值比大小 -->
+      <div class="comp bare" data-in="25.1" data-out="29.0" data-anim="EMBOSS-IN">
+        <div class="c-bar">
+          <div class="row">
+            <div class="lb"><span>三线及以下</span><b>54%</b></div>
+            <div class="tr"><div class="fill" data-grow="1"></div></div>
+          </div>
+          <div class="row">
+            <div class="lb"><span>二线</span><b>31%</b></div>
+            <div class="tr"><div class="fill" data-grow=".5741"></div></div>
+          </div>
+          <div class="row">
+            <div class="lb"><span>一线</span><b>15%</b></div>
+            <div class="tr"><div class="fill" data-grow=".2778"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 点 5 · 32.6s「去年是百分之十二，今年翻到了百分之三十七。」 -->
+      <!-- kind: 对照 -->
+      <div class="comp bare" data-in="32.6" data-out="36.5" data-anim="EMBOSS-IN">
+        <div class="c-cmp">
+          <div class="blk a"><span class="lb">去年</span><span class="tx">12%</span></div>
+          <div class="seam groove"></div>
+          <div class="blk b"><span class="lb">今年</span><span class="tx">37%</span></div>
+        </div>
+      </div>
+
+      <!-- 点 6 · 39.1s「三四线的复购占到整体的六成二。」 -->
+      <!-- kind: 占比 -->
+      <div class="comp bare" data-in="39.1" data-out="43.0" data-anim="EMBOSS-IN">
+        <div class="c-ring">
+          <div class="dial">
+            <svg viewBox="0 0 200 200"><circle class="arc" cx="100" cy="100" r="78" data-grow=".62"/></svg>
+            <div class="mid"><b data-to="62" data-suffix="%"></b></div>
+          </div>
+          <div class="cap">三四线复购占比</div>
+        </div>
+      </div>
+
+      <!-- 点 7 · 46.6s「三四线渗透率从二零二三年到二零二六年一路走高。」 -->
+      <!-- kind: 趋势 -->
+      <div class="comp bare" data-in="46.6" data-out="50.5" data-anim="EMBOSS-IN">
+        <div class="c-line">
+          <div class="clip" data-grow="1">
+            <svg viewBox="0 0 560 200" preserveAspectRatio="none">
+              <path class="axis" d="M0 184 H560"/>
+              <path class="lp" d="M16 152 L140 120 L264 132 L388 80 L544 40"/>
+              <circle class="dot" cx="544" cy="40" r="11"/>
+            </svg>
+          </div>
+          <div class="cap">2023 → 2026 三四线渗透率</div>
+        </div>
+      </div>
+
+      <!-- 点 8 · 53.1s「降低理解成本，建立信息层级，提供视觉锚点。」 -->
+      <!-- kind: 清单 -->
+      <div class="comp bare" data-in="53.1" data-out="57.0" data-anim="PRESS-IN">
+        <div class="c-list">
+          <div class="row">降低理解成本</div>
+          <div class="row">建立信息层级</div>
+          <div class="row">提供视觉锚点</div>
+        </div>
+      </div>
+
+      <!-- 点 9 · 59.0s「动效不是装饰，是把声音里看不见的结构，翻译成眼睛能抓住的形状。」 -->
+      <!-- kind: 引语 -->
+      <div class="comp sunk" data-in="59.0" data-out="62.4" data-anim="QUOTE-IN">
+        <div class="c-quote">
+          <div class="tx">动效不是装饰，是把声音里看不见的结构，翻译成眼睛能抓住的形状。</div>
+        </div>
+      </div>
+      <!-- ↑↑↑ 产物区 ↑↑↑ -->
+
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     样板间 · 每个 kind 一个真实例子
+     --------------------------------------------------------------------------
+    每个块上方有一行锚点注释 `kind: xxx`；同一 kind 的变体写成 `kind: xxx | 说明`，与 spec.md 第五节的表一一对应。
+      · 写脚本：只读 spec.md 的表，不要读这里
+      · 生成 HTML：从这里挑 kind，整块复制到 #track，改内容、改 data-in / data-out
+      · 浏览器加 ?kit=1 可以把这里全部演示一遍
+     ========================================================================== -->
+<template id="kit">
+
+  <!-- kind: 大数字 -->
+  <div class="comp raise" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-data">
+      <div class="num"><span data-to="37" data-prefix="+" data-suffix="%" data-dur="1.05"></span></div>
+      <div class="cap">同比增速 · 华东区</div>
+    </div>
+  </div>
+
+  <!-- kind: 占比 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-ring">
+      <div class="dial">
+        <svg viewBox="0 0 200 200"><circle class="arc" cx="100" cy="100" r="78" data-grow=".62"/></svg>
+        <div class="mid"><b data-to="62" data-suffix="%"></b><span>份额</span></div>
+      </div>
+      <div class="cap">三线及以下占比</div>
+    </div>
+  </div>
+
+  <!-- kind: 数值比大小 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-bar">
+      <div class="row">
+        <div class="lb"><span>三线及以下</span><b>54%</b></div>
+        <div class="tr"><div class="fill" data-grow=".54"></div></div>
+      </div>
+      <div class="row">
+        <div class="lb"><span>二线</span><b>31%</b></div>
+        <div class="tr"><div class="fill" data-grow=".31"></div></div>
+      </div>
+      <div class="row">
+        <div class="lb"><span>一线</span><b>15%</b></div>
+        <div class="tr"><div class="fill" data-grow=".15"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 趋势 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-line">
+      <div class="clip" data-grow="1">
+        <svg viewBox="0 0 560 200" preserveAspectRatio="none">
+          <path class="axis" d="M0 184 H560"/>
+          <path class="lp" d="M16 152 L140 120 L264 132 L388 80 L544 40"/>
+          <circle class="dot" cx="544" cy="40" r="11"/>
+        </svg>
+      </div>
+      <div class="cap">2023 → 2026 三四线渗透率</div>
+    </div>
+  </div>
+
+  <!-- kind: 进度 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-prog">
+      <div class="hd"><span>渠道改造</span><b data-to="62" data-suffix="%"></b></div>
+      <div class="tr"><div class="fill" data-grow=".62"></div></div>
+    </div>
+  </div>
+
+  <!-- kind: 数字对比 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-vcmp">
+      <div class="vc-side win"><b data-to="68" data-suffix="%"></b><span>动效叠加</span></div>
+      <div class="vc-side" data-shrink=".84"><b data-to="32" data-suffix="%"></b><span>纯口播</span></div>
+    </div>
+  </div>
+
+  <!-- kind: 转化 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-flow">
+      <div class="node"><span class="t">一线城市</span><span class="v">40%</span></div>
+      <div class="arw"><span>渠道下沉</span></div>
+      <div class="node to"><span class="t">三四线</span><span class="v">70%+</span></div>
+    </div>
+  </div>
+
+  <!-- kind: 对照 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-cmp">
+      <div class="blk a"><span class="lb">去年</span><span class="tx">12%</span></div>
+      <div class="seam groove"></div>
+      <div class="blk b"><span class="lb">今年</span><span class="tx">37%</span></div>
+    </div>
+  </div>
+
+  <!-- kind: 对照 | 左右（仅当两侧各 ≤4 字） -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-vs">
+      <div class="side">技术问题</div>
+      <div class="mid"></div>
+      <div class="side">组织问题</div>
+    </div>
+  </div>
+
+  <!-- kind: 三步递进 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="PRESS-IN">
+    <div class="c-stack">
+      <div class="row" style="--i:0"><span class="t">三线及以下</span><span class="v">54%</span></div>
+      <div class="row" style="--i:1"><span class="t">二线</span><span class="v">31%</span></div>
+      <div class="row" style="--i:2"><span class="t">一线</span><span class="v">15%</span></div>
+    </div>
+  </div>
+
+  <!-- kind: 关键词 + 释义 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-kw">
+      <div class="kw">渠道下沉</div>
+      <div class="note">把货铺到低线城市，而不是继续在一线抢存量。</div>
+    </div>
+  </div>
+
+  <!-- kind: 章节标记 -->
+  <div class="comp raise" data-in="0" data-out="5" data-anim="PRESS-IN">
+    <div class="c-step">
+      <span class="micro-idx">02</span>
+      <span class="title">渠道结构变化</span>
+    </div>
+  </div>
+
+  <!-- kind: 引语 -->
+  <div class="comp sunk" data-in="0" data-out="5" data-anim="QUOTE-IN">
+    <div class="c-quote">
+      <div class="tx">动效不是装饰，是把声音里看不见的结构，翻译成眼睛能抓住的形状。</div>
+      <div class="by">2026 · 内容策略复盘</div>
+    </div>
+  </div>
+
+  <!-- kind: 清单 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="PRESS-IN">
+    <div class="c-list">
+      <div class="row">降低理解成本</div>
+      <div class="row">建立信息层级</div>
+      <div class="row">提供视觉锚点</div>
+    </div>
+  </div>
+
+</template>
+
+<div id="hud">
+  <button id="play">▶</button>
+  <input id="seek" type="range" min="0" max="1000" value="0">
+  <span class="tt" id="tt">0.00 / 0.00</span>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* 退场时长，必须与 CSS 里 .comp.out 的 240ms 一致 */
+  var OUT_DUR = 0.24;
+
+  var stage = document.getElementById('stage');
+  var track = document.getElementById('track');
+  var qs = location.search;
+
+  var comps = [];
+  var duration = 0;
+  var rafId = 0;
+  var playing = false;
+  var clockStart = 0;      /* 只在 play() 的循环里用，seekAt 永远不碰时钟 */
+
+  /* ---------------- 采样 ---------------- */
+
+  function scan(){
+    comps = Array.prototype.slice.call(track.querySelectorAll('.comp')).map(function(el){
+      return {
+        el: el,
+        inT: parseFloat(el.getAttribute('data-in')) || 0,
+        outT: parseFloat(el.getAttribute('data-out')) || 0,
+        nums: Array.prototype.slice.call(el.querySelectorAll('[data-to]')),
+        grows: Array.prototype.slice.call(el.querySelectorAll('[data-grow]')),
+        shrinks: Array.prototype.slice.call(el.querySelectorAll('[data-shrink]'))
+      };
+    });
+    duration = comps.length
+      ? Math.max.apply(null, comps.map(function(c){ return c.outT + OUT_DUR; }))
+      : 0;
+    document.documentElement.setAttribute('data-duration', duration.toFixed(2));
+  }
+
+  /* ---------------- 定格 ----------------
+     给定 t，把每个 .comp 摆到它该在的相位。
+     手法：负 animation-delay + paused —— 相位由 t 唯一决定，
+     不依赖任何时钟，所以同一个 t 永远渲染出同一帧。 */
+
+  function seekAt(t){
+    for (var i = 0; i < comps.length; i++){
+      var c = comps[i], el = c.el;
+      var state, dt = 0;
+
+      if (t < c.inT){ state = 'before'; }
+      else if (t < c.outT){ state = 'in'; dt = t - c.inT; }
+      else if (t < c.outT + OUT_DUR){ state = 'out'; dt = t - c.outT; }
+      else { state = 'after'; }
+
+      el.classList.remove('in', 'out');
+      if (state === 'in' || state === 'out'){
+        el.classList.add(state);
+        el.style.animationDelay = (-dt).toFixed(3) + 's';
+        el.style.animationPlayState = 'paused';
+      } else {
+        el.style.animationDelay = '';
+        el.style.animationPlayState = '';
+      }
+
+      /* 数字与生长量：直接从 t 算出来写进去，不用 rAF、不用时钟 */
+      var elapsed = state === 'before' ? 0 : (state === 'in' ? dt : 1e9);
+
+      for (var j = 0; j < c.nums.length; j++){
+        var n = c.nums[j];
+        var to = parseFloat(n.getAttribute('data-to')) || 0;
+        var dur = parseFloat(n.getAttribute('data-dur') || '1');
+        var dec = parseInt(n.getAttribute('data-dec') || '0', 10);
+        var p = Math.min(1, elapsed / dur);
+        var s = (to * p).toFixed(dec);
+        if (n.getAttribute('data-group') === '1'){
+          s = s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        n.textContent = (n.getAttribute('data-prefix') || '') + s + (n.getAttribute('data-suffix') || '');
+      }
+
+      for (var k = 0; k < c.grows.length; k++){
+        var g = c.grows[k];
+        var target = parseFloat(g.getAttribute('data-grow')) || 0;
+        var v = Math.min(1, elapsed / 1) * target;
+        if (g.classList.contains('arc')){
+          g.style.strokeDashoffset = (490 * (1 - v)).toFixed(2);
+        } else {
+          g.style.setProperty('--grow', v.toFixed(4));
+        }
+      }
+
+      for (var m = 0; m < c.shrinks.length; m++){
+        var sh = c.shrinks[m];
+        var floor = parseFloat(sh.getAttribute('data-shrink')) || 1;
+        var pr = Math.min(1, elapsed / 1);
+        sh.style.setProperty('--sc', (1 - (1 - floor) * pr).toFixed(4));
+      }
+    }
+  }
+
+  /* ---------------- 预览播放（只有人看时用） ---------------- */
+
+  function tick(){
+    if (!playing) return;
+    var t = (performance.now() - clockStart) / 1000;
+    if (t >= duration){
+      render(duration);
+      playing = false;
+      setBtn();
+      return;
+    }
+    render(t);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  /* 播放路径与定格路径共用同一个 render()，区别只在谁来推进 t：
+     定格由渲染器给 t，播放由 rAF 给 t。seekAt 本身不碰时钟。 */
+  function render(t){ seekAt(t); sync(t); }
+
+  function start(){
+    if (playing) return;
+    playing = true;
+    clockStart = performance.now() - current * 1000;
+    setBtn();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stop(){
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+    playing = false;
+    setBtn();
+  }
+
+  /* ---------------- 预览控件 ---------------- */
+
+  var current = 0;
+  var hud = document.getElementById('hud');
+  var btn = document.getElementById('play');
+  var range = document.getElementById('seek');
+  var tt = document.getElementById('tt');
+
+  function setBtn(){ if (btn) btn.textContent = playing ? '❚❚' : '▶'; }
+
+  function sync(t){
+    current = t;
+    if (range) range.value = duration ? String(Math.round(t / duration * 1000)) : '0';
+    if (tt) tt.textContent = t.toFixed(2) + ' / ' + duration.toFixed(2);
+  }
+
+  /* ---------------- 对外契约 ---------------- */
+
+  var IVH = {
+    seekAt: function(t){
+      stop();
+      var v = Math.max(0, Math.min(duration, t));
+      seekAt(v);
+      sync(v);
+    },
+    play: start,
+    pause: stop,
+    get duration(){ return duration; }
+  };
+  window.IVH = IVH;
+  window.TL = IVH;   /* 兼容旧名字 */
+
+  /* ---------------- 起跑 ---------------- */
+
+  function boot(){
+    var kitMode = /[?&]kit=1/.test(qs);
+    var hasT = /[?&]t=/.test(qs);
+
+    if (kitMode){
+      track.innerHTML = '';
+      var frag = document.getElementById('kit').content;
+      var nodes = Array.prototype.slice.call(frag.querySelectorAll('.comp'));
+      for (var i = 0; i < nodes.length; i++){
+        var node = document.importNode(nodes[i], true);
+        node.setAttribute('data-in', String(i * 5.4 + 0.4));
+        node.setAttribute('data-out', String(i * 5.4 + 5.0));
+        track.appendChild(node);
+      }
+    }
+
+    scan();
+
+    if (hasT){
+      /* 渲染路径：视口由渲染器给 1080x1440，不要缩放 */
+      var m = qs.match(/[?&]t=([\d.]+)/);
+      IVH.seekAt(m ? parseFloat(m[1]) : 0);
+      return;
+    }
+
+    /* 预览路径：缩放到窗口内，给个深底 —— 透明产物在浏览器里默认是白底，看不出效果 */
+    var fit = Math.min(window.innerWidth / 1080, (window.innerHeight - 56) / 1440);
+    stage.style.transformOrigin = 'top center';
+    stage.style.transform = 'scale(' + fit + ')';
+    document.body.style.height = (1440 * fit + 56) + 'px';
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.background = '#20242C';
+
+    if (hud) hud.classList.add('on');
+    if (btn) btn.addEventListener('click', function(){ playing ? stop() : start(); });
+    if (range) range.addEventListener('input', function(){
+      IVH.seekAt(parseFloat(range.value) / 1000 * duration);
+    });
+    document.addEventListener('keydown', function(e){
+      if (e.code === 'Space'){ e.preventDefault(); playing ? stop() : start(); }
+    });
+
+    IVH.seekAt(kitMode ? 0.4 : 0);
+    start();
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>
