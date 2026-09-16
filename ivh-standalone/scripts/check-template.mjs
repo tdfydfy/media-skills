@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 /**
- * check-template.mjs —— 独立成片 HTML 产物十一项自检
+ * check-template.mjs —— 独立成片 HTML 产物十二项自检
  *
  * 用法：node scripts/check-template.mjs <产物.html>
  * 退出码：0 = 全过（允许 note）；1 = 有 FAIL
  *
- * 十一项：
+ * 十二项：
  *   1 标签闭合        2 外部依赖        3 变量契约        4 透明反色
  *   5 CONFIG 五维     6 渲染兼容标记    7 CSS 括号平衡    8 风格结构差异
- *   9 时间轴完整性   10 叙事结构        11 屏幕字规范
+ *   9 时间轴完整性   10 叙事结构        11 屏幕字规范     12 定格确定性
  *
  * 第 9 项仅在 BASE='timeline' 时启用（组件卡点）。
  * 第 10 项查幕结构与组件多样性（BASE='text' 查幕，timeline 只查组件）。
  * 第 11 项按屏幕字规范查字数。
+ * 第 12 项是唯一一项查运行时逻辑的：同一秒拍两次必须得到同一张图。
  *
  * ★ 本技能只做独立成片（PURPOSE=standalone）。透明素材是 ivh-overlay 的产物，
  *   那里另有一套完全不同的判据（素材点不重叠、组间 >=1.5s 空档、每组 <=3 元素）。
@@ -535,7 +536,7 @@ head("10. 叙事结构");
 /* ==========================================================================
    11 · 屏幕字规范
    --------------------------------------------------------------------------
-   屏幕字是"给眼睛看的"，不是口播稿的转录（见 references/two-track-text.md）：
+   屏幕字是"给眼睛看的"，不是口播稿的转录（见 ivh-script-core/text-layers.md）：
        提示标签 <=6 字 · 信息卡 <=14 字/行 且 <=3 行 · 3:4 素材 <=3 元素
    这里能静态验的只有「字数」和「元素个数」—— 真正的换行行数要靠截图看。
    所以 14 字给 note（提醒核对换行），42 字（14x3）才是 fail 硬线。
@@ -575,6 +576,148 @@ head("11. 屏幕字规范");
   /* 说明：素材元素上限（<=3）是 ivh-overlay 的判据，独立成片不适用 —— 幕内元素由幕自己扛。 */
 
   if (hit === 0) note("没有可检的屏幕字 —— 确认产品里确实还没有内容");
+}
+
+/* ==========================================================================
+   12 · 定格确定性
+   --------------------------------------------------------------------------
+   渲染器逐帧调 IVH.seekAt(t) 把画面钉到某一秒，所以「冻结路径」必须只由 t 决定。
+   出过的那个 bug 就长在这里：计数器起了一个跟墙上时间走的循环
+   （performance.now + requestAnimationFrame），定格写进去的终值被还在跑的旧循环覆盖，
+   同一份产物两次拍到 5,760 / 4,324。三条不变量把它们固化成可复查的检查：
+
+     12a 冻结路径可达的函数里不许有跟时钟有关的 API
+     12b 延迟触发的计数器滚动必须有 RENDER_DRIVEN 守卫
+     12c 定格 / 复位必须递增世代号，让还在跑的旧循环自己退场
+     12d IVH.seekAt 必须存在（渲染器唯一的定格入口）
+
+   ★ 检查对象是产物源码里的内联脚本，不是模板文件 —— 改模板而没重建产物，
+     这里会把问题当场抓出来。
+   ========================================================================== */
+head("12. 定格确定性");
+{
+  const js = [...src.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g)]
+    .map(m => m[1]).join("\n");
+
+  /* 分析代码 = 「渲染器接管之后」的代码。
+     此刻 RENDER_DRIVEN 已被置 true，所以 if (!RENDER_DRIVEN) … 这些分支执行时是死的。
+     先剥掉再走调用图 —— 否则 seekTextAt → go → runCounters 这条被守卫挡住的
+     路径会被算成可达，报出一个不存在的缺陷。 */
+  const S = js
+    .replace(/\bif\s*\(\s*!\s*RENDER_DRIVEN\s*\)\s*\{[\s\S]*?\n\s*\}/g, ";")
+    .replace(/\bif\s*\(\s*!\s*RENDER_DRIVEN\s*\)\s*[^;{}]*;/g, ";");
+
+  /* 函数体收拢：function 声明、对象方法（seekAt 是属性不是声明）、箭头常量。
+     命中后从 '{' 起做深度配对，避免被内层嵌套的 } 腰斩。 */
+  const fns = new Map();
+  const braceBody = i => {
+    let d = 0;
+    for (let k = i; k < S.length; k++) {
+      if (S[k] === "{") d++;
+      else if (S[k] === "}" && --d === 0) return S.slice(i + 1, k);
+    }
+    return S.slice(i + 1);
+  };
+  const afterBrace = from => {                       /* 取关键字之后第一个 '{' 起的函数体 */
+    const b = S.indexOf("{", from);
+    return b < 0 ? null : braceBody(b);
+  };
+  const afterArrow = from => {                       /* 箭头函数：看 => 后面是块还是表达式 */
+    const a = S.indexOf("=>", from);
+    if (a < 0) return null;
+    let k = a + 2;
+    while (k < S.length && /\s/.test(S[k])) k++;
+    if (S[k] === "{") return braceBody(k);
+    const nl = S.indexOf("\n", k);                   /* 表达式体取到行尾就够找出它调了谁 */
+    return S.slice(k, nl < 0 ? S.length : nl);
+  };
+  const set = (name, body) => { if (body !== null && !fns.has(name)) fns.set(name, body); };
+
+  for (const m of S.matchAll(/(?:^|[\s;}])(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/g))
+    set(m[1], afterBrace(m.index + m[0].length));
+  for (const m of S.matchAll(/([A-Za-z_$][\w$]*)\s*:\s*function\s*\(/g))
+    set(m[1], afterBrace(m.index + m[0].length));
+  for (const m of S.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?function\s*\(/g))
+    set(m[1], afterBrace(m.index + m[0].length));
+  for (const m of S.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/g))
+    set(m[1], afterArrow(m.index + m[0].length - 2));
+
+  const names = [...fns.keys()];
+  /* 冻结根：定格/复位一族 + ?t= 与逐帧接口走的 seek/applyTimeline。
+     分幕模式的 seekAt 会被换成 seekTextAt，也要算进来。 */
+  const ROOT_RE = /^(?:freeze|reset|apply)/;
+  const roots = names.filter(n => ROOT_RE.test(n) || n === "seek" || n === "seekAt");
+  {
+    const alias = js.match(/\bIVH\.seekAt\s*=\s*([A-Za-z_$][\w$]*)/);
+    if (alias && names.includes(alias[1]) && !roots.includes(alias[1])) roots.push(alias[1]);
+  }
+
+  /* 可达性：冻结路径能走到的全部函数 */
+  const reach = new Set();
+  for (const q of [...roots]) {
+    const stack = [q];
+    while (stack.length) {
+      const n = stack.pop();
+      if (reach.has(n)) continue;
+      reach.add(n);
+      const body = fns.get(n) || "";
+      for (const n2 of names) {
+        if (reach.has(n2) || n2 === n) continue;
+        if (new RegExp("\\b" + n2.replace(/\$/g, "\\$") + "\\s*\\(").test(body)) stack.push(n2);
+      }
+    }
+  }
+
+  const CLOCK = /\bperformance\s*\.\s*now\b|\bDate\s*\.\s*now\b|\bnew\s+Date\b|\bMath\s*\.\s*random\b|\brequestAnimationFrame\b|\bsetInterval\b/;
+  const clockIn = n => CLOCK.test(fns.get(n) || "");
+
+  /* 12d · 定格入口 */
+  roots.includes("seekAt") || roots.length
+    ? ok(`冻结根 ${roots.length} 个：${roots.join(" ")}（沿调用图可达 ${reach.size} 个函数）`)
+    : fail("找不到任何冻结根（freeze* / reset* / applyTimeline / seekAt）—— 渲染器无从逐帧定格");
+
+  /* 12a · 冻结路径无时钟 */
+  if (!fns.size) {
+    fail("内联脚本里解析不出任何函数 —— 模板运行时可能没内联进产物");
+  } else {
+    const offenders = [...reach].filter(clockIn);
+    /* 时钟用户应当全部落在冻结路径之外：play/定时刷 HUD 这类是真动画，本来就该跟时钟走。 */
+    const outside = names.filter(n => !reach.has(n) && clockIn(n));
+    if (offenders.length === 0) {
+      ok(`冻结路径全程无时钟 API（时钟用户 ${outside.length} 个全在路径之外：${outside.join(" ") || "无"}）`);
+    } else {
+      fail(`冻结路径可达的 ${offenders.length} 个函数用了时钟 API：${offenders.join(" ")}`
+        + ` —— 同一秒拍两次会得到不同画面`);
+    }
+  }
+
+  /* 12b / 12c 的判据跟着「产物里有什么」走，不跟着「源码里有什么」走：
+     一个 .num 都没有的产物，计数器谁也滚不起来，谈不上落值不确定 —— 降级为提示。 */
+  const HAS_NUM = /class="[^"]*\bnum\b/.test(code);
+  const report = (bad, good) => (bad ? (HAS_NUM ? fail(bad) : note(bad + "（产物里没有 .num，无可滚动数字，不拦）")) : ok(good));
+
+  /* 12b · 滚动必须有渲染器守卫。初始化时排进队列的那次滚动，
+     在渲染器接管之后不许再醒来（世代号只挡得住「已经跑起来」的循环）。 */
+  const declared = i => /function\s*$/.test(js.slice(Math.max(0, i - 40), i));
+  const rollSites = [...js.matchAll(/runCounters\s*\(/g)].filter(m => !declared(m.index));
+  const unguarded = rollSites.filter(m =>
+    !/RENDER_DRIVEN/.test(js.slice(Math.max(0, m.index - 220), m.index)));
+  if (!rollSites.length) note("源码里没有 runCounters 调用 —— 本项不适用（面无数字滚动卡）");
+  else report(unguarded.length
+      ? `runCounters 有 ${unguarded.length} 处调用没有 RENDER_DRIVEN 守卫 —— 渲染器接管后旧滚动仍会醒，计数器落值不确定`
+      : null,
+    `runCounters ${rollSites.length} 处调用均有 RENDER_DRIVEN 守卫`);
+
+  /* 12c · 世代号：定格与复位要把还在跑的循环作废 */
+  const bumpers = ["freezeCounters", "resetCounters"].filter(n => fns.has(n));
+  if (!bumpers.length) note("源码里没有 freezeCounters / resetCounters —— 本项不适用");
+  else {
+    const noBump = bumpers.filter(n => !/\binvalidate\s*\(/.test(fns.get(n)));
+    report(noBump.length
+        ? `${noBump.join(" ")} 没有递增世代号（调 invalidate）—— 定格写进去的终值会被旧循环覆盖`
+        : null,
+      `${bumpers.join(" ")} 均会递增世代号（旧循环自查退场）`);
+  }
 }
 
 /* ==========================================================================

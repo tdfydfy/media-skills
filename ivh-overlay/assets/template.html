@@ -311,7 +311,7 @@ html[data-style="pixel"] .c-capsule{border:3px solid var(--c1);box-shadow:3px 3p
    区块 5 · 组件库（15 种）
    --------------------------------------------------------------------------
    类名一律 c- 前缀。同一段视频里要换着用，不要一个样式用到死。
-   完整规格见 references/components.md 第二节。
+   完整规格见 ../ivh-html-core/components.md（组件库）。
 
    C01~C12 是「单元素组件」——一个组件说一个信息点，横竖版通用。
    C13~C15 是「关系型组件」——自带元素之间的排布关系，为 3:4 素材而生：
@@ -730,7 +730,7 @@ html.bg-transparent .c-step .st{
        data-out-anim       退场动效，4 选 1，省略则 FADE-SHIFT
        不写 data-safe —— 板由用户摆放，没有"中央"要避。
 
-       组件库 15 种见 references/components.md。
+       组件库 15 种见 ../ivh-html-core/components.md。
        下面三个素材点是可渲染的示例，写自己的内容时整段替换。
        ========================================================================== -->
   <div class="tl-track">
@@ -859,40 +859,75 @@ const hud     = document.getElementById('hud');
 const kbdHint = document.getElementById('kbd');
 
 /* 数字滚动：0 -> 目标值，持续 0.8-1.2s，加 easeOutCubic 缓动 */
+/* 数字格式化：dec 位小数；data-group="1" 时加千分位（5760 → 5,760）。
+   ★ run / 兜底 / freeze 三处必须共用这一个函数 —— 分开写会各飘一套格式，
+     成片里同一个数字在「滚动中」和「定格」两种状态下长得不一样。 */
+function fmtNum(v, dec, group){
+  const s = v.toFixed(dec);
+  if (!group) return s;
+  const [i, f] = s.split(".");
+  return i.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (f ? "." + f : "");
+}
+const wantGroup = el => el.dataset.group === "1";
+
+/* RENDER_DRIVEN：被渲染器的逐帧钩子（IVH.seekAt）接管后置 true。
+   从此自动播放与自动滚动数字都停手，画面完全由 seekAt(t) 决定。
+   为什么需要它：初始化时会排一次「入场后再滚数字」（延迟 380ms），
+   渲染器第一帧往往在它醒来之前就把数字定格了 —— 它一醒，就把终值重新滚回 0 附近。
+   这一处和世代号各管一头：世代号管「已经跑起来」的循环，这里管「还在队列里」的那次。 */
+let RENDER_DRIVEN = false;
+
+/* ★ 世代号 —— 让「定格」对「滚动中的循环」有终审权。
+   每个 .num 上挂一个 el.__gen：滚动循环每推进一步先核对自己还是不是当代，
+   不是就自行退场；复位与定格都先把世代号 +1，正在跑的旧循环立刻失效。
+   为什么非这样不可：抽帧时 rAF 只跟着「被截图的帧」推进，1.1s 的滚动动画会被
+   摊到几十帧上（不是 1.1 秒内跑完）。定格函数写进去的终值会被这些还在跑的
+   旧循环覆盖 —— 实测同一份产物拍两遍，数字卡拍到过 2,821 / 2,880 两个值。
+   数字型片子里数字就是论点，这一处必须是确定性的。 */
+function invalidate(el){ el.__gen = (el.__gen || 0) + 1; }
+
 function runCounters(scope){
   scope.querySelectorAll('.num').forEach(el => {
     const to  = parseFloat(el.dataset.to || '0');
     const dec = parseInt(el.dataset.dec || '0', 10);
     const pre = el.dataset.prefix || '';
     const suf = el.dataset.suffix || '';
+    const grp = wantGroup(el);
     const dur = parseFloat(el.dataset.dur || '1') * 1000;
-    if (!CONFIG.ANIMATE){ el.textContent = pre + to.toFixed(dec) + suf; return; }
+    invalidate(el);
+    const gen = el.__gen;
+    if (!CONFIG.ANIMATE){ el.textContent = pre + fmtNum(to, dec, grp) + suf; return; }
     /* ★ 兜底：不管 rAF 有没有被推进，dur 之后一定落到终值。
        headless 的 --virtual-time-budget 会推进 setTimeout，但不保证推进 rAF，
        少了这一条，按秒截图里的数字会永远停在 0。 */
-    setTimeout(() => { el.textContent = pre + to.toFixed(dec) + suf; }, dur + 60);
+    setTimeout(() => { if (el.__gen === gen) el.textContent = pre + fmtNum(to, dec, grp) + suf; }, dur + 60);
     const t0 = performance.now();
     (function step(t){
+      if (el.__gen !== gen) return;               /* 已被复位或定格接管 */
       /* ★ k 必须夹到 [0,1]：headless 用 --virtual-time-budget 时，rAF 回调收到的
          帧时间戳可能略早于 setTimeout 里 performance.now() 的采样点，
          k 变成一个小负数会让 (to*e) 滚出一个负值（实测截到过 "+-1%"）。 */
       const k = Math.min(1, Math.max(0, (t - t0) / dur));
       const e = 1 - Math.pow(1 - k, 3);
-      el.textContent = pre + (to * e).toFixed(dec) + suf;
+      el.textContent = pre + fmtNum(to * e, dec, grp) + suf;
       if (k < 1) requestAnimationFrame(step);
     })(t0);
   });
 }
 function resetCounters(scope){
-  scope.querySelectorAll('.num').forEach(el => { el.textContent = (el.dataset.prefix || '') + '0'; });
+  scope.querySelectorAll('.num').forEach(el => {
+    invalidate(el);
+    el.textContent = (el.dataset.prefix || '') + '0';
+  });
 }
 /* 静态核对（?t=）时把数字直接置为终值 —— 否则按秒截图里数字永远是 0，
    看不出这张卡片要表达什么。只有播放态才走滚动动画。 */
 function freezeCounters(scope){
   scope.querySelectorAll('.num').forEach(el => {
+    invalidate(el);
     const to  = parseFloat(el.dataset.to || '0');
     const dec = parseInt(el.dataset.dec || '0', 10);
-    el.textContent = (el.dataset.prefix || '') + to.toFixed(dec) + (el.dataset.suffix || '');
+    el.textContent = (el.dataset.prefix || '') + fmtNum(to, dec, wantGroup(el)) + (el.dataset.suffix || '');
   });
 }
 
@@ -951,6 +986,13 @@ function freezeCompAnims(c, off){
     /* ★ 原始 delay 只读一次。同一浏览器里逐帧取样时，第二次 getComputedStyle 读到的
        是上一帧自己写进去的内联值，直接相减会让偏移逐帧累积、画面越飘越远。 */
     if (!ANIM_D0.has(el)) ANIM_D0.set(el, parseFloat(cs.animationDelay) || 0);
+    /* ★ off=0 时先把动画重挂一次，否则这一帧不可复现。
+       原因：off=0 → delay 设成「原始 delay - 0」= 原值，等于没改，Chrome 不会重启动画，
+       暂停只是停在「动画挂上到现在」那段墙上时间上 —— 随机。
+       实测同一份产物拍两遍，首帧拍出过 3 个不同画面（差最大的那次 22KB）。
+       拔掉再挂上，起点就变成「现在」，进度恒为 0。
+       （off>0 时因为 delay 变了，Chrome 会自己重算，不需要这一步。） */
+    if (off === 0){ el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
     el.style.animationDelay = (ANIM_D0.get(el) - off) + 's';
     el.style.animationPlayState = 'paused';
   }
@@ -1012,8 +1054,9 @@ if (Number.isFinite(seekT)){
 } else {
   seek(0);
   setTimeout(() => {
+    if (RENDER_DRIVEN) return;                        /* 渲染器接管，别自动播/自动滚 */
     if (CONFIG.ANIMATE){ play(); }
-    comps.forEach(c => setTimeout(() => runCounters(c), 380));  /* 入场后再滚数字 */
+    comps.forEach(c => setTimeout(() => { if (!RENDER_DRIVEN) runCounters(c); }, 380));
   }, 60);
 }
 /* --------------------------------------------------------------------------
@@ -1026,6 +1069,7 @@ if (Number.isFinite(seekT)){
    在这里收口，下游渲染器就不必复刻一遍模板的运行时逻辑。 */
 window.IVH = {
   seekAt: function(t){
+    RENDER_DRIVEN = true;
     pause();
     seek(t, true);
     freezeCounters(document);

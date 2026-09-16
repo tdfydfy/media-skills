@@ -53,11 +53,8 @@ html[data-purpose="standalone"] .comp[data-roll="B"]{ top:44%;  }
 
 ### `max-width` 的作用
 
-**不是**"防侵占中央"（那是整屏叠加才有的需求）——
-独立成片里，`max-width:76%` 只用来防止组件铺满整屏、左右贴边。
-
-> **注意**：`max-width` 只在 `.comp` 上生效。幕内元素（`.h1` / `.c-bar` 等）
-> 由幕的 `padding` 控制，不需要额外约束。
+`max-width:76%` 防止组件铺满整屏、左右贴边，只在 `.comp` 上生效；
+幕内元素（`.h1` / `.c-bar` 等）由幕的 `padding` 控制，不需要额外约束。
 
 ---
 
@@ -89,19 +86,4 @@ html[data-purpose="standalone"] .comp[data-roll="B"]{ top:44%;  }
 | `neon` | 切角面板、发光、扫描线 |
 | `pixel` | 阶梯硬边、点阵、跳帧动效 |
 
-完整规格见 `visual-styles.md`。
-
----
-
-## 六、硬约束
-
-| 约束 | 判据 |
-|---|---|
-| 单文件零依赖 | 无 http 引用、无外链、无 `@import`（第 2 项） |
-| `:root` 变量齐备 | 12 个核心变量（第 3 项） |
-| 六风格结构可区分 | 各自有专属 keyframes（第 8 项） |
-| 组件 `max-width` | `.comp` 规则块必须带（防铺满） |
-| 幕有 `data-sec` | 每幕都要（第 10 项） |
-| 停留 ≥0.8s | 每个组件（第 9 项） |
-| 提示标签 ≤6 字 | `c-capsule`（第 11 项） |
-| 信息卡 ≤14 字/行 | 超 42 字硬 FAIL（第 11 项） |
+完整规格见 `../../ivh-html-core/visual-styles.md`。

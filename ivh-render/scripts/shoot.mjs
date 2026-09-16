@@ -11,8 +11,11 @@
  *   node scripts/shoot.mjs <产物.html> --video --fps 30    # 成片输出 30fps 恒定帧率（默认就是 30）
  *   node scripts/shoot.mjs <产物.html> --engine cli        # 强制走「每帧一个浏览器」的老路
  *   node scripts/shoot.mjs <产物.html> --no-reuse-blank    # 空档不复用，逐帧老实渲染
+ *   node scripts/shoot.mjs <产物.html> --video --keep-frames  # 出片后保留 seq/ 中间帧（默认出完即清）
  *   node scripts/shoot.mjs <产物.html> --gallery            # 六风格对照页
  *   node scripts/shoot.mjs <产物.html> --out <目录> --scale 2
+ *   node scripts/shoot.mjs <产物.html> --workers 4         # 指定并行路数（默认 核数−2，上限 6）
+ *   node scripts/shoot.mjs <产物.html> --gpu               # 放开 GPU 光栅化（默认关，见下）
  *
  * 与 shoot-at.mjs 的分工：
  *   shoot-at.mjs  按「组件入点/出点」精确采样，用于核对卡点是否对齐 SRT
@@ -25,17 +28,39 @@
  *   空档帧在同一份产物里是逐字节相同的，复用后成片画面完全不变。
  *
  * 抽帧引擎（--engine auto|cdp|cli，默认 auto）：
- *   cdp   开一个浏览器、用 CDP 逐帧驱动产物的 IVH.seekAt(t)，实测 0.10s/帧 —— 快路径
+ *   cdp   开一个浏览器、用 CDP 逐帧驱动产物的 IVH.seekAt(t)，实测 0.1s/帧 —— 快路径。
+ *         传输自动择路：先试「CDP 管道」（--remote-debugging-pipe，不碰网络），
+ *         不成再试「DevTools WebSocket」（127.0.0.1 回环）。
+ *         电脑管家 / 360 这类安全软件的网络防护会掐断跨进程回环，管道这条不受影响。
+ *         可用 IVH_CDP_TRANSPORT=pipe|ws 强制指定某一种。
  *   cli   每帧拉起一次 headless 浏览器 + --screenshot 落盘，实测 1.1s/帧；
  *         零网络、不依赖子进程回连，任何沙箱都能跑 —— 回退路径
- *   auto  先试 cdp，连不上调试端口（沙箱隔离子进程网络）就自动退回 cli。
- *         两条路的画面逐像素一致，回退只影响耗时。
+ *   auto  先试 cdp，两种传输都连不上才退回 cli。两条路的画面逐像素一致，回退只影响耗时。
+ *
+ * 抽帧并行度（--workers）：
+ *   默认 核数 − 2（留给系统与 ffmpeg），上限 6；`--workers N` / IVH_WORKERS 可覆盖。
+ *   实现是「多进程」：每路一个 node 子进程 + 一个独立浏览器。不在一进程里并发几个
+ *   浏览器，是因为 CDP 消息的 JSON.parse 与 base64 解码发生在 node 这一侧，
+ *   合在一个进程里会挤在同一个核上 —— 分进程后每路各占一个核。
+ *   ★ 但别指望 ÷N：实测 8 逻辑核 / 1920×1080 / 374 帧 —— 1 路 51s、3 路 29s（1.76×）、
+ *     6 路 30s。超线程对 zlib 几乎无效（PNG 编码吃的是物理核），3 路就把这台 4 物理核
+ *     的机器吃满了，再加路数只是多起进程。跨路数渲染的**同一帧逐字节相同**
+ *     （374/374 MD5 一致）—— 并行只动速度，不动画面。换机器要重标。
+ *   ★ worker 只负责抓帧，不跑 ffmpeg。编码只占出片总耗时 4%（93 帧/秒 vs 抽帧 8 帧/秒），
+ *     分 N 次编再 concat 只是多一道工序、多一处参数必须完全一致的风险。分片是
+ *     「捕获侧的工作单位」，不是「输出单位」。
+ *   帧数太少（不足 8 帧/路）时自动退回单路 —— 起进程 + 载入产物的固定成本约 2s/路。
+ *   --engine cli 时强制单路（cli 引擎本身就是逐帧起浏览器，并行没有意义）。
+ *
+ * --gpu：放开 GPU 光栅化。实测整片只快 15%（瓶颈在 PNG 编码不在光栅化），
+ *   且会换掉光栅化后端 —— 软件后端在本机验证过逐字节确定性。默认关。
  */
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseComps, samplePlan, uniformTimes, alphaIsEmpty } from "./active-windows.mjs";
 
 /* ---------- 浏览器探测 ---------- */
@@ -71,6 +96,28 @@ const SCALE  = Number(getArg("--scale", 1)) || 1;
 const FRAMES = argv.includes("--frames");
 const VIDEO  = argv.includes("--video");
 const GALLERY = argv.includes("--gallery");
+const KEEP_FRAMES = argv.includes("--keep-frames");
+
+/* ---------- GPU 开关 ----------
+   放开光栅化的 GPU 加速。实测整片只快 15%（瓶颈在 PNG 编码，不在光栅化），
+   默认关：软件光栅化那条路在本机验证过「同产物两次出片逐字节一致」。
+   写进 process.env 是因为 cdp-shoot.mjs 在模块顶部读它，而它是动态 import 进来的。 */
+const GPU = argv.includes("--gpu");
+if (GPU) process.env.IVH_GPU = "1";
+
+/* ---------- 并行度：核数 − 2，上限 6 ---------- */
+const resolveWorkers = () => {
+  const override = Number(getArg("--workers", 0)) || Number(process.env.IVH_WORKERS || 0);
+  const auto = Math.max(1, Math.min(os.cpus().length - 2, 6));
+  return Math.max(1, Math.min(override || auto, 16));
+};
+const WORKERS = resolveWorkers();
+
+/* worker 模式的内部参数（由主进程 spawn 自己时带上；手写命令行不该用到） */
+const SHARD_FILE = getArg("--shard-file", "");
+const SHARD_MANIFEST = getArg("--shard-manifest", "");
+const SHARD_TAG = getArg("--shard-tag", "f");
+const SHARD_ID = Number(getArg("--shard-id", "-1"));
 const name = path.basename(FILE, ".html");
 const outDir = path.resolve(getArg("--out", path.join(path.dirname(FILE), "frames-" + name)));
 fs.mkdirSync(outDir, { recursive: true });
@@ -229,30 +276,38 @@ const totalDur = (BASE === "timeline" ? timelineDur : sceneDur) || dataDur || 10
    分幕模式的 ?t= 定位已由模板 10-C 段实现（负 animation-delay + 暂停 = 定格）。 */
 const sampleByTime = BASE === "timeline" || STEP > 0 || FRAMES || VIDEO;
 
-/* 按时刻抽帧。两条引擎产出的 PNG 同名同内容，所以回退是无缝的。
-   tag 决定文件名前缀：f = 均匀抽帧 / p = 素材点采样。 */
-const shootTimes = async (times, tag) => {
+/* 一路抽帧：一个浏览器，把这串时刻逐帧抓下来。
+   两条引擎产出的 PNG 同名同内容，所以回退是无缝的。
+   tag 决定文件名前缀：f = 均匀抽帧 / p = 素材点采样。
+   quiet = worker 模式：不往 stdout 写字，进度由主进程数文件来报。 */
+const captureShard = async (times, tag, quiet = false) => {
   const filePrefix = `${name}-${tag}`;
   if (ENGINE !== "cli") {
     const { captureFrames } = await import("./cdp-shoot.mjs");
-    let explained = false;
+    let explained = false, announced = false;
     const res = await captureFrames({
       browser: BROWSER, file: FILE, times, outDir, filePrefix,
       size: SIZE, scale: SCALE, transparent: BG === "transparent",
-      log: (done, total, t, perFrame, err) => {
+      log: (done, total, t, perFrame, err, how) => {
         if (err) {
+          /* 每种传输失败都会报一次，都打出来 —— 排障时要知道是哪条路不通、为什么。 */
+          const label = how === "管道" ? "管道传输" : "WebSocket 传输";
+          console.warn(`[shoot] ${label}不可用：${err}`);
           if (!explained) {
             explained = true;
-            console.warn(`[shoot] 单浏览器引擎不可用：${err}`);
-            console.warn("        回退到逐帧浏览器（每帧一次冷启动，会慢一个数量级）。");
+            console.warn("        逐个传输重试中；都不可用才回退到逐帧浏览器（会慢一个数量级）。");
           }
           return;
         }
-        process.stdout.write(`\r  已抽 ${done}/${total} 帧 @ ${t}s · ${perFrame.toFixed(0)}ms/帧   `);
+        if (!announced && how) {
+          announced = true;
+          if (!quiet) console.log(`[shoot] 单浏览器引擎就绪（${how}传输）`);
+        }
+        if (!quiet) process.stdout.write(`\r  已抽 ${done}/${total} 帧 @ ${t}s · ${perFrame.toFixed(0)}ms/帧   `);
       },
     });
     if (res) {
-      process.stdout.write("\r" + " ".repeat(64) + "\r");
+      if (!quiet) process.stdout.write("\r" + " ".repeat(64) + "\r");
       return res;
     }
     if (ENGINE === "cdp") {
@@ -265,12 +320,120 @@ const shootTimes = async (times, tag) => {
     const png = path.join(outDir, `${filePrefix}${String(t).padStart(7, "0").replace(".", "_")}.png`);
     if (shootOne(fileUrl(`?t=${t}`), png, 3000)) {
       out.push({ t, png });
-      process.stdout.write(`\r  已抽 ${out.length}/${times.length} 帧 @ ${t}s   `);
+      if (!quiet) process.stdout.write(`\r  已抽 ${out.length}/${times.length} 帧 @ ${t}s   `);
     }
   }
-  process.stdout.write("\r" + " ".repeat(64) + "\r");
+  if (!quiet) process.stdout.write("\r" + " ".repeat(64) + "\r");
   return out;
 };
+
+/* ==========================================================================
+   并行抽帧：把 times 切成 W 段，每段一个 worker（独立进程 + 独立浏览器）
+   --------------------------------------------------------------------------
+   ★ 为什么是「多进程」而不是一个进程里并发几个浏览器：
+     PNG 编码确实在浏览器进程里跑，但 CDP 消息的 JSON.parse 与 base64 解码
+     发生在本进程 —— 那部分会全挤在一个核上。分进程后每路各占一个核。
+   ★ worker 不做 ffmpeg：编码只占出片总耗时 4%（93 帧/秒 vs 抽帧 8 帧/秒），
+     分 N 次编再 concat 只是多一道工序、多一处「参数必须完全一致」的风险。
+     分片是「捕获侧的工作单位」，不是「输出单位」。
+   ★ 帧数不足 8 帧/路时不并行：起进程 + 载入产物的固定成本约 2s/路。
+   ========================================================================== */
+const MIN_FRAMES_PER_SHARD = 8;
+
+const captureInParallel = async (times, tag, W) => {
+  const chunk = Math.ceil(times.length / W);
+  const shards = [];
+  for (let i = 0; i < times.length; i += chunk) shards.push(times.slice(i, i + chunk));
+
+  const tmp = path.join(outDir, "_shards");
+  fs.rmSync(tmp, { recursive: true, force: true });
+  fs.mkdirSync(tmp, { recursive: true });
+
+  const jobs = shards.map((ts, i) => {
+    const inp = path.join(tmp, `in-${i}.json`);
+    fs.writeFileSync(inp, JSON.stringify(ts), "utf8");
+    return { i, ts, inp, out: path.join(tmp, `out-${i}.json`) };
+  });
+
+  console.log(`[shoot] 并行抽帧 ${jobs.length} 路 × 约 ${chunk} 帧/路`
+    + `（本机 ${os.cpus().length} 逻辑核 − 2 预留，上限 6）`);
+
+  const run = j => new Promise(resolve => {
+    const a = [fileURLToPath(import.meta.url), FILE, "--out", outDir, "--scale", String(SCALE),
+      "--shard-file", j.inp, "--shard-manifest", j.out, "--shard-tag", tag, "--shard-id", String(j.i)];
+    if (ENGINE !== "auto") a.push("--engine", ENGINE);
+    if (GPU) a.push("--gpu");
+    const c = spawn(process.execPath, a, { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
+    let err = "";
+    c.stderr.on("data", d => { err = (err + d.toString()).slice(-1000); });
+    c.on("error", e => resolve({ code: -1, err: e.message }));
+    c.on("exit", code => resolve({ code, err }));
+  });
+
+  /* 进度由主进程数文件得出 —— 不为了一句进度信息发明一套 IPC 协议。
+     worker 各写各的帧，t 互不重叠，所以文件名不冲突，数出来就是总进度。 */
+  const tick = setInterval(() => {
+    let n = 0;
+    try { n = fs.readdirSync(outDir).filter(f => f.startsWith(`${name}-${tag}`) && f.endsWith(".png")).length; } catch {}
+    process.stdout.write(`\r  并行抽帧 ${Math.min(n, times.length)}/${times.length} 帧 · ${jobs.length} 路   `);
+  }, 1500);
+
+  const results = await Promise.all(jobs.map(run));
+  clearInterval(tick);
+  process.stdout.write("\r" + " ".repeat(64) + "\r");
+
+  /* 收工：manifest 齐全且帧数对得上的才算数；缺的串行补抽（不重跑整路）。 */
+  const ok = [], bad = [];
+  for (const [i, j] of jobs.entries()) {
+    let arr = null;
+    try { arr = JSON.parse(fs.readFileSync(j.out, "utf8")); } catch {}
+    if (arr && arr.length === j.ts.length) ok.push(...arr);
+    else {
+      bad.push(j);
+      const why = results[i] && results[i].code !== 0 ? `退出码 ${results[i].code}` : "manifest 不完整";
+      console.warn(`[shoot] 第 ${i + 1} 路未完成（${why}）`
+        + (results[i] && results[i].err ? `\n        ${results[i].err.split("\n").slice(-3).join("\n        ")}` : ""));
+    }
+  }
+  if (bad.length) {
+    console.warn(`[shoot] 串行补抽 ${bad.length} 路共 ${bad.reduce((n, j) => n + j.ts.length, 0)} 帧…`);
+    for (const j of bad) {
+      const extra = await captureShard(j.ts, tag, true);
+      if (extra && extra.length) {
+        const want = new Set(j.ts);
+        ok.push(...extra.filter(s => want.has(s.t)));
+      }
+    }
+  }
+
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
+
+  /* 按 times 的原始顺序排回去：并行之后回来的次序是乱的，
+     而下游的 seq/frame-%05d.png 必须严格按时间轴顺序落号。 */
+  const rank = new Map(times.map((t, i) => [t, i]));
+  ok.sort((a, b) => (rank.get(a.t) ?? 1e9) - (rank.get(b.t) ?? 1e9));
+  console.log(`[shoot] 并行抽帧完成：${ok.length}/${times.length} 帧`);
+  return ok;
+};
+
+/* 分发：能并行就并行，不能就单路。所有调用点看到的都是这一个函数。 */
+const shootTimes = async (times, tag) => {
+  const W = Math.min(WORKERS, Math.floor(times.length / MIN_FRAMES_PER_SHARD));
+  if (ENGINE === "cli" || W <= 1) return captureShard(times, tag);
+  return captureInParallel(times, tag, W);
+};
+
+/* ==========================================================================
+   worker 模式：主进程 spawn 自己时带 --shard-file。
+   只抓帧、写 manifest、退出 —— 不碰 seq/、不碰 ffmpeg。
+   ========================================================================== */
+if (SHARD_FILE) {
+  const times = JSON.parse(fs.readFileSync(SHARD_FILE, "utf8"));
+  const shots = await captureShard(times, SHARD_TAG, true);
+  const got = (shots || []).map(s => ({ t: s.t, png: s.png }));
+  fs.writeFileSync(SHARD_MANIFEST, JSON.stringify(got), "utf8");
+  process.exit(got.length === times.length ? 0 : 1);
+}
 
 /* 空档复用：渲染一张空档帧、实测它的 alpha，确认全透明之后才复用。
    实测不过（HIDE_HUD 没关、BG 其实是 opaque、产物里还有别的可见元素……）
@@ -332,11 +495,12 @@ if (sampleByTime) {
     console.log("");
   } else {
     const step = STEP > 0 ? STEP : Math.max(duration / 40, 0.2);
-    const times = uniformTimes(duration, step);
+    /* 带上 OUT_FPS：时间点落在输出帧栅格上，采样帧率与 -r 精确对齐（见 uniformTimes） */
+    const times = uniformTimes(duration, step, OUT_FPS);
 
     console.log(`[shoot] ${name} · ${BASE === "timeline" ? "timeline" : "分幕"} 抽帧 ${times.length} 张 · 间隔 ${step.toFixed(2)}s · 总长 ${duration}s`);
     /* 空档复用只改「渲染哪些帧」，不改 times —— 帧序号、时间映射、成片时长一律不动。 */
-    const plan = REUSE_BLANK ? samplePlan(html, duration, step) : null;
+    const plan = REUSE_BLANK ? samplePlan(html, duration, step, OUT_FPS) : null;
     shots = (plan && plan.blankT !== null)
       ? await shootWithBlankReuse(plan)
       : await shootTimes(times, "f");
@@ -400,7 +564,8 @@ if ((FRAMES || VIDEO) && shots.length) {
        ★ 用 rename 而不是 copy：同盘改名是元数据操作，零拷贝。
          原来 copy 一份出来、原件不删，fine 档一条 30s 片子会留下两份 751 张 PNG
          （约 3GB）。改名之后 seq/ 就是唯一的帧目录，时间映射由 index.txt 保留，
-         信息一点没少。 */
+         信息一点没少。
+       ★ seq/ 不是长期产物：合成成功后默认删除（见本段末尾「收尾」）。 */
     const seqDir = path.join(outDir, "seq");
     fs.rmSync(seqDir, { recursive: true, force: true });
     fs.mkdirSync(seqDir, { recursive: true });
@@ -473,6 +638,37 @@ if ((FRAMES || VIDEO) && shots.length) {
       }
     } else {
       console.log(`\n  提示：抽帧是「定格」采样，用于核对某个时间点长什么样。\n        想看整条片子的观感，直接打开 HTML 看——比抽帧快，而且能看到真实动效。\n        要出片请走 render.mjs，不要在这里手工拼帧。`);
+    }
+
+    /* 4) 收尾：中间帧用完即清。
+       mp4 已经落盘，seq/ 这几千张 PNG 的唯一剩余用途是「不重抽帧、只换编码参数
+       重出一版」。默认清掉 —— fine 档一条 3 分钟片子就是 2.1GB，不清会在每个
+       产物目录里静默堆积（上一轮就是漏在这里）。要留着就加 --keep-frames。 */
+    const dirSize = d => {
+      const seen = new Set();
+      let n = 0;
+      for (const f of fs.readdirSync(d)) {
+        try {
+          const st = fs.statSync(path.join(d, f));
+          const key = st.ino ? st.dev + ":" + st.ino : f;   /* 硬链接的空档帧只算一次 */
+          if (seen.has(key)) continue;
+          seen.add(key);
+          n += st.size;
+        } catch {}
+      }
+      return n;
+    };
+    if (VIDEO && KEEP_FRAMES) {
+      console.log(`\n[shoot] seq/ 已保留（--keep-frames）：${seqDir}`);
+    } else if (VIDEO && !process.exitCode && fs.existsSync(outFile)) {
+      try {
+        const bytes = dirSize(seqDir);
+        fs.rmSync(seqDir, { recursive: true, force: true });
+        console.log(`\n[shoot] 中间帧已清理：seq/ 回收 ${(bytes / 1048576).toFixed(0)} MB`);
+        console.log(`        想留着换编码参数重出，下次加 --keep-frames。`);
+      } catch (e) {
+        console.warn(`\n[shoot] seq/ 清理失败（不影响成片）：${e.message}`);
+      }
     }
   }
 }

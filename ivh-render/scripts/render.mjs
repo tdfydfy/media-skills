@@ -9,6 +9,9 @@
  *   node scripts/render.mjs <产物.html> --preflight        # 只做出片前检查，不渲染
  *   node scripts/render.mjs <产物.html> --no-verify        # 跳过透明通道复检
  *   node scripts/render.mjs <产物.html> --no-reuse-blank   # 素材模式空档不复用（逐帧老实渲染）
+ *   node scripts/render.mjs <产物.html> --keep-frames      # 保留 seq/ 中间帧（默认出完即清）
+ *   node scripts/render.mjs <产物.html> --workers 4        # 抽帧并行路数（默认 核数−2，上限 6）
+ *   node scripts/render.mjs <产物.html> --gpu              # 放开 GPU 光栅化（默认关，只值 15%）
  *
  * 它做三件事，按顺序：
  *   1) 前置检查 —— 读产物里的 CONFIG，把「出片必然出错」的组合挡下来（纯正则，毫秒级）
@@ -32,6 +35,7 @@
  */
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { samplePlan } from "./active-windows.mjs";
@@ -41,7 +45,7 @@ const NODE = process.execPath;
 
 const argv = process.argv.slice(2);
 if (!argv.length || argv[0].startsWith("-")) {
-  console.error("用法: node scripts/render.mjs <产物.html> [--preset draft|normal|fine] [--step 秒] [--fps N] [--out 目录] [--scale N] [--preflight] [--no-verify]");
+  console.error("用法: node scripts/render.mjs <产物.html> [--preset draft|normal|fine] [--step 秒] [--fps N] [--out 目录] [--scale N] [--preflight] [--no-verify] [--keep-frames]");
   process.exit(1);
 }
 const FILE = path.resolve(argv[0]);
@@ -143,23 +147,40 @@ if (STEP <= 0) {
 }
 const OUT_FPS    = Number(getArg("--fps", 0)) || 30;
 const SAMPLE_FPS = +(1 / STEP).toFixed(2);
+/* step 正好是整数个输出帧周期时（fine 的 1/30、draft 的 0.1），采样点会精确落在
+   帧栅格上；normal 的 0.04s = 1.2 帧，两头无法兼得，仍然走三位小数口径。 */
+const ON_GRID = Math.abs(STEP * OUT_FPS - Math.round(STEP * OUT_FPS)) < 1e-9;
 /* 素材模式（透明 + 3:4）出片时空档会被自动复用：真正渲染的只有「有内容的」那些帧。
    估值必须和实际一致，否则会把耗时说高一倍。 */
 const plan = (TRANSPARENT && PURPOSE === "overlay" && RATIO === "3:4" && BASE === "timeline")
-  ? samplePlan(html, DURATION, STEP) : null;
+  ? samplePlan(html, DURATION, STEP, OUT_FPS) : null;
 const reuseBlank = !!(plan && plan.blankT !== null) && !has("--no-reuse-blank");
-const FRAMES_EST = plan ? plan.times.length : Math.floor(DURATION / STEP) + 2;
+const FRAMES_EST = plan ? plan.times.length : Math.ceil(DURATION / STEP) + 1;
 const RENDER_EST = reuseBlank ? plan.activeTimes.length + 1 : FRAMES_EST;
-/* 两条抽帧引擎的实测单帧成本：单浏览器约 0.10s；逐帧浏览器约 1.1s */
-const FAST_SEC = RENDER_EST * 0.10, SLOW_SEC = RENDER_EST * 1.1;
+/* ---------- 抽帧成本模型（全部来自实测，见 ivh-render/references/render-matrix.md） ----------
+   单帧 1920×1080：seek+双rAF 0.011s + 抓取 0.120s（optimizeForSpeed 快压后）
+                 = 0.131s（软件光栅化，单路实测）/ 约 0.11s（开 GPU，按 −15% 折）
+   逐帧浏览器（cli 回退）1.1s/帧。
+   并行提速有上限，实测标定：8 逻辑核 / 1920×1080 / 374 帧 —— 1 路 51s、3 路 29s（1.76×）、
+   6 路 30s。超线程对 zlib 几乎无效（PNG 编码吃的是物理核），可用容量 ≈ 逻辑核 / 4.5。
+   不要做「W × 系数」的线性外推 —— 实测 6 路的收益与 3 路完全一样。 */
+const WORKERS = Math.max(1, Math.min(
+  Number(getArg("--workers", 0)) || Number(process.env.IVH_WORKERS || 0)
+    || Math.max(1, Math.min(os.cpus().length - 2, 6)), 16));
+const GPU = has("--gpu");
+const PER_FRAME = GPU ? 0.111 : 0.131;
+const SPEEDUP = WORKERS > 1 ? Math.min(WORKERS, Math.max(1, os.cpus().length / 4.5)) : 1;
+const FAST_SEC = RENDER_EST * PER_FRAME / SPEEDUP, SLOW_SEC = RENDER_EST * 1.1;
 const fmt = s => s < 90 ? `${s.toFixed(0)}s` : `${(s / 60).toFixed(1)}min`;
-console.log(`\n[render] 采样 ${SAMPLE_FPS}fps（step=${STEP.toFixed(3)}s）→ 约 ${FRAMES_EST} 帧 · 输出 ${OUT_FPS}fps CFR`);
+console.log(`\n[render] 采样 ${SAMPLE_FPS}fps（step=${STEP.toFixed(3)}s${ON_GRID ? " · 落在帧栅格上" : ""}）→ 约 ${FRAMES_EST} 帧 · 输出 ${OUT_FPS}fps CFR`);
 if (reuseBlank) {
   const activeSec = plan.spans.reduce((n, s) => n + (s[1] - s[0]), 0);
   console.log(`[render] 素材模式：${plan.spans.length} 段有内容共 ${activeSec.toFixed(1)}s，`
     + `占时间轴 ${Math.round(100 * activeSec / Math.max(DURATION, 1e-6))}%`
     + ` → 只渲染 ${plan.activeTimes.length} 帧（+1 张空档帧），其余 ${FRAMES_EST - plan.activeTimes.length} 帧复用，画面不变`);
 }
+console.log(`[render] 抽帧引擎：单浏览器引擎 ${WORKERS} 路并行`
+  + `（本机 ${os.cpus().length} 逻辑核 − 2 预留，上限 6${GPU ? " · 已放开 GPU 光栅化" : ""}）`);
 console.log(`[render] 预计耗时：单浏览器引擎约 ${fmt(FAST_SEC)}；回退到逐帧浏览器约 ${fmt(SLOW_SEC)}`);
 if (SLOW_SEC > 900 && preset === "normal" && !has("--step")) {
   console.log(`  ! 帧数偏多。先用 --preset draft 出一版看效果，满意再出 ${preset}。`);
@@ -171,8 +192,13 @@ const args = [path.join(HERE, "shoot.mjs"), FILE, "--video", "--step", String(ST
 const engine = getArg("--engine", "");
 if (engine) args.push("--engine", engine);
 if (has("--no-reuse-blank")) args.push("--no-reuse-blank");
+if (has("--keep-frames")) args.push("--keep-frames");
 const SCALE = Number(getArg("--scale", 0)) || 0;
 if (SCALE > 0) args.push("--scale", String(SCALE));
+/* 并行度与 GPU 开关原样透传：shoot.mjs 才是执行者，这里只是把估值和实际对齐。 */
+const W_ARG = getArg("--workers", "");
+if (W_ARG) args.push("--workers", String(W_ARG));
+if (GPU) args.push("--gpu");
 
 console.log(`\n[render] 开始抽帧合成…（这一步就是出片本身，不是"检查"）`);
 const r = spawnSync(NODE, args, { stdio: "inherit" });

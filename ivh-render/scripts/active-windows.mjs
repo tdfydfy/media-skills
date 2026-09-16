@@ -78,8 +78,31 @@ export function isActive(spans, t) {
   return false;
 }
 
-/** 按固定间隔铺满整条时间轴（与抽帧循环、ffmpeg 输入帧率同一口径）。 */
-export function uniformTimes(duration, step) {
+/** 把时间对齐到帧栅格：第 k 帧恰好是 k/fps 秒。 */
+export function quantize(t, fps) { return Math.round(t * fps) / fps; }
+
+/** 由时间反查它属于第几帧。栅格已经量化过时，这里不会再出现 .999999 这种毛刺。 */
+export function frameIndex(t, fps) { return Math.round(t * fps); }
+
+/**
+ * 按固定间隔铺满整条时间轴（与抽帧循环、ffmpeg 输入帧率同一口径）。
+ *
+ * fps > 0 且 step 正好是整数个帧周期时，时间点在**帧号**上推进（k*per/fps），
+ * 结果是精确的：相邻间隔恒等于 step，下游按 diff 反推的采样帧率就正好等于
+ * 1/step，而不是 29.9976 这种数 —— 后者会让 `-framerate` 与 `-r` 对不齐，
+ * 成片末尾悄悄错开小半帧。末点向上取整到栅格，保证最后一帧也落在格上。
+ *
+ * step 不是整数帧周期时（渲染 normal 档的 0.04s = 1.2 帧）无法两者兼得，
+ * 退回原来的三位小数口径 —— 宁可不量化，也不要为了量化把间隔弄成忽长忽短。
+ */
+export function uniformTimes(duration, step, fps = 0) {
+  const per = fps > 0 ? Math.round(step * fps) : 0;
+  if (per > 0 && Math.abs(step * fps - per) < 1e-9) {
+    const n = Math.ceil((duration * fps) / per);
+    /* 印 9 位小数：帧名 / index.txt 里落的就是这个值，而 1e-9 s 的误差乘回帧号
+       只有 3e-8，frameIndex() 全程精确。印 6 位就做不到（0.033333 差 1e-5 帧）。 */
+    return Array.from({ length: n + 1 }, (_, k) => +(k * per / fps).toFixed(9));
+  }
   const times = [];
   for (let t = 0; t <= duration + 1e-6; t += step) times.push(+t.toFixed(3));
   if (times[times.length - 1] < duration) times.push(+duration.toFixed(3));
@@ -102,14 +125,15 @@ export function largestGap(spans, duration) {
 
 /**
  * 采样计划：均匀铺满的 times 里哪些有内容、哪些是空档，空档该取哪一秒去渲染那一张。
+ * @param fps 成片恒定帧率（见 uniformTimes）；给了就让时间点落在帧栅格上。
  * @returns {{comps:Array, outDur:number, spans:Array, times:number[],
  *            activeTimes:number[], blankT:number|null}}
  *   blankT = 最长空档的中点；没有值得复用的空档时为 null（那就按均匀抽帧走）。
  */
-export function samplePlan(html, duration, step) {
+export function samplePlan(html, duration, step, fps = 0) {
   const { comps, outDur } = parseComps(html);
   const spans = activeSpans(comps, outDur);
-  const times = uniformTimes(duration, step);
+  const times = uniformTimes(duration, step, fps);
   const activeTimes = times.filter(t => isActive(spans, t));
   const gap = largestGap(spans, duration);
   const usable = gap && gap.len >= MIN_BLANK_GAP && activeTimes.length > 0 && activeTimes.length < times.length;

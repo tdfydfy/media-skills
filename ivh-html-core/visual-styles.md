@@ -267,7 +267,7 @@ html.bg-transparent[data-style="pixel"]{
 ### 校验风格没写坏（必跑，纯文本）
 
 ```bash
-node scripts/check-template.mjs 产物.html       # 第 8 项：量化风格差异
+node <技能目录>/scripts/check-template.mjs 产物.html    # 第 8 项：量化风格差异
 ```
 
 第 8 项会给出量化结果：属性数、能力维命中数、结构指纹组合数。差异不够明显会被拦下。
@@ -297,4 +297,4 @@ node ../ivh-render/scripts/shoot.mjs 产物.html --gallery   # 六风格对照�
 4. 可选：在**区块 7** 加专属动效覆写
 5. 跑 `check-template.mjs`，确认第 3/4/8 项通过
 
-**不要修改 `:root`** —— 那是 doodle 的值，改它会污染所有风格。
+`:root` 里放的是 doodle 的值 —— 新增风格走 `[data-style]` 覆写块，直接改 `:root` 会污染所有风格。

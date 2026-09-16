@@ -9,22 +9,35 @@ agent_created: true
 **只干一件事：文字脚本 → 整屏多幕、连贯叙事的单文件 HTML。**
 
 ```
-ivh-script ──→ 脚本.json ──→ [ 你在这里 ] ──→ 成片.html ──→ ivh-render ──→ .mp4
+ivh-script-standalone ──→ 脚本.json ──→ [ 你在这里 ] ──→ 成片.html ──→ ivh-render ──→ .mp4
 ```
 
 与透明素材（`ivh-overlay`）的分水岭：**独立成片自己扛叙事**，A 开头 A 收尾，整屏推进。
+
+**闸门 2 / 2 在本技能。** `成片.html` 出来之后：跑校验 → `present_files` 递出去 → **本轮结束**。
+等用户看过说"可以"，出片才轮到 `ivh-render`。
+用户一次性要的是最终视频，也照停 —— 闸门是分工：字没定，排版就是白排。
 
 ---
 
 ## 一、开始前先确认
 
-**输入**：`ivh-script` 产出的脚本 JSON（`purpose: "standalone"`）。
-没有脚本？先回 `ivh-script` 写脚本，不要在这里现编内容。
+**输入**：`ivh-script-standalone` 产出的脚本 JSON（`purpose: "standalone"`）。
+没有脚本？先回 `ivh-script-standalone` 写脚本，不要在这里现编内容。
+
+**开工前先验章（只读，不盖章）：**
+
+```bash
+node ../ivh-script-core/scripts/check-script.mjs 脚本.json
+```
+
+`meta.check` 缺失、或指纹与当前内容不符 → **拒收，退回 `ivh-script-standalone`**。
+这两处都是一眼看出来的错，但不查就会变成下游一批没法改的返工。
 
 **必须先问用户**（不要套默认值）：
 
 1. **画幅（RATIO）** —— `16:9` 横屏 / `9:16` 竖屏 / `4:3` / `3:4`
-2. **风格（STYLE）** —— 六选一，见 `references/visual-styles.md`
+2. **风格（STYLE）** —— 六选一，见 `../ivh-html-core/visual-styles.md`
    `doodle` 手绘 / `riso` 印刷套色 / `blueprint` 工程蓝图 / `minimal` 极简 / `neon` 霓虹 / `pixel` 像素
 3. **A-roll 用什么** —— 文字标题 / 生成素材（图像或视频）。由内容定，不锁死
 
@@ -110,46 +123,36 @@ const CONFIG = {
 
 ---
 
-## 六、硬约束（自检会拦）
+## 六、硬约束
 
-| 约束 | 判据 |
-|---|---|
-| 单文件零依赖 | 无 http 引用、无外链、无 `@import` |
-| 幕有 `data-sec` | 每幕都要（第 10 项） |
-| 幕停留 3~12s | 太短赶、太长拖 |
-| 组件停留 ≥0.8s | 第 9 项 |
-| 组件换着用 | 至少 3 种（第 10 项 note） |
-| 同场组件写 `data-roll` | 否则会叠位 |
-| 入场动效 ≥3 种 | 第 9 项**硬线**，不足直接 FAIL |
-| 提示标签 ≤6 字 | 第 11 项 |
+`check-template.mjs` 会拦：**单文件零依赖**、每幕有 `data-sec`、幕停留 3~12s、
+组件停留 ≥0.8s、**入场动效 ≥3 种**（不足直接 FAIL）、提示标签 ≤6 字、
+**定格路径里不含时钟 API**（产物有数字滚动卡时，还要求滚动带渲染器守卫、定格会作废旧循环）。
+
+同场共存的组件必须写 `data-roll` —— 校验器看不出来，但一屏两带是模板落位的前提，
+不写两条都会居中并叠在一起。
 
 ---
 
-## 七、交付：校验过，然后让用户看 HTML
+## 七、交付：校验 → 递给用户 → 停
 
 ```bash
-node scripts/check-template.mjs 成片.html      # 十一项，纯文本，秒级
+node scripts/check-template.mjs 成片.html      # 十二项，纯文本，秒级
 ```
 
-**然后直接把 HTML 交给用户**（`present_files` 打开），**不要抽帧自己看**。
+**闸门 2 / 2 —— HTML 效果确认。** `check-template.mjs` 管"结构对不对"（纯文本，必跑），
+用户看 HTML 管"效果好不好"（人眼，不要代劳）。这一步的动作是固定的三步：
 
-```bash
-# ❌ 不要这样做 —— 抽帧不是检查手段（它是出片的生产方式本身），观感判断交给用户
-node ../ivh-render/scripts/shoot.mjs 成片.html --step 3
-```
+1. 跑上面的校验，过了才交
+2. `present_files` 打开 `成片.html`
+3. **本轮到此结束** —— 出片是 `ivh-render` 的活，等用户说"可以"再进下一环
 
-HTML 本身就是可运行、可交互、可反复回看的：模板带 `AUTOPLAY`，打开就是完整节奏；
-空格暂停、点页码跳幕。**用户看到的信息量比几张定格截图大得多，而成本是 0。**
+HTML 本身就是可运行、可交互、可反复回看的：模板带 `AUTOPLAY`，打开就是完整节奏，
+空格暂停、`←/→` 前后跳 10 秒（分幕模式是前后一幕）、`H` 显示/隐藏 HUD，
+地址栏加 `?t=秒` 可以直接跳到某秒 —— 用户看到的信息量比几张定格截图大得多，而成本是 0。
 
 用户说没问题 → 交给 `ivh-render` 出片；有问题 → 改，再给用户看一次。
-
-> **闸门 2 / 3 —— HTML 效果确认。**
-> `check-template.mjs` 管"结构对不对"（纯文本，必跑）；
-> 用户看 HTML 管"效果好不好"（人眼，不要代劳）。
-> 你自己抽帧属于重复劳动：既不比用户看得准，还慢。
-
-> `shoot-at.mjs` 只在一种情况下用：**用户明确要求**核对某个时间点的卡点。
-> 它是有针对性的复核工具，不是常规流程的一步。
+`shoot-at.mjs` 只在**用户明确要求**核对某个时间点的卡点时用，不是常规流程的一步。
 
 ---
 
@@ -158,20 +161,19 @@ HTML 本身就是可运行、可交互、可反复回看的：模板带 `AUTOPLA
 | 路径 | 用途 |
 |---|---|
 | `assets/template.html` | 独立成片模板：幕引擎 + 时间轴 + A/B 分带 + 六风格 + 15 组件 |
-| `scripts/check-template.mjs` | **十一项自检**，交付前必跑 |
+| `scripts/check-template.mjs` | **十二项自检**，交付前必跑 |
 | `scripts/make-fixture.mjs` | 造 scene/timeline 的 good/bad 样例，用于回归自测 |
 | `scripts/selftest-check.mjs` | 校验脚本自身的正反双向自测（维护用） |
 | `references/narrative-structure.md` | **叙事结构**：三幕骨架、A/B 分轨规划、密度、连贯手法 |
-| `references/components.md` | 幕与组件库、A/B 分带、动效、时间轴规则 |
+| `references/components.md` | 幕与分带、A/B 分轨、生成素材、时间轴规则（组件库在共享层） |
 | `references/layout-and-constraints.md` | 四种比例、安全边距、定位规则、硬约束 |
-| `references/visual-styles.md` | 六风格完整规格（变量层 / 结构层 / 动画层） |
-| `references/interop.md` | **产物契约**：与 `ivh-render` 共用的属性与运行时名字 |
+| `../ivh-html-core/components.md` | **组件库（15 种）与动效清单**（共享层，唯一副本） |
+| `../ivh-html-core/visual-styles.md` | 六风格完整规格（变量层 / 结构层 / 动画层） |
+| `../ivh-html-core/interop.md` | **产物契约**：与 `ivh-render` 共用的属性与运行时名字 |
 
 ---
 
 ## 九、边界
 
-- ❌ 不写脚本 —— 内容来自 `ivh-script`，这里只做视觉化与装配
-- ❌ 不做透明贴片 —— 那是 `ivh-overlay`。本技能的输出是**整屏**内容
-- ❌ 不做逐句卡点之外的剪辑 —— 成片交给 `ivh-render`
-- ❌ 不引外部资源 —— 单文件铁律，生成素材必须内联（`data:` URI 或内联 SVG）
+内容来自 `ivh-script-standalone`，出片交给 `ivh-render`。
+生成素材必须内联（`data:` URI 或内联 SVG）—— 单文件是产物定义的一部分。
