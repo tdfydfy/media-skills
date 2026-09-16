@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BetiDraws · 暮林星火 视觉色彩规范 v1</title>
+<style>
+  :root{
+    --ink:#1C1008; --bark:#2B1A12; --bark-2:#382014;
+    --brown:#3D2418; --sienna:#6B3E22; --ochre:#A9762F;
+    --honey:#D9B87A; --mist:#E8D5A8;
+    --pumpkin:#C2541F; --vermilion:#C0392B; --rust:#8E3418;
+    --star:#FFF3D6;
+    --txt:#F0E2C8; --txt-2:#B9A183; --txt-3:#8A7258;
+    --line:rgba(217,184,122,.2);
+    --line-soft:rgba(217,184,122,.1);
+    --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Source Han Sans SC","Segoe UI",system-ui,sans-serif;
+    --serif:Georgia,"Times New Roman","Songti SC","SimSun",serif;
+    --mono:"SF Mono","Cascadia Mono",Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--ink);
+    color:var(--txt);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.8;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 32px 120px}
+
+  .starfield{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+    background-image:
+      radial-gradient(1.5px 1.5px at 12% 18%, rgba(255,243,214,.9) 0, transparent 60%),
+      radial-gradient(1px 1px at 34% 42%, rgba(255,243,214,.7) 0, transparent 60%),
+      radial-gradient(2px 2px at 68% 12%, rgba(217,184,122,.8) 0, transparent 60%),
+      radial-gradient(1px 1px at 88% 56%, rgba(255,243,214,.6) 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 22% 76%, rgba(217,184,122,.6) 0, transparent 60%),
+      radial-gradient(1px 1px at 54% 88%, rgba(255,243,214,.5) 0, transparent 60%),
+      radial-gradient(2px 2px at 78% 34%, rgba(255,243,214,.55) 0, transparent 60%),
+      radial-gradient(1px 1px at 44% 6%, rgba(217,184,122,.6) 0, transparent 60%);
+    background-repeat:repeat;background-size:100% 100%;
+  }
+  .wrap,.cover-wrap{position:relative;z-index:1}
+
+  /* ---------- 封面 ---------- */
+  .cover-wrap{position:relative;overflow:hidden;background:var(--ink)}
+  .cover{position:relative;height:620px;overflow:hidden;background:var(--ink);text-align:center}
+  .cover img{height:100%;max-width:100%;object-fit:cover;display:block;margin:0 auto}
+  .cover-veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(28,16,8,.72) 0%,rgba(28,16,8,.08) 30%,rgba(28,16,8,.86) 100%)}
+  .cover-body{position:absolute;left:8%;right:8%;bottom:46px;text-align:left}
+  .kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.34em;text-transform:uppercase;color:var(--honey)}
+  .cover-title{font-family:var(--serif);font-size:56px;font-weight:400;line-height:1.15;letter-spacing:.04em;margin:16px 0 12px;color:var(--star)}
+  .cover-title em{font-style:italic;color:var(--honey)}
+  .cover-sub{font-size:15.5px;color:rgba(240,226,200,.76);max-width:640px;line-height:1.85}
+  .cover-ornament{display:inline-flex;gap:8px;margin-top:22px;opacity:.85}
+
+  /* ---------- 目录 ---------- */
+  .toc{display:flex;flex-wrap:wrap;gap:8px;margin:44px 0 8px}
+  .toc a{
+    font-size:13px;text-decoration:none;color:var(--txt-2);
+    background:var(--bark);border:1px solid var(--line-soft);
+    padding:7px 15px;border-radius:999px;transition:.2s;
+  }
+  .toc a:hover{color:var(--star);border-color:var(--honey);background:rgba(217,184,122,.1)}
+  .toc a b{font-family:var(--mono);font-weight:400;opacity:.5;margin-right:6px}
+
+  /* ---------- 章节 ---------- */
+  section{padding-top:76px}
+  .sec-head{margin-bottom:32px}
+  .sec-line{display:flex;align-items:center;gap:14px;padding-bottom:16px;border-bottom:1px solid var(--line-soft);position:relative}
+  .sec-line::after{content:"";position:absolute;left:0;bottom:-1px;width:80px;height:1px;background:linear-gradient(90deg,var(--vermilion),var(--honey))}
+  .sec-num{font-family:var(--mono);font-size:12.5px;color:var(--ochre);letter-spacing:.16em}
+  .sec-head h2{font-family:var(--serif);font-size:29px;font-weight:400;letter-spacing:.06em;color:var(--star)}
+  h3{font-size:17px;font-weight:600;margin:38px 0 16px;display:flex;align-items:center;gap:11px;color:var(--star);letter-spacing:.02em}
+  h3::before{content:"";width:13px;height:13px;flex:0 0 13px;background:var(--honey);
+    clip-path:polygon(50% 0%,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0% 50%,42% 42%)}
+  p{max-width:78ch}
+  .lead{font-size:17px;line-height:1.9;color:#D4C0A0;max-width:74ch}
+  .muted{color:var(--txt-3);font-size:14px}
+  strong{font-weight:600;color:var(--star)}
+  code{font-family:var(--mono);font-size:13px;background:rgba(217,184,122,.13);color:var(--honey);padding:2px 7px;border-radius:4px}
+
+  /* ---------- 关键词 ---------- */
+  .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:30px 0 8px}
+  .key{background:var(--bark);border-radius:8px;padding:28px 24px 26px;border:1px solid var(--line-soft);position:relative;overflow:hidden}
+  .key::before{content:"";position:absolute;left:0;top:0;width:100%;height:2px;background:linear-gradient(90deg,var(--vermilion),var(--ochre) 55%,transparent)}
+  .key .en{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--honey);letter-spacing:.06em}
+  .key b{display:block;font-family:var(--serif);font-size:25px;font-weight:400;margin:10px 0 10px;letter-spacing:.08em;color:var(--star)}
+  .key span{font-size:14px;color:var(--txt-2);line-height:1.75;display:block}
+
+  /* ---------- 情绪坐标 ---------- */
+  .axes{background:var(--bark);border:1px solid var(--line-soft);border-radius:8px;padding:28px 30px;margin-top:22px}
+  .axis{display:flex;align-items:center;gap:14px;margin:15px 0}
+  .axis-lab{flex:0 0 132px;font-size:13px;color:var(--txt-2);text-align:right}
+  .axis-track{flex:1;height:2px;background:rgba(217,184,122,.18);position:relative;border-radius:2px}
+  .axis-fill{position:absolute;left:0;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--rust),var(--pumpkin))}
+  .axis-dot{position:absolute;top:-8px;width:17px;height:17px;background:var(--honey);
+    clip-path:polygon(50% 0%,59% 41%,100% 50%,59% 59%,50% 100%,41% 59%,0% 50%,41% 41%)}
+  .axis-end{flex:0 0 132px;font-size:13px;color:var(--txt-2)}
+
+  /* ---------- 色卡 ---------- */
+  .swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}
+  .sw{background:var(--bark);border:1px solid var(--line-soft);border-radius:8px;overflow:hidden}
+  .sw .chip{height:134px;position:relative;display:flex;align-items:flex-end;padding:14px 16px}
+  .sw .chip code{background:rgba(28,16,8,.55);color:var(--star);font-size:12px;letter-spacing:.06em}
+  .sw .chip.inv code{background:rgba(255,243,214,.85);color:var(--brown)}
+  .sw .meta{padding:16px 18px 18px}
+  .sw .meta b{font-size:16px;font-weight:600;display:block;color:var(--star)}
+  .sw .meta .en{font-family:var(--serif);font-style:italic;font-size:12.5px;color:var(--txt-3);display:block;margin-top:2px}
+  .sw .meta ul{list-style:none;margin-top:12px;font-size:13.5px;color:var(--txt-2);line-height:1.65}
+  .sw .meta li{padding-left:13px;position:relative}
+  .sw .meta li::before{content:"";position:absolute;left:0;top:9px;width:5px;height:5px;background:var(--ochre);transform:rotate(45deg)}
+
+  /* ---------- 比例条 ---------- */
+  .ratio{margin-top:30px}
+  .ratio-bar{display:flex;height:54px;border-radius:6px;overflow:hidden;border:1px solid var(--line-soft)}
+  .ratio-bar div{display:flex;align-items:center;justify-content:center;font-size:13px;letter-spacing:.04em}
+  .ratio-legend{display:flex;flex-wrap:wrap;gap:20px;margin-top:15px;font-size:13.5px;color:var(--txt-2)}
+  .ratio-legend span{display:flex;align-items:center;gap:7px}
+  .dot{width:9px;height:9px;display:inline-block;transform:rotate(45deg)}
+
+  /* ---------- 表格 ---------- */
+  table{width:100%;border-collapse:collapse;margin-top:20px;font-size:14.5px;background:var(--bark);border-radius:8px;overflow:hidden}
+  th{background:rgba(192,57,43,.1);text-align:left;font-weight:600;font-size:12.5px;letter-spacing:.1em;color:var(--honey);padding:14px 16px}
+  td{padding:13px 16px;border-top:1px solid rgba(217,184,122,.09);vertical-align:top;color:var(--txt-2)}
+  td:first-child{font-weight:600;color:var(--star)}
+  td.num{font-family:var(--mono);font-size:13px;color:var(--honey)}
+
+  /* ---------- 规则卡 ---------- */
+  .rules{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+  .rule{background:var(--bark);border:1px solid var(--line-soft);border-radius:8px;padding:22px 24px;position:relative}
+  .rule::before{content:"";position:absolute;left:24px;top:-1px;width:30px;height:2px}
+  .rule.r::before{background:var(--vermilion)}
+  .rule.o::before{background:var(--pumpkin)}
+  .rule.h::before{background:var(--honey)}
+  .rule h4{font-size:14.5px;font-weight:600;margin-bottom:9px;color:var(--star);padding-top:8px}
+  .rule p{font-size:14px;color:var(--txt-2);line-height:1.75;max-width:none}
+  .rule code{font-size:12px}
+
+  /* ---------- 字体样例 ---------- */
+  .fontdemo{background:var(--bark);border:1px solid var(--line-soft);border-radius:8px;padding:30px;margin-top:22px}
+  .fontdemo .row{display:flex;align-items:baseline;gap:20px;padding:16px 0;border-bottom:1px dashed rgba(217,184,122,.13)}
+  .fontdemo .row:last-child{border-bottom:0}
+  .fontdemo .row .lab{flex:0 0 124px;font-size:11.5px;color:var(--txt-3);font-family:var(--mono);letter-spacing:.06em}
+  .fontdemo .d1{font-family:var(--serif);font-size:42px;font-weight:400;color:var(--star);line-height:1.15;letter-spacing:.04em}
+  .fontdemo .d2{font-family:var(--serif);font-size:28px;font-weight:400;color:var(--star);letter-spacing:.05em}
+  .fontdemo .d3{font-size:20px;font-weight:600;color:#D4C0A0}
+  .fontdemo .d4{font-size:16px;font-weight:400;color:var(--txt-2)}
+  .fontdemo .d5{font-family:var(--mono);font-size:30px;font-weight:600;color:var(--honey);letter-spacing:.02em}
+  .fontdemo .d6{font-family:var(--serif);font-style:italic;font-size:32px;color:var(--pumpkin)}
+
+  /* ---------- 版式示意 ---------- */
+  .layouts{display:grid;grid-template-columns:1.78fr 1fr;gap:20px;margin-top:24px}
+  .frame{background:var(--bark);border:1px solid var(--line-soft);border-radius:8px;padding:16px}
+  .frame .cap{font-size:12px;color:var(--txt-3);margin-top:11px;text-align:center;font-family:var(--mono)}
+  .canvas{position:relative;border-radius:4px;overflow:hidden;border:1px solid rgba(217,184,122,.16);
+    background:linear-gradient(180deg,#3D2418 0%,#6B3E22 42%,#2B1A12 100%)}
+  .canvas.wide{aspect-ratio:16/9}
+  .canvas.tall{aspect-ratio:9/16;max-height:340px;margin:0 auto;width:auto}
+  .safe{position:absolute;inset:8%;border:1px dashed rgba(217,184,122,.26);border-radius:3px}
+  .zn{position:absolute;border-radius:3px}
+  .zn-title{left:8%;top:24%;width:42%;height:13%;background:rgba(255,243,214,.82)}
+  .zn-body{left:8%;top:42%;width:30%;height:18%;background:rgba(255,243,214,.34)}
+  .zn-data{left:56%;top:38%;width:36%;height:30%;background:rgba(192,57,43,.55)}
+  .zn-mark{right:8%;bottom:11%;width:12%;height:5%;background:rgba(217,184,122,.6)}
+  .zn-fg{left:0;bottom:0;width:100%;height:16%;background:rgba(28,16,8,.78)}
+  .tall .zn-title{left:10%;top:34%;width:60%;height:8%;background:rgba(255,243,214,.82)}
+  .tall .zn-body{left:10%;top:46%;width:46%;height:12%;background:rgba(255,243,214,.34)}
+  .tall .zn-data{left:10%;top:62%;width:68%;height:14%;background:rgba(192,57,43,.55)}
+  .tall .zn-mark{right:10%;bottom:14%;width:20%;height:3%}
+  .tall .zn-fg{height:12%}
+  .tall .hint{position:absolute;left:0;right:0;top:0;height:18%;background:repeating-linear-gradient(45deg,rgba(217,184,122,.09) 0 6px,transparent 6px 12px)}
+  .tall .hint2{position:absolute;left:0;right:0;bottom:0;height:8%;background:repeating-linear-gradient(45deg,rgba(217,184,122,.09) 0 6px,transparent 6px 12px)}
+  .layer-note{position:absolute;right:10px;font-family:var(--mono);font-size:9.5px;color:rgba(255,243,214,.6);letter-spacing:.06em}
+
+  /* ---------- 形态母题 ---------- */
+  .motifs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}
+  .motif{background:var(--bark);border:1px solid var(--line-soft);border-radius:8px;padding:20px}
+  .motif .art{height:80px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;background:#231409;border-radius:4px}
+  .motif b{font-size:15px;font-weight:600;display:block;color:var(--star)}
+  .motif .use{font-size:13px;color:var(--txt-2);margin-top:7px;line-height:1.7}
+  .motif .param{font-family:var(--mono);font-size:11.5px;color:var(--txt-3);margin-top:12px;padding-top:11px;border-top:1px dashed rgba(217,184,122,.13);line-height:1.65}
+
+  .ease{font-family:var(--mono);font-size:12px;color:var(--honey)}
+
+  /* ---------- Token ---------- */
+  pre{background:#231409;border:1px solid var(--line-soft);border-radius:8px;padding:26px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.9;margin-top:20px;color:#C9B79A}
+  pre .k{color:var(--honey)}
+  pre .v{color:#A8C08E}
+  pre .c{color:var(--txt-3);font-style:italic}
+
+  /* ---------- 应用示例 ---------- */
+  .demos{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-top:24px}
+  .demo{aspect-ratio:16/9;border-radius:6px;overflow:hidden;position:relative;border:1px solid var(--line-soft)}
+  .demo .lbl{position:absolute;left:14px;bottom:11px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;z-index:4}
+
+  .d-a{background:radial-gradient(ellipse at 50% 78%,#9A5A28 0%,#5A3319 34%,#2B1A12 68%,#1C1008 100%);padding:0 30px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
+  .d-a .wk{font-family:var(--mono);font-size:9.5px;letter-spacing:.34em;color:var(--honey)}
+  .d-a .ttl{font-family:var(--serif);font-size:31px;font-weight:400;color:var(--star);line-height:1.3;letter-spacing:.06em;margin-top:12px}
+  .d-a .ttl i{font-style:italic;color:var(--honey)}
+  .d-a .orn{margin-top:14px;display:flex;gap:7px;align-items:center}
+  .d-a .lbl{color:rgba(255,243,214,.42)}
+
+  .d-b{background:var(--bark-2);padding:24px 26px;display:flex;flex-direction:column}
+  .d-b .h{font-size:13px;color:var(--txt-2);letter-spacing:.05em}
+  .d-b .big{font-family:var(--mono);font-size:45px;font-weight:600;color:var(--pumpkin);line-height:1;margin:12px 0 4px}
+  .d-b .cap{font-size:11.5px;color:var(--txt-3)}
+  .d-b .bars{display:flex;align-items:flex-end;gap:7px;height:50px;margin-top:auto}
+  .d-b .bars i{flex:1;border-radius:2px 2px 0 0;background:var(--sienna)}
+  .d-b .bars i:nth-child(3){background:var(--pumpkin)}
+  .d-b .bars i:nth-child(5){background:var(--honey);opacity:.6}
+  .d-b .lbl{color:var(--txt-3)}
+
+  .d-c{background:var(--bark);display:flex;align-items:center;justify-content:center;padding:0 44px;position:relative;overflow:hidden}
+  .d-c .glow{position:absolute;width:280px;height:200px;background:radial-gradient(ellipse,rgba(217,184,122,.22) 0%,rgba(217,184,122,0) 70%)}
+  .d-c .q{font-family:var(--serif);font-size:20px;color:var(--star);line-height:1.75;letter-spacing:.06em;text-align:center;position:relative;z-index:2}
+  .d-c .q b{color:var(--honey);font-weight:400}
+  .d-c .lbl{color:var(--txt-3)}
+
+  .d-d{background:#231409;padding:22px 24px;display:flex;flex-direction:column;gap:14px;justify-content:center}
+  .d-d .rowline{display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--txt-2)}
+  .d-d .rowline .n{font-family:var(--mono);font-size:11px;color:var(--ochre);flex:0 0 20px}
+  .d-d .rowline .bar{flex:1;height:3px;border-radius:2px;background:rgba(217,184,122,.15);position:relative}
+  .d-d .rowline .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--sienna)}
+  .d-d .rowline:first-child .bar i{background:linear-gradient(90deg,var(--rust),var(--pumpkin))}
+  .d-d .lbl{color:var(--txt-3)}
+
+  footer{margin-top:92px;padding-top:30px;border-top:1px solid var(--line-soft);font-size:13px;color:var(--txt-3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+  @media(max-width:880px){
+    .wrap{padding:0 20px 80px}
+    .cover{height:460px}
+    .cover-body{left:6%;right:6%;bottom:32px}
+    .cover-title{font-size:32px}
+    .swatches,.motifs,.keys{grid-template-columns:1fr}
+    .rules,.demos,.layouts{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<a href="../index.html" style="position:fixed;left:18px;top:18px;z-index:200;display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:999px;font:600 13px/1 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif;text-decoration:none;color:#fff;background:rgba(18,20,24,.60);border:1px solid rgba(255,255,255,.26);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)">&#8592; 全部规范</a>
+<div class="starfield"></div>
+
+<div class="cover-wrap">
+  <header class="cover">
+    <img src="cover.jpg" alt="万圣节森林插画：南瓜、狼、女巫与飘浮的星火">
+    <div class="cover-veil"></div>
+    <div class="cover-body">
+      <div class="kicker">BetiDraws · Visual Color Spec</div>
+      <h1 class="cover-title">暮林星火 <em>Duskwood</em></h1>
+      <p class="cover-sub">一份从万圣节森林插画里提取出来的配色与元素系统。三层层叠的景深、永不缺席的粒子、被逆光压成剪影的主体。用于视频与演示文稿。</p>
+      <div class="cover-ornament">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="#D9B87A"><polygon points="7,0 8.2,5.8 14,7 8.2,8.2 7,14 5.8,8.2 0,7 5.8,5.8"/></svg>
+        <svg width="9" height="9" viewBox="0 0 14 14" fill="#C0392B"><polygon points="7,0 8.2,5.8 14,7 8.2,8.2 7,14 5.8,8.2 0,7 5.8,5.8"/></svg>
+        <svg width="6" height="6" viewBox="0 0 14 14" fill="#D9B87A"><polygon points="7,0 8.2,5.8 14,7 8.2,8.2 7,14 5.8,8.2 0,7 5.8,5.8"/></svg>
+      </div>
+    </div>
+  </header>
+</div>
+
+<div class="wrap">
+
+  <nav class="toc">
+    <a href="#s1"><b>01</b>调性定位</a>
+    <a href="#s2"><b>02</b>色彩系统</a>
+    <a href="#s3"><b>03</b>用色规则</a>
+    <a href="#s4"><b>04</b>字体层级</a>
+    <a href="#s5"><b>05</b>版式与三景深</a>
+    <a href="#s6"><b>06</b>形态母题</a>
+    <a href="#s7"><b>07</b>动效</a>
+    <a href="#s8"><b>08</b>插画与图文</a>
+    <a href="#s9"><b>09</b>Token</a>
+    <a href="#s10"><b>10</b>应用示例</a>
+  </nav>
+
+  <!-- ========== 01 ========== -->
+  <section id="s1">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">01</span><h2>调性定位</h2></div>
+    </div>
+
+    <p class="lead">
+      一片暮色里的森林。背景是透过树干的暖雾，中间飘着骑扫帚的红斗篷、仰头嚎叫的狼、蹲在卷曲树枝上的影子；前景堆着三只南瓜，表面结着星芒状的霜。
+      整个画面漂着成千上万个光点——有圆的、有尖的、有橙的、有白的，像孢子也像火星。
+    </p>
+    <p class="lead" style="margin-top:14px">
+      这是<strong>童话式的危险</strong>：暖、好看、有魔法感，但底下藏着暗。它不是明快活泼的节日装饰，而是一张有空气、有距离、有体积的夜森插画。
+    </p>
+
+    <div class="keys">
+      <div class="key">
+        <span class="en">dusk</span>
+        <b>暮色</b>
+        <span>整体压暗，光从背景透过来。所有主体都是逆光的剪影或半剪影，暗部占主导。</span>
+      </div>
+      <div class="key">
+        <span class="en">fable</span>
+        <b>童话</b>
+        <span>手绘质感：颗粒、斑驳、笔触边缘、不完全对称。刻意保留「画出来的痕迹」。</span>
+      </div>
+      <div class="key">
+        <span class="en">spark</span>
+        <b>星火</b>
+        <span>粒子层铺满全画面，是本套美术最强烈的签名。星芒与圆点混用，大小疏密皆有变化。</span>
+      </div>
+    </div>
+
+    <div class="axes">
+      <div style="font-size:13px;color:var(--txt-3);margin-bottom:8px">情绪坐标 · 本套配色应当落在的位置</div>
+
+      <div class="axis">
+        <div class="axis-lab">温暖</div>
+        <div class="axis-track"><div class="axis-fill" style="width:70%"></div><div class="axis-dot" style="left:calc(70% - 8px)"></div></div>
+        <div class="axis-end">清冷</div>
+      </div>
+      <div class="axis">
+        <div class="axis-lab">安静</div>
+        <div class="axis-track"><div class="axis-fill" style="width:48%"></div><div class="axis-dot" style="left:calc(48% - 8px)"></div></div>
+        <div class="axis-end">热闹</div>
+      </div>
+      <div class="axis">
+        <div class="axis-lab">有机</div>
+        <div class="axis-track"><div class="axis-fill" style="width:90%"></div><div class="axis-dot" style="left:calc(90% - 8px)"></div></div>
+        <div class="axis-end">几何</div>
+      </div>
+      <div class="axis">
+        <div class="axis-lab">低沉</div>
+        <div class="axis-track"><div class="axis-fill" style="width:74%"></div><div class="axis-dot" style="left:calc(74% - 8px)"></div></div>
+        <div class="axis-end">高扬</div>
+      </div>
+      <div class="axis">
+        <div class="axis-lab">具象</div>
+        <div class="axis-track"><div class="axis-fill" style="width:66%"></div><div class="axis-dot" style="left:calc(66% - 8px)"></div></div>
+        <div class="axis-end">抽象</div>
+      </div>
+    </div>
+
+    <h3>设计语言的五条翻译</h3>
+    <div class="rules">
+      <div class="rule r">
+        <h4>逆光，主体压暗</h4>
+        <p>光在背景，不在主体上。所以文字与图形不要「亮色描边、深色填充」的常规做法——要反过来：<strong>深色实心块 + 背景发光衬托</strong>。</p>
+      </div>
+      <div class="rule o">
+        <h4>三层景深是骨架</h4>
+        <p>前景暗、中景主体、背景发亮。这张画的空间感全来自这三层，而不是透视。版式上也照这三层来叠，这是本规范最核心的一条。</p>
+      </div>
+      <div class="rule h">
+        <h4>粒子永不缺席</h4>
+        <p>星芒与光点铺在每一屏上，包括数据页和列表页。粒子层是这套美术的签名，去掉它画面立刻变成普通的暗色主题。</p>
+      </div>
+      <div class="rule r">
+        <h4>保留手绘痕迹</h4>
+        <p>边缘不做完美的直线与正圆，元素允许有 1–2° 的轻微倾斜和 ±2% 的形变。干净的数字感会毁掉童话调性。</p>
+      </div>
+      <div class="rule o">
+        <h4>暖色承担一切</h4>
+        <p>整套只有暖色系（褐 / 橙 / 红 / 金），没有冷色。需要拉开层次时改明度，不要引入蓝绿。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 02 ========== -->
+  <section id="s2">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">02</span><h2>色彩系统</h2></div>
+    </div>
+
+    <h3>主色板</h3>
+    <p class="muted" style="margin-bottom:4px">十色，全部落在暖色带（色相 0° – 45°）。暗部承担面积，橙红是主体，蜜金只在光里出现。</p>
+
+    <div class="swatches">
+      <div class="sw">
+        <div class="chip" style="background:#1C1008"><code>#1C1008</code></div>
+        <div class="meta"><b>墨夜</b><span class="en">Ink Night</span>
+          <ul><li>最深的底与前景剪影</li><li>照片蒙版叠色</li><li>图表最暗的一档</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#2B1A12"><code>#2B1A12</code></div>
+        <div class="meta"><b>树皮褐</b><span class="en">Bark</span>
+          <ul><li>默认画布、卡片底</li><li>树干与暗部</li><li>正文块底盘</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#3D2418"><code>#3D2418</code></div>
+        <div class="meta"><b>焦棕</b><span class="en">Burnt Umber</span>
+          <ul><li>中间调、地面</li><li>剪影主体的边界色</li><li>浮层底色</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#6B3E22"><code>#6B3E22</code></div>
+        <div class="meta"><b>赭棕</b><span class="en">Sienna</span>
+          <ul><li>过渡层、次级图块</li><li>被照到的树干</li><li>弱化的数据序列</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#A9762F"><code>#A9762F</code></div>
+        <div class="meta"><b>赭金</b><span class="en">Ochre</span>
+          <ul><li>暖高光、装饰线</li><li>序号与标记</li><li>金色与褐色之间的桥</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#D9B87A"><code>#D9B87A</code></div>
+        <div class="meta"><b>蜜金</b><span class="en">Honey</span>
+          <ul><li>主强调色 · 标题、关键指标</li><li>星芒与光点</li><li>一切「被光照到」的地方</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip inv" style="background:#E8D5A8"><code>#E8D5A8</code></div>
+        <div class="meta"><b>雾米</b><span class="en">Mist</span>
+          <ul><li>背景雾光、次级文字</li><li>浅色画布（备用）</li><li>大块柔光区</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#C2541F"><code>#C2541F</code></div>
+        <div class="meta"><b>南瓜橙</b><span class="en">Pumpkin</span>
+          <ul><li>主色 · 主体与核心数据</li><li>进度、增长、占比</li><li>大号数字</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#C0392B"><code>#C0392B</code></div>
+        <div class="meta"><b>朱砂红</b><span class="en">Vermilion</span>
+          <ul><li>强调色 · 蘑菇与斗篷的红</li><li>告警、关键帧、CTA</li><li>面积控制在 10% 内</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#8E3418"><code>#8E3418</code></div>
+        <div class="meta"><b>暗赭红</b><span class="en">Rust</span>
+          <ul><li>深红落叶、暗部橙</li><li>橙色系的阴影</li><li>负面/下降的数据</li></ul>
+        </div>
+      </div>
+    </div>
+
+    <h3>配色比例</h3>
+    <div class="ratio">
+      <div class="ratio-bar">
+        <div style="flex:50;background:#2B1A12;color:#F0E2C8">深褐 50%</div>
+        <div style="flex:27;background:#C2541F;color:#FFF3D6">橙红 27%</div>
+        <div style="flex:18;background:#D9B87A;color:#2B1A12">蜜金 18%</div>
+        <div style="flex:5;background:#FFF3D6;color:#2B1A12">星芒 5%</div>
+      </div>
+      <div class="ratio-legend">
+        <span><i class="dot" style="background:#2B1A12;border:1px solid rgba(217,184,122,.5)"></i>墨夜 + 树皮褐 + 焦棕</span>
+        <span><i class="dot" style="background:#C2541F"></i>南瓜橙 + 朱砂红 + 暗赭红</span>
+        <span><i class="dot" style="background:#D9B87A"></i>蜜金 + 赭金 + 雾米</span>
+        <span><i class="dot" style="background:#FFF3D6"></i>星芒白（粒子与最高光）</span>
+      </div>
+    </div>
+
+    <h3>扩展阶（同色系深浅）</h3>
+    <p class="muted" style="margin-bottom:16px">这套配色没有冷色，做层次一律靠明度。以下每色 5 阶，从左到右由亮到暗。</p>
+
+    <table>
+      <thead><tr><th style="width:130px">色族</th><th>阶梯（由亮至暗）</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>褐色系</td>
+          <td><div style="display:flex;gap:6px">
+            <span style="flex:1;height:32px;border-radius:3px;background:#8A5A34"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#6B3E22"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#3D2418"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#2B1A12"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#1C1008"></span>
+          </div><div class="num" style="margin-top:8px;color:var(--txt-3);font-size:11.5px">#8A5A34 · #6B3E22 · #3D2418 · #2B1A12 · #1C1008</div></td>
+        </tr>
+        <tr>
+          <td>橙色系</td>
+          <td><div style="display:flex;gap:6px">
+            <span style="flex:1;height:32px;border-radius:3px;background:#E89B4E"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#D4762E"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#C2541F"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#963D14"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#6B2A0D"></span>
+          </div><div class="num" style="margin-top:8px;color:var(--txt-3);font-size:11.5px">#E89B4E · #D4762E · #C2541F · #963D14 · #6B2A0D</div></td>
+        </tr>
+        <tr>
+          <td>红色系</td>
+          <td><div style="display:flex;gap:6px">
+            <span style="flex:1;height:32px;border-radius:3px;background:#E0705F"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#CE4A3A"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#C0392B"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#8E3418"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#5E2010"></span>
+          </div><div class="num" style="margin-top:8px;color:var(--txt-3);font-size:11.5px">#E0705F · #CE4A3A · #C0392B · #8E3418 · #5E2010</div></td>
+        </tr>
+        <tr>
+          <td>金色系</td>
+          <td><div style="display:flex;gap:6px">
+            <span style="flex:1;height:32px;border-radius:3px;background:#FFF3D6"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#E8D5A8"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#D9B87A"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#A9762F"></span>
+            <span style="flex:1;height:32px;border-radius:3px;background:#7A5220"></span>
+          </div><div class="num" style="margin-top:8px;color:var(--txt-3);font-size:11.5px">#FFF3D6 · #E8D5A8 · #D9B87A · #A9762F · #7A5220</div></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>数据可视化色序</h3>
+    <p class="muted" style="margin-bottom:16px">暗底上亮色在前，暖橙是主角。同一份材料里语义不能换。</p>
+    <table>
+      <thead><tr><th style="width:150px">语义</th><th style="width:150px">用色</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>主序列 / 核心</td><td><span class="dot" style="background:#C2541F"></span> 南瓜橙</td><td>被讨论的那一条，面积最大</td></tr>
+        <tr><td>关键值 / 峰值</td><td><span class="dot" style="background:#D9B87A"></span> 蜜金</td><td>只标最高点或结论点，配星芒</td></tr>
+        <tr><td>强调 / 告警</td><td><span class="dot" style="background:#C0392B"></span> 朱砂红</td><td>需要被立刻看到的那一项，≤10%</td></tr>
+        <tr><td>对照 / 次级</td><td><span class="dot" style="background:#6B3E22"></span> 赭棕</td><td>参考线、同期、弱化序列</td></tr>
+        <tr><td>基准 / 网格</td><td><span class="dot" style="background:#3D2418"></span> 焦棕</td><td>坐标轴、网格、面积底</td></tr>
+        <tr><td>负向 / 下降</td><td><span class="dot" style="background:#8E3418"></span> 暗赭红</td><td>用描边或斜纹而非实心，避免与朱砂红混淆</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 03 ========== -->
+  <section id="s3">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">03</span><h2>用色规则</h2></div>
+    </div>
+
+    <h3>三种画布</h3>
+    <div class="rules">
+      <div class="rule r">
+        <h4>暗画布（默认）</h4>
+        <p>底 <code>#1C1008</code> 或 <code>#2B1A12</code>，文字 <code>#F0E2C8</code>（对比 12.6:1）。童话调性必须落在暗底上，亮底会立刻变成节日海报。</p>
+      </div>
+      <div class="rule o">
+        <h4>雾光画布</h4>
+        <p>用径向光做底：<code>radial-gradient(ellipse, #9A5A28, #5A3319 34%, #2B1A12 68%)</code>。这是最能代表原画的一层——光从画面中心后方透出来。</p>
+      </div>
+      <div class="rule h">
+        <h4>照片 / 插画画布</h4>
+        <p>图片上叠 55% 墨夜蒙版，文字用星芒白或蜜金。这张原画本身对比已经很强，蒙版要够重。</p>
+      </div>
+      <div class="rule r">
+        <h4>浅画布（备用）</h4>
+        <p>底 <code>#E8D5A8</code>，文字 <code>#3D2418</code>，强调改用 <code>#C2541F</code> 与 <code>#8E3418</code>。蜜金在浅底上会消失，别用。</p>
+      </div>
+    </div>
+
+    <h3>六条硬约束</h3>
+    <table>
+      <thead><tr><th style="width:200px">规则</th><th>做法</th></tr></thead>
+      <tbody>
+        <tr><td>不引入冷色</td><td>整套色相全部落在 0° – 45°。需要「对比色」时用明度极端值（星芒白 vs 墨夜），而不是换成蓝绿紫。</td></tr>
+        <tr><td>朱砂红 ≤10%</td><td>红是「危险」信号，只给蘑菇、斗篷、告警这类主角。铺开就失去了警示力，也压不住画面。</td></tr>
+        <tr><td>橙色阴影用暗赭红</td><td>橙色块的暗部用 <code>#8E3418</code> 而不是加黑。<code>#000</code> 会把暖橙调成脏土色。</td></tr>
+        <tr><td>不用纯黑纯白</td><td>最暗 <code>#1C1008</code>，最亮 <code>#FFF3D6</code>。纯黑会吃掉树干的褐，纯白会让星光显得刺眼。</td></tr>
+        <tr><td>金色只出现在光里</td><td>蜜金代表「被光照到」，只给标题、关键数字、星芒。给整块背景涂金就破坏了逆光逻辑。</td></tr>
+        <tr><td>相邻暖色要拉开明度</td><td>橙与红相接时，两者明度差至少 18%，或中间垫 1px 蜜金细线，否则会糊成一团。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>对比度底线</h3>
+    <table>
+      <thead><tr><th style="width:220px">用途</th><th style="width:140px">最低对比</th><th>检查方式</th></tr></thead>
+      <tbody>
+        <tr><td>正文</td><td class="num">4.5 : 1</td><td>雾米在树皮褐上只有 5.2:1，勉强可用；<code>#8A7258</code> 只能做注解</td></tr>
+        <tr><td>大标题</td><td class="num">3 : 1</td><td>朱砂红在墨夜上约 4.1:1，可做大标题，不可做正文</td></tr>
+        <tr><td>关键信息</td><td class="num">—</td><td>红色必须同时配星芒、形状或标签，不能单靠颜色</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 04 ========== -->
+  <section id="s4">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">04</span><h2>字体层级</h2></div>
+    </div>
+
+    <h3>字体选择</h3>
+    <div class="rules">
+      <div class="rule h">
+        <h4>标题 · 古典衬线</h4>
+        <p>中文 思源宋体 / 方正清刻本悦宋 / 宋体；英文 EB Garamond / Cormorant / Georgia。衬线的笔锋与手绘插画的质感同源，是本套的默认选择。</p>
+      </div>
+      <div class="rule o">
+        <h4>正文 · 人文无衬线</h4>
+        <p>中文 思源黑体 / 苹方；英文 Inter / Lato。<strong>正文不要用衬线</strong>——矮胖的宋体在暗底上小字号会糊，可读性明显低于无衬线。</p>
+      </div>
+      <div class="rule r">
+        <h4>可选 · 手写点缀</h4>
+        <p>极短的金句可以用手写体（英文 Caveat / 中文 站酷快乐体）增加童话感。仅限一句话，正文与数据一律不用。</p>
+      </div>
+      <div class="rule r">
+        <h4>数字 · 略带分量</h4>
+        <p>等宽或半等宽数字，字重比正文高一档。这套调性的数字是「被光照亮的石碑」，太细会显得虚弱。</p>
+      </div>
+    </div>
+
+    <h3>层级与字号（以 1920×1080 为基准）</h3>
+    <div class="fontdemo">
+      <div class="row"><div class="lab">Display 衬线</div><div class="d1">暮色里的森林</div></div>
+      <div class="row"><div class="lab">H1 衬线</div><div class="d2">第二章 · 南瓜上的霜</div></div>
+      <div class="row"><div class="lab">H2 无衬线</div><div class="d3">三只南瓜，三种成熟度</div></div>
+      <div class="row"><div class="lab">Body 无衬线</div><div class="d4">星芒只结在最外侧的表皮上，越靠内越暗。</div></div>
+      <div class="row"><div class="lab">Metric 等宽</div><div class="d5">3,480</div></div>
+      <div class="row"><div class="lab">Serif 斜体</div><div class="d6">Duskwood</div></div>
+    </div>
+
+    <table>
+      <thead><tr><th style="width:150px">层级</th><th style="width:150px">字号</th><th style="width:100px">字重</th><th style="width:90px">字距</th><th>行距</th></tr></thead>
+      <tbody>
+        <tr><td>主标题 Display</td><td class="num">100 – 150 px</td><td>400 衬线</td><td class="num">+5%</td><td class="num">1.16</td></tr>
+        <tr><td>章节标题 H1</td><td class="num">60 – 76 px</td><td>400 衬线</td><td class="num">+5%</td><td class="num">1.25</td></tr>
+        <tr><td>二级标题 H2</td><td class="num">38 – 46 px</td><td>600 无衬线</td><td class="num">+2%</td><td class="num">1.35</td></tr>
+        <tr><td>正文 Body</td><td class="num">26 – 30 px</td><td>400 无衬线</td><td class="num">+1%</td><td class="num">1.80</td></tr>
+        <tr><td>数据数字 Metric</td><td class="num">120 – 200 px</td><td>600 等宽</td><td class="num">0</td><td class="num">1.05</td></tr>
+        <tr><td>注解 Caption</td><td class="num">18 – 20 px</td><td>400 无衬线</td><td class="num">+6%</td><td class="num">1.60</td></tr>
+      </tbody>
+    </table>
+
+    <h3>排版细则</h3>
+    <table>
+      <tbody>
+        <tr><td style="width:200px">衬线只给标题</td><td>标题用衬线、正文用无衬线，两者不混用在同一层级里。一套里衬线出现的地方不超过三处。</td></tr>
+        <tr><td>字距略宽</td><td>标题加 5%、正文加 1%、注解加 6%。童话感有一部分来自「慢一点、松一点」的字距。</td></tr>
+        <tr><td>行长偏短</td><td>一行中文最多 18 字。这张画很密，文字再密就没有呼吸的缝隙。</td></tr>
+        <tr><td>文字不叠在粒子上</td><td>正文所在区域要把粒子层压到 30% 以下，或用一块 <code>rgba(28,16,8,.6)</code> 的底板托住。</td></tr>
+        <tr><td>居中可用但不滥用</td><td>封面、金句、单数字居中；说明性内容一律左对齐。整套里居中不超过三分之一。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 05 ========== -->
+  <section id="s5">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">05</span><h2>版式与三景深</h2></div>
+    </div>
+
+    <p class="lead">
+      这张画的空间感不是靠透视做出来的，而是靠<strong>三层明度</strong>：背景最亮（雾光）、中景最清晰（狼、女巫）、前景最暗（南瓜、草）。版式照这三层叠，空间自然就出来了。
+    </p>
+
+    <h3>三层景深</h3>
+    <table>
+      <thead><tr><th style="width:130px">层</th><th style="width:170px">明度</th><th>放什么</th></tr></thead>
+      <tbody>
+        <tr><td>背景层 Backdrop</td><td><span class="dot" style="background:#A9762F"></span> 最亮</td><td>雾光底、树影、大块径向光。占画面 100%，但整体透明度低、模糊 8–20px。不承载信息。</td></tr>
+        <tr><td>中景层 Middle</td><td><span class="dot" style="background:#C2541F"></span> 中调</td><td>所有要读的内容：标题、正文、图表、数字。这一层必须清晰、无模糊。</td></tr>
+        <tr><td>前景层 Foreground</td><td><span class="dot" style="background:#1C1008"></span> 最暗</td><td>粒子、星芒、装饰性的草与枝。压在内容之上，用 <code>pointer-events:none</code>，透明度 40–70%。</td></tr>
+      </tbody>
+    </table>
+    <p class="muted" style="margin-top:14px">三层缺任何一层都会塌：只有背景+中景会显得平；只有背影+前景会读不清；前景太重会盖住内容。</p>
+
+    <h3>网格基准</h3>
+    <div class="rules">
+      <div class="rule h"><h4>12 列网格</h4><p>列间距为列宽 1/3，外边距 = 画面宽度的 8%。1920 宽下左右各留 154px。</p></div>
+      <div class="rule o"><h4>8px 基线</h4><p>所有垂直间距是 8 的倍数：8 / 16 / 24 / 40 / 64 / 96。装饰元素可以越界，内容元素不可以。</p></div>
+    </div>
+
+    <div class="layouts" style="margin-top:24px">
+      <div class="frame">
+        <div class="canvas wide">
+          <div class="layer-note" style="top:6px">BACKDROP</div>
+          <div class="layer-note" style="top:38%;color:rgba(255,243,214,.75)">MIDDLE</div>
+          <div class="safe"></div>
+          <div class="zn zn-title"></div>
+          <div class="zn zn-body"></div>
+          <div class="zn zn-data"></div>
+          <div class="zn zn-mark"></div>
+          <div class="zn zn-fg"></div>
+          <div class="layer-note" style="bottom:6px">FOREGROUND</div>
+        </div>
+        <div class="cap">16:9 · 雾光底 + 内容居中 + 暗色前景压边</div>
+      </div>
+      <div class="frame">
+        <div class="canvas tall">
+          <div class="hint"></div>
+          <div class="hint2"></div>
+          <div class="safe"></div>
+          <div class="zn zn-title"></div>
+          <div class="zn zn-body"></div>
+          <div class="zn zn-data"></div>
+          <div class="zn zn-mark"></div>
+          <div class="zn zn-fg"></div>
+        </div>
+        <div class="cap">9:16 · 斜纹为平台 UI 遮挡区</div>
+      </div>
+    </div>
+
+    <table style="margin-top:24px">
+      <thead><tr><th style="width:150px">画幅</th><th>规则</th></tr></thead>
+      <tbody>
+        <tr><td>16:9（视频/PPT）</td><td>安全区 84% × 84%。径向雾光的圆心固定在画面 50% / 62% 处，跨页不移动——它是这套版式的「光源」，动了就乱。内容压在上方 2/3。</td></tr>
+        <tr><td>9:16（竖屏）</td><td>上 18% 与下 8% 留给平台 UI。光源圆心上移到 50% / 40%。核心信息放纵向 30% – 75%。</td></tr>
+        <tr><td>前景压边</td><td>每页底部保留 12–16% 的暗色前景带（剪影或渐变到墨夜），让人有「站在林子里往里看」的位置感。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>留白 / 圆角 / 光影</h3>
+    <div class="rules">
+      <div class="rule o"><h4>留白给光</h4><p>留白不是空的，是被雾光填的。空白区域放径向渐变而不是纯色，留白才有体积。</p></div>
+      <div class="rule h"><h4>圆角中等偏大</h4><p>卡片 16px、小元素 8px、标签全圆。手绘调性用大圆角柔和，但不要像「有机体」那样极致。</p></div>
+      <div class="rule r"><h4>发光是主要手段</h4><p>金色元素周围加 <code>0 0 32px rgba(217,184,122,.22)</code>。深底上发光比投影重要得多。</p></div>
+      <div class="rule o"><h4>纹理叠在最上</h4><p>整页叠 5%–7% 的颗粒（比一般规范重），模拟纸面与颜料。视频里用静态噪点，不要逐帧闪。</p></div>
+    </div>
+  </section>
+
+  <!-- ========== 06 ========== -->
+  <section id="s6">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">06</span><h2>形态母题</h2></div>
+    </div>
+    <p class="lead">所有图形元素从这六个母题里来。这张画的装饰语汇极其统一，所以复刻它的关键不在色值，而在形状。</p>
+
+    <div class="motifs">
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <polygon points="46,12 49.5,27.5 65,31 49.5,34.5 46,50 42.5,34.5 27,31 42.5,27.5" fill="#FFF3D6"/>
+            <polygon points="90,22 92,29 99,31 92,33 90,40 88,33 81,31 88,29" fill="#D9B87A"/>
+            <polygon points="106,38 107.2,42 111,43 107.2,44 106,48 104.8,44 101,43 104.8,42" fill="#A9762F"/>
+          </svg>
+        </div>
+        <b>星芒</b>
+        <div class="use">关键高光、数据峰值、装饰点。四角星，尖角细长。大小三级混用才有层次。</div>
+        <div class="param">四角 · 长短轴比 1 : 3.2 · 直径 8 / 16 / 28px · 尖角不圆化</div>
+      </div>
+
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <circle cx="18" cy="18" r="3.2" fill="#FFF3D6" opacity=".9"/><circle cx="34" cy="40" r="2" fill="#E8D5A8" opacity=".7"/>
+            <circle cx="52" cy="22" r="4" fill="#C2541F" opacity=".85"/><circle cx="68" cy="44" r="2.4" fill="#D9B87A" opacity=".75"/>
+            <circle cx="86" cy="16" r="1.8" fill="#FFF3D6" opacity=".6"/><circle cx="100" cy="34" r="3.4" fill="#C0392B" opacity=".7"/>
+            <circle cx="116" cy="48" r="2.2" fill="#E8D5A8" opacity=".65"/><circle cx="44" cy="52" r="1.6" fill="#FFF3D6" opacity=".5"/>
+          </svg>
+        </div>
+        <b>光点</b>
+        <div class="use">铺满画面的粒子层。圆点，颜色在白、金、橙、红之间随机，疏密不均。</div>
+        <div class="param">直径 1.5 – 4px · 每屏 80 – 200 个 · 密度上疏下密</div>
+      </div>
+
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <path d="M8 52 C 30 52, 44 46, 52 32 C 58 21, 54 11, 44 11 C 35 11, 32 20, 38 26" fill="none" stroke="#6B3E22" stroke-width="3" stroke-linecap="round"/>
+            <path d="M96 52 C 110 52, 118 44, 120 34 C 121 27, 116 22, 110 24 C 105 26, 105 32, 110 34" fill="none" stroke="#A9762F" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <b>螺旋卷须</b>
+        <div class="use">分隔、装饰角、引导视线、时间轴的端头。藤蔓式的对数螺旋。</div>
+        <div class="param">圈数 0.8 – 1.5 · stroke 2 – 3px · 圆头 · 末端变细</div>
+      </div>
+
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <rect x="16" y="4" width="7" height="52" rx="2" fill="#3D2418"/>
+            <rect x="34" y="4" width="4" height="52" rx="2" fill="#2B1A12"/>
+            <rect x="52" y="4" width="9" height="52" rx="2" fill="#6B3E22"/>
+            <rect x="76" y="4" width="5" height="52" rx="2" fill="#3D2418"/>
+            <rect x="94" y="4" width="7" height="52" rx="2" fill="#2B1A12"/>
+            <rect x="112" y="4" width="4" height="52" rx="2" fill="#4A2A18"/>
+          </svg>
+        </div>
+        <b>竖向树干</b>
+        <div class="use">背景纹理、分栏暗示、页面的纵向节奏。粗细不等、间距不均。</div>
+        <div class="param">宽 4 – 9px · 间距 12 – 24px · 不做等距 · 顶端渐隐</div>
+      </div>
+
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <path d="M78 46 C 70 40, 64 34, 62 26 C 60 21, 62 18, 65 17 C 72 15, 80 20, 82 30 C 84 40, 82 44, 78 46 Z" fill="#2B1A12"/>
+            <path d="M84 34 C 88 28, 94 26, 100 27 C 97 31, 94 32, 90 33 C 93 33, 96 32, 98 31 C 96 35, 90 37, 84 34 Z" fill="#2B1A12"/>
+            <circle cx="68" cy="20" r="1.8" fill="#D9B87A"/>
+          </svg>
+        </div>
+        <b>剪影块</b>
+        <div class="use">主视觉、图标、章节符号。纯色无细节的形体轮廓，逆光下的暗部。</div>
+        <div class="param">单色填充（墨夜或焦棕）· 无描边 · 轮廓留 2 – 3 个小凸起</div>
+      </div>
+
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <defs><radialGradient id="fog"><stop offset="0%" stop-color="#E8D5A8" stop-opacity=".5"/><stop offset="55%" stop-color="#A9762F" stop-opacity=".22"/><stop offset="100%" stop-color="#A9762F" stop-opacity="0"/></radialGradient></defs>
+            <ellipse cx="65" cy="32" rx="58" ry="26" fill="url(#fog)"/>
+          </svg>
+        </div>
+        <b>雾光</b>
+        <div class="use">背景层的光源、焦点衬托、章节页底。柔和的径向暖光，边缘完全渐隐。</div>
+        <div class="param">中心不透明度 ≤ 50% · 椭圆比 1 : 0.45 · 边缘渐隐 ≥ 40% 半径</div>
+      </div>
+    </div>
+
+    <h3>材质与手绘痕迹</h3>
+    <table>
+      <tbody>
+        <tr><td style="width:180px">颗粒</td><td>整页 5% – 7% 噪点，比常规重。这是颜料与纸面的质感，不是瑕疵。</td></tr>
+        <tr><td>边缘不完美</td><td>形状允许 1–2° 的倾斜与 ±2% 的比例形变。正圆、正方的完美几何要刻意避开。</td></tr>
+        <tr><td>三级模糊</td><td>背景层模糊 8–20px、中景层 0、前景粒子 0–2px。景深靠模糊差建立。</td></tr>
+        <tr><td>叠加而非纯色</td><td>色块之间用 multiply / overlay 的叠加感，交界处颜色互渗，不要硬边。</td></tr>
+        <tr><td>图标</td><td>线性 stroke 2px，允许手绘感的不均匀线宽；或直接用剪影块。避免规整的几何图标。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 07 ========== -->
+  <section id="s7">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">07</span><h2>动效</h2></div>
+    </div>
+    <p class="lead">这套调性的动效重点是<strong>粒子层的持续漂浮</strong>和光的呼吸，而不是元素入场。整页永远有一层东西在动，像空气里有孢子。</p>
+
+    <table>
+      <thead><tr><th style="width:150px">用途</th><th style="width:250px">动作</th><th style="width:130px">时长</th><th>缓动</th></tr></thead>
+      <tbody>
+        <tr><td>粒子漂浮</td><td>每个光点独立上下漂移 10–24px + 淡入淡出，无限循环</td><td class="num">6 – 14 s</td><td class="ease">ease-in-out</td></tr>
+        <tr><td>星芒闪烁</td><td>透明度 0.4 → 1 → 0.4，不规则间隔</td><td class="num">2.5 – 5 s</td><td class="ease">ease-in-out</td></tr>
+        <tr><td>雾光呼吸</td><td>背景径向光整体缩放 1.00 → 1.04</td><td class="num">12 – 18 s</td><td class="ease">ease-in-out</td></tr>
+        <tr><td>元素入场</td><td>从暗到亮（透明度 0 → 1）+ 上移 12px</td><td class="num">600 – 900 ms</td><td class="ease">cubic-bezier(.34,1.2,.64,1)</td></tr>
+        <tr><td>强调</td><td>星芒从 0 放大到 1.3 后回落到 1</td><td class="num">500 ms</td><td class="ease">cubic-bezier(.34,1.4,.64,1)</td></tr>
+        <tr><td>章节转场</td><td>粒子密度骤增并加速向上掠过，露出下一幕</td><td class="num">900 ms</td><td class="ease">ease-in-out</td></tr>
+      </tbody>
+    </table>
+
+    <h3>五条节奏规则</h3>
+    <table>
+      <tbody>
+        <tr><td style="width:200px">入场像被照亮</td><td>元素不是「滑进来」，而是<strong>从暗处亮起来</strong>——透明度从 0 升到 1，位置只动 12px。这呼应逆光逻辑。</td></tr>
+        <tr><td>粒子独立相位</td><td>每个光点的动画延迟随机（0–8s），绝不能整齐划一地一起闪——同步就是数字感。</td></tr>
+        <tr><td>闪要有节制</td><td>同一屏里同时闪烁的星芒不超过 3 个，且各自节奏不同。满屏闪烁会变成跑马灯。</td></tr>
+        <tr><td>光在动，景不动</td><td>雾光层缓慢呼吸，内容层基本静止。不要给文字或图表加持续动效。</td></tr>
+        <tr><td>缓动带一点回弹</td><td>入场与强调允许轻微过冲（1.2 倍贝塞尔），这是手绘感的来源。但只在入场用，出场保持干净。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 08 ========== -->
+  <section id="s8">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">08</span><h2>插画与图文</h2></div>
+    </div>
+
+    <p class="lead">
+      这套规范的原型是一张<strong>插画</strong>而不是照片，所以多了两条照片类规范里没有的自由度：可以使用具象图形（南瓜、狼、星芒），也可以让元素越出边界。同时它也多两条约束——不能保持照片级的真实细节，也不能离开这套装饰语汇。
+    </p>
+
+    <div class="rules">
+      <div class="rule r"><h4>插画要统一语汇</h4><p>所有插图元素必须来自第 06 节的六个母题，且用同一套色板。混入图库里的扁平插画会立刻露馅。</p></div>
+      <div class="rule o"><h4>具象图形可用于图示</h4><p>南瓜表示占比、树干表示分组、卷须表示流程。具象图形承担图示功能是这张画给的红利，别浪费。</p></div>
+      <div class="rule h"><h4>图片先压暗</h4><p>外部照片上叠 55% 墨夜蒙版，并把色温整体调暖（+12）。冷调照片放进这套配色里会格格不入。</p></div>
+      <div class="rule r"><h4>图片统一调色</h4><p>曝光 -0.25、对比 +14、高光 -10、阴影 -12、色温 +12（偏暖）、橙色饱和 +10、去饱和蓝色 -30。</p></div>
+      <div class="rule o"><h4>文字要有底板</h4><p>正文区块加一层 <code>rgba(28,16,8,.6)</code> 的暗底或雾光衬底，把粒子隔开，否则读不清。</p></div>
+      <div class="rule h"><h4>满版可用但压暗</h4><p>满版铺图可用到总页数 1/3，但每页必须保留底部 12–16% 的暗色前景带，维持空间位置感。</p></div>
+    </div>
+  </section>
+
+  <!-- ========== 09 ========== -->
+  <section id="s9">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">09</span><h2>可复用 Token</h2></div>
+    </div>
+    <p class="muted">直接粘进 HTML / 视频工程的样式表，命名与前面的色卡一一对应。</p>
+
+<pre><span class="c">/* BetiDraws · 暮林星火 · v1 */</span>
+<span class="k">:root</span> {
+  <span class="c">/* 暗色系 · 50% 面积 */</span>
+  <span class="k">--ink</span>:        <span class="v">#1C1008</span>;  <span class="c">/* 墨夜 · 最深底/剪影 */</span>
+  <span class="k">--bark</span>:       <span class="v">#2B1A12</span>;  <span class="c">/* 树皮褐 · 默认画布 */</span>
+  <span class="k">--umber</span>:      <span class="v">#3D2418</span>;  <span class="c">/* 焦棕 · 中间调 */</span>
+  <span class="k">--sienna</span>:     <span class="v">#6B3E22</span>;  <span class="c">/* 赭棕 · 过渡/次级 */</span>
+
+  <span class="c">/* 暖色系 · 27% 面积 */</span>
+  <span class="k">--pumpkin</span>:    <span class="v">#C2541F</span>;  <span class="c">/* 南瓜橙 · 主色 */</span>
+  <span class="k">--vermilion</span>:  <span class="v">#C0392B</span>;  <span class="c">/* 朱砂红 · 强调 ≤10% */</span>
+  <span class="k">--rust</span>:       <span class="v">#8E3418</span>;  <span class="c">/* 暗赭红 · 橙色的阴影 */</span>
+
+  <span class="c">/* 金色系 · 18% 面积 */</span>
+  <span class="k">--ochre</span>:      <span class="v">#A9762F</span>;  <span class="c">/* 赭金 · 装饰线 */</span>
+  <span class="k">--honey</span>:      <span class="v">#D9B87A</span>;  <span class="c">/* 蜜金 · 主强调/星芒 */</span>
+  <span class="k">--mist</span>:       <span class="v">#E8D5A8</span>;  <span class="c">/* 雾米 · 背景雾光 */</span>
+  <span class="k">--star</span>:       <span class="v">#FFF3D6</span>;  <span class="c">/* 星芒白 · 最高光/粒子 */</span>
+
+  <span class="c">/* 文字 */</span>
+  <span class="k">--txt</span>:        <span class="v">#F0E2C8</span>;
+  <span class="k">--txt-2</span>:      <span class="v">#B9A183</span>;
+  <span class="k">--txt-3</span>:      <span class="v">#8A7258</span>;
+
+  <span class="c">/* 画布与景深 */</span>
+  <span class="k">--fog-glow</span>:   <span class="v">radial-gradient(ellipse at 50% 62%, #9A5A28, #5A3319 34%, #2B1A12 68%, #1C1008)</span>;
+  <span class="k">--blur-back</span>:  <span class="v">14px</span>;  <span class="c">/* 背景层模糊 */</span>
+  <span class="k">--veil</span>:       <span class="v">rgba(28,16,8,.6)</span>; <span class="c">/* 文字底板 */</span>
+  <span class="k">--grain</span>:      <span class="v">.06</span>;   <span class="c">/* 颗粒比常规重 */</span>
+  <span class="k">--particle-op</span>: <span class="v">.55</span>; <span class="c">/* 粒子层不透明度 */</span>
+
+  <span class="c">/* 形状 */</span>
+  <span class="k">--radius-card</span>: <span class="v">16px</span>;
+  <span class="k">--radius-sm</span>:   <span class="v">8px</span>;
+  <span class="k">--radius-pill</span>: <span class="v">999px</span>;
+  <span class="k">--glow</span>:        <span class="v">0 0 32px rgba(217,184,122,.22)</span>;
+  <span class="k">--tilt</span>:        <span class="v">1.5deg</span>; <span class="c">/* 手绘倾斜上限 */</span>
+
+  <span class="c">/* 字体 */</span>
+  <span class="k">--font-title</span>:  <span class="v">"Songti SC", Georgia, serif</span>;
+  <span class="k">--font-body</span>:   <span class="v">"PingFang SC", "Source Han Sans SC", sans-serif</span>;
+
+  <span class="c">/* 节奏 */</span>
+  <span class="k">--ease-lit</span>:    <span class="v">cubic-bezier(.34,1.2,.64,1)</span>;
+  <span class="k">--t-in</span>:        <span class="v">800ms</span>;
+  <span class="k">--t-float</span>:     <span class="v">9s</span>;    <span class="c">/* 粒子漂浮 */</span>
+  <span class="k">--t-breath</span>:    <span class="v">15s</span>;   <span class="c">/* 雾光呼吸 */</span>
+}</pre>
+  </section>
+
+  <!-- ========== 10 ========== -->
+  <section id="s10">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">10</span><h2>应用示例</h2></div>
+    </div>
+    <p class="muted" style="margin-bottom:4px">四个典型版式，可直接当模板用。</p>
+
+    <div class="demos">
+      <div class="demo d-a">
+        <div class="wk">DUSKWOOD</div>
+        <div class="ttl">霜只结在<br><i>最外侧的表皮上</i></div>
+        <div class="orn">
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="#D9B87A"><polygon points="7,0 8.2,5.8 14,7 8.2,8.2 7,14 5.8,8.2 0,7 5.8,5.8"/></svg>
+          <svg width="7" height="7" viewBox="0 0 14 14" fill="#C0392B"><polygon points="7,0 8.2,5.8 14,7 8.2,8.2 7,14 5.8,8.2 0,7 5.8,5.8"/></svg>
+        </div>
+        <div class="lbl">封面页 · 雾光底 + 衬线标题</div>
+      </div>
+
+      <div class="demo d-b">
+        <div class="h">表皮霜覆盖率 <span style="color:var(--txt-3)">%</span></div>
+        <div class="big">82.4</div>
+        <div class="cap">三只南瓜的平均值 · 较去年 +6.1</div>
+        <div class="bars">
+          <i style="height:36%"></i><i style="height:52%"></i><i style="height:94%"></i><i style="height:64%"></i><i style="height:70%"></i>
+        </div>
+        <div class="lbl">数据页 · 暖棕底 + 橙色主序列</div>
+      </div>
+
+      <div class="demo d-c">
+        <div class="glow"></div>
+        <div class="q">林子越往里走，<br><b>光就越少</b>。</div>
+        <div class="lbl">金句页 · 居中对齐 + 星芒点缀</div>
+      </div>
+
+      <div class="demo d-d">
+        <div class="rowline"><span class="n">01</span><span style="flex:0 0 84px">表皮</span><span class="bar"><i style="width:92%"></i></span></div>
+        <div class="rowline"><span class="n">02</span><span style="flex:0 0 84px">中层</span><span class="bar"><i style="width:68%"></i></span></div>
+        <div class="rowline"><span class="n">03</span><span style="flex:0 0 84px">内瓤</span><span class="bar"><i style="width:41%"></i></span></div>
+        <div class="rowline"><span class="n">04</span><span style="flex:0 0 84px">核心</span><span class="bar"><i style="width:18%"></i></span></div>
+        <div class="lbl">列表页 · 暖褐底 + 橙色进度</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>BetiDraws · 暮林星火 视觉色彩规范 v1</span>
+    <span>取自 betidraws-halloween-9916172 · 单文件 HTML，无外部依赖</span>
+  </footer>
+
+</div>
+</body>
+</html>

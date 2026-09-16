@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>视觉色彩规范 · 六套预设总览</title>
+<style>
+:root{
+  --bg:#0F1115; --panel:#171A20; --panel2:#1E222A;
+  --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.16);
+  --txt:#E9EBEF; --txt2:#A2AAB6; --txt3:#6D7683;
+  --max:1280px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",Inter,sans-serif;
+  line-height:1.65;-webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 28px}
+
+header{
+  padding:64px 0 40px;border-bottom:1px solid var(--line);
+  background:
+    radial-gradient(1000px 340px at 12% -10%, rgba(212,174,114,.10), transparent 70%),
+    radial-gradient(900px 320px at 88% -20%, rgba(166,208,215,.10), transparent 70%);
+}
+.eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--txt3);margin:0 0 14px}
+h1{margin:0;font-size:clamp(30px,4.4vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1.2}
+h1 span{color:var(--txt3);font-weight:400}
+.lede{margin:18px 0 0;max-width:790px;color:var(--txt2);font-size:15.5px}
+.lede b{color:var(--txt);font-weight:600}
+
+nav{position:sticky;top:0;z-index:20;background:rgba(15,17,21,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;gap:6px;overflow-x:auto;padding-top:12px;padding-bottom:12px}
+nav a{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;
+  border:1px solid var(--line);color:var(--txt2);text-decoration:none;font-size:13px;white-space:nowrap;transition:.18s}
+nav a:hover{color:var(--txt);border-color:var(--line2);background:var(--panel2)}
+nav a i{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+
+section{padding:52px 0}
+h2{margin:0 0 6px;font-size:22px;font-weight:650;letter-spacing:-.01em}
+.sub{margin:0 0 26px;color:var(--txt3);font-size:14px}
+
+.quad{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px 10px 6px}
+.quad svg{width:100%;height:auto;display:block}
+.qlegend{margin:6px 0 14px;text-align:center;color:var(--txt3);font-size:12.5px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(378px,1fr));gap:22px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;
+  display:flex;flex-direction:column;transition:.2s}
+.card:hover{border-color:var(--line2);transform:translateY(-2px)}
+.cover{position:relative;height:186px;overflow:hidden;background:#000;flex:0 0 auto}
+.cover img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s cubic-bezier(.22,1,.36,1)}
+.card:hover .cover img{transform:scale(1.04)}
+.cover .veil{position:absolute;inset:0;background:linear-gradient(to top,rgba(10,11,14,.93) 0%,rgba(10,11,14,.35) 46%,rgba(10,11,14,0) 78%)}
+.cover .meta{position:absolute;left:18px;right:18px;bottom:14px}
+.cover .no{font-size:11px;letter-spacing:.16em;color:rgba(255,255,255,.62);margin:0 0 2px}
+.cover h3{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.55)}
+.cover .mood{margin:3px 0 0;font-size:12.5px;color:rgba(255,255,255,.84)}
+.chipset{position:absolute;top:14px;left:14px;display:flex;gap:5px}
+.chipset span{width:16px;height:16px;border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.38),0 2px 8px rgba(0,0,0,.4)}
+
+.body{padding:18px 18px 20px;display:flex;flex-direction:column;gap:15px;flex:1}
+.pos{margin:0;font-size:13.5px;color:var(--txt2);line-height:1.7}
+
+.sws{display:flex;flex-wrap:wrap;gap:6px}
+.sw{width:48px;cursor:pointer;user-select:none}
+.sw .chip{height:42px;border-radius:7px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);transition:transform .15s}
+.sw:hover .chip{transform:scale(1.08)}
+.sw .nm{font-size:9.5px;color:var(--txt3);text-align:center;margin-top:4px;line-height:1.3;white-space:nowrap}
+.sw .hx{font-size:8.5px;color:var(--txt3);text-align:center;font-family:ui-monospace,Menlo,monospace;opacity:.78}
+
+.ratio{display:flex;height:9px;border-radius:5px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.ratio i{display:block;height:100%}
+.rlabel{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:11.5px;color:var(--txt3)}
+.rlabel b{font-weight:600;color:var(--txt2)}
+
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-size:11.5px;padding:3px 9px;border-radius:6px;background:var(--panel2);
+  border:1px solid var(--line);color:var(--txt2);white-space:nowrap}
+.pill b{color:var(--txt);font-weight:600}
+
+.fit{border-top:1px solid var(--line);padding-top:13px;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.fit div{display:flex;gap:8px;line-height:1.55}
+.fit .k{flex:0 0 34px;color:var(--txt3)}
+.fit .v{color:var(--txt2)}
+.fit .v.no{color:var(--txt3)}
+
+.btn{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:11px 15px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);
+  color:var(--txt);text-decoration:none;font-size:13.5px;font-weight:600;transition:.18s}
+.btn:hover{background:#252A34;border-color:var(--line2)}
+.btn em{font-style:normal;color:var(--txt3);font-weight:400;font-size:12px}
+.btn .arw{transition:transform .18s}
+.btn:hover .arw{transform:translateX(3px)}
+
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px}
+table{border-collapse:collapse;width:100%;min-width:980px;font-size:13px}
+th,td{padding:13px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
+thead th{background:var(--panel2);font-size:12px;color:var(--txt3);font-weight:600;letter-spacing:.04em}
+tbody tr:last-child td{border-bottom:none}
+td.name{font-weight:650}
+td .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
+td.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--txt2)}
+tbody tr:hover{background:rgba(255,255,255,.022)}
+
+.decide{display:grid;grid-template-columns:repeat(auto-fill,minmax(304px,1fr));gap:14px}
+.dcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;transition:.18s}
+.dcard:hover{border-color:var(--line2)}
+.dcard .q{font-size:13px;color:var(--txt3);margin:0 0 8px}
+.dcard .a{margin:0;font-size:15.5px;font-weight:650;display:flex;align-items:center;gap:9px}
+.dcard .a i{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+.dcard .why{margin:8px 0 0;font-size:12.5px;color:var(--txt2);line-height:1.6}
+
+footer{border-top:1px solid var(--line);padding:34px 0 56px;color:var(--txt3);font-size:12.5px}
+footer p{margin:0 0 8px}
+footer code{font-family:ui-monospace,Menlo,monospace;background:var(--panel2);padding:1px 6px;border-radius:5px;font-size:11.5px}
+
+#toast{position:fixed;left:50%;bottom:34px;transform:translate(-50%,16px);background:#2A3038;
+  border:1px solid var(--line2);color:var(--txt);padding:9px 18px;border-radius:999px;font-size:13px;
+  opacity:0;pointer-events:none;transition:.22s;z-index:99}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:720px){
+  .wrap{padding:0 18px}
+  header{padding:44px 0 30px}
+  .grid{grid-template-columns:1fr}
+  section{padding:38px 0}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">Design Specs · Vol.01</p>
+    <h1>视觉色彩规范 <span>／ 六套预设</span></h1>
+    <p class="lede">
+      六套里有五套从一张真实照片或插画里反推而来，第六套是从零设计的材质语言。每套都含配色、字体、版式、
+      形态母题、动效、层次与边缘手法，以及可直接粘贴的 CSS Token。<b>它们不是六种配色方案，而是六种互不
+      兼容的视觉语言</b>——空间手段、边缘手法、转场方式、字体重量、节奏快慢全都不重叠，可以并存，但不要混用。
+    </p>
+  </div>
+</header>
+
+<nav>
+  <div class="wrap">
+    <a href="#quad"><i style="background:#8A9394"></i>定位图</a>
+    <a href="#c1"><i style="background:#5F8F3C"></i>晨光牧场</a>
+    <a href="#c2"><i style="background:#2E5A82"></i>碎金海面</a>
+    <a href="#c3"><i style="background:#C2541F"></i>暮林星火</a>
+    <a href="#c4"><i style="background:#5E9AA8"></i>冰川层理</a>
+    <a href="#c5"><i style="background:#C98B3F"></i>赭石街巷</a>
+    <a href="#c6"><i style="background:#E8555A"></i>柔面凸凹</a>
+    <a href="#table"><i style="background:#6D7683"></i>横向对比</a>
+    <a href="#decide"><i style="background:#6D7683"></i>怎么选</a>
+    <a href="#skeleton"><i style="background:#6D7683"></i>规范骨架</a>
+    <a href="./motion-spec.md" target="_blank"><i style="background:#6D7683"></i>动效规范</a>
+  </div>
+</nav>
+
+<section id="quad">
+  <div class="wrap">
+    <h2>先定位：冷暖 × 深浅</h2>
+    <p class="sub">横轴是冷暖，纵轴是画布明度。六个点分得很开，基本一眼就能排除掉四个。</p>
+    <div class="quad">
+      <svg viewBox="0 0 800 420" role="img" aria-label="六套规范的冷暖与明度定位图">
+        <defs>
+          <linearGradient id="ax" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#5B84A8" stop-opacity=".55"/>
+            <stop offset=".5" stop-color="#8A9394" stop-opacity=".28"/>
+            <stop offset="1" stop-color="#C98B3F" stop-opacity=".55"/>
+          </linearGradient>
+          <linearGradient id="ay" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#E9EBE8" stop-opacity=".5"/>
+            <stop offset="1" stop-color="#0A1B2C" stop-opacity=".85"/>
+          </linearGradient>
+        </defs>
+        <line x1="60" y1="200" x2="740" y2="200" stroke="url(#ax)" stroke-width="1.5"/>
+        <line x1="400" y1="42" x2="400" y2="382" stroke="url(#ay)" stroke-width="1.5"/>
+        <text x="66" y="66" fill="#6D7683" font-size="13">冷 · 浅底</text>
+        <text x="734" y="66" fill="#6D7683" font-size="13" text-anchor="end">暖 · 浅底</text>
+        <text x="66" y="374" fill="#6D7683" font-size="13">冷 · 深底</text>
+        <text x="734" y="374" fill="#6D7683" font-size="13" text-anchor="end">暖 · 深底</text>
+        <text x="400" y="30" fill="#8A9394" font-size="12" text-anchor="middle">浅</text>
+        <text x="400" y="404" fill="#8A9394" font-size="12" text-anchor="middle">深</text>
+        <text x="30" y="205" fill="#8A9394" font-size="12" text-anchor="middle">冷</text>
+        <text x="770" y="205" fill="#8A9394" font-size="12" text-anchor="middle">暖</text>
+
+        <circle cx="168" cy="108" r="30" fill="#5E9AA8" opacity=".14"/>
+        <circle cx="168" cy="108" r="14" fill="#5E9AA8" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="1.5"/>
+        <text x="168" y="147" fill="#E9EBEF" font-size="13.5" font-weight="600" text-anchor="middle">冰川层理</text>
+
+        <circle cx="556" cy="118" r="30" fill="#5F8F3C" opacity=".14"/>
+        <circle cx="556" cy="118" r="14" fill="#5F8F3C" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="1.5"/>
+        <text x="556" y="157" fill="#E9EBEF" font-size="13.5" font-weight="600" text-anchor="middle">晨光牧场</text>
+
+        <circle cx="682" cy="176" r="30" fill="#C98B3F" opacity=".14"/>
+        <circle cx="682" cy="176" r="14" fill="#C98B3F" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="1.5"/>
+        <text x="682" y="215" fill="#E9EBEF" font-size="13.5" font-weight="600" text-anchor="middle">赭石街巷</text>
+
+        <circle cx="188" cy="316" r="30" fill="#5B84A8" opacity=".16"/>
+        <circle cx="188" cy="316" r="14" fill="#2E5A82" stroke="#8FA5B8" stroke-width="1.5"/>
+        <text x="188" y="355" fill="#E9EBEF" font-size="13.5" font-weight="600" text-anchor="middle">碎金海面</text>
+
+        <circle cx="582" cy="322" r="30" fill="#C2541F" opacity=".16"/>
+        <circle cx="582" cy="322" r="14" fill="#C2541F" stroke="#FFF3D6" stroke-opacity=".6" stroke-width="1.5"/>
+        <text x="582" y="361" fill="#E9EBEF" font-size="13.5" font-weight="600" text-anchor="middle">暮林星火</text>
+
+        <circle cx="322" cy="94" r="30" fill="#E8555A" opacity=".16"/>
+        <circle cx="322" cy="94" r="14" fill="#E8555A" stroke="#FFFFFF" stroke-opacity=".6" stroke-width="1.5"/>
+        <text x="322" y="133" fill="#E9EBEF" font-size="13.5" font-weight="600" text-anchor="middle">柔面凸凹</text>
+      </svg>
+      <p class="qlegend">越靠右越暖，越靠上画布越亮。六套里没有两个点挨在一起——这是它们能长期并存的原因。</p>
+    </div>
+  </div>
+</section>
+
+<section id="cards">
+  <div class="wrap">
+    <h2>六套逐一看</h2>
+    <p class="sub">色块可以点击复制色值；卡片右下角进入那套的完整规范。</p>
+    <div class="grid" id="grid"></div>
+  </div>
+</section>
+
+<section id="table">
+  <div class="wrap">
+    <h2>横向对比</h2>
+    <p class="sub">选型时真正要看的不是色值，而是这十列——它们决定了成片的气质和制作难度。</p>
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr><th>预设</th><th>画布</th><th>主色相</th><th>光</th><th>边缘手法</th><th>空间手段</th><th>转场</th><th>背景循环</th><th>标题字重</th><th>标题字距</th><th>圆角</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="name"><span class="dot" style="background:#5F8F3C"></span>晨光牧场</td>
+            <td class="mono">浅 #F7F4EC</td><td>暖 · 绿/棕</td><td>直射，强光比</td><td>柔焦渐变</td><td>两级景深虚化</td>
+            <td>清晰→模糊→清晰</td><td>静止为主</td><td>700</td><td>−2%</td><td>24px</td>
+          </tr>
+          <tr>
+            <td class="name"><span class="dot" style="background:#2E5A82"></span>碎金海面</td>
+            <td class="mono">深 #0A1B2C</td><td>冷蓝 + 暖金</td><td>侧逆光，金落峰上</td><td>波纹溶解</td><td>远近水层</td>
+            <td>横向波纹推移</td><td>20s</td><td>200</td><td>+4%</td><td>4px</td>
+          </tr>
+          <tr>
+            <td class="name"><span class="dot" style="background:#C2541F"></span>暮林星火</td>
+            <td class="mono">深 #1C1008</td><td>暖 · 橙/蜜金</td><td>逆光，实心块 + 发光</td><td>剪影硬边</td><td>三景深（明度）</td>
+            <td>粒子掠过 / 剪影压边</td><td>粒子持续漂浮</td><td>衬线 400</td><td>+5%</td><td>16px</td>
+          </tr>
+          <tr>
+            <td class="name"><span class="dot" style="background:#5E9AA8"></span>冰川层理</td>
+            <td class="mono">浅 #E9EBE8</td><td>冷青（唯一色相）</td><td>漫射，无影</td><td>无影明度界</td><td>明度分层（无透视）</td>
+            <td>雾起雾落</td><td>50s</td><td>300</td><td>+12%</td><td>2px</td>
+          </tr>
+          <tr>
+            <td class="name"><span class="dot" style="background:#C98B3F"></span>赭石街巷</td>
+            <td class="mono">浅暖 #F2E9DA</td><td>暖赭石 + 冷山锚</td><td>光从画面深处来</td><td>直角硬边</td><td>一点透视</td>
+            <td>沿透视线推进</td><td>10s</td><td>700</td><td>−1%</td><td>3px</td>
+          </tr>
+          <tr>
+            <td class="name"><span class="dot" style="background:#E8555A"></span>柔面凸凹</td>
+            <td class="mono">浅 #E4E9F0</td><td>中性冷灰 + 红点</td><td>左上 315°，恒定</td><td>双向柔影</td><td>凸起 / 凹陷（无透视）</td>
+            <td>由凹到凸（顶起）</td><td>静止</td><td>700</td><td>−2%</td><td>28px</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="decide">
+  <div class="wrap">
+    <h2>怎么选</h2>
+    <p class="sub">按内容目的匹配，比按审美偏好匹配准得多。</p>
+    <div class="decide">
+      <div class="dcard">
+        <p class="q">要权威、克制、说服力强</p>
+        <p class="a"><i style="background:#5E9AA8"></i>冰川层理</p>
+        <p class="why">五套里唯一没有暖色、也没有直射光的一套，语言里根本没有「喊」的语气。适合研究报告、气候与医疗、审计合规。</p>
+      </div>
+      <div class="dcard">
+        <p class="q">要高级、冷静、数据感强</p>
+        <p class="a"><i style="background:#2E5A82"></i>碎金海面</p>
+        <p class="why">深底上亮色才跳得出来，所以金色是第一数据序列而非点缀。注意：这与浅底图表「主角用深色」的习惯正好相反。</p>
+      </div>
+      <div class="dcard">
+        <p class="q">要温暖、真实、接地气</p>
+        <p class="a"><i style="background:#5F8F3C"></i>晨光牧场</p>
+        <p class="why">高饱和但被柔化，保留照片级肌理与两级景深。适合自然、农业、食品与生活方式类内容。</p>
+      </div>
+      <div class="dcard">
+        <p class="q">要讲故事、有一点魔法和危险</p>
+        <p class="a"><i style="background:#C2541F"></i>暮林星火</p>
+        <p class="why">逆光 + 粒子是签名，靠三层明度而非透视造空间。唯一一套以插画（而非照片）为原型的语言。</p>
+      </div>
+      <div class="dcard">
+        <p class="q">要有活力、推着人往前走</p>
+        <p class="a"><i style="background:#C98B3F"></i>赭石街巷</p>
+        <p class="why">唯一有镜头语言的一套，节奏最快（背景 10s）。暖色在近处、冷色在远处，颜色本身承担空间分工。</p>
+      </div>
+      <div class="dcard">
+        <p class="q">讲演进路径：从 A 到 B</p>
+        <p class="a"><i style="background:#C98B3F"></i>赭石街巷</p>
+        <p class="why">按纵深组织内容最好用——最近是「现在/这里」，越远越「未来/背景」。roadmap、发展阶段、改造前后都顺。</p>
+      </div>
+      <div class="dcard">
+        <p class="q">讲时间与沉积：慢变量、复利</p>
+        <p class="a"><i style="background:#5E9AA8"></i>冰川层理</p>
+        <p class="why">画面本身就是「层 = 时间」。内容按层叠压：最上面最新、最下面最早，与灰纹语义一致。</p>
+      </div>
+      <div class="dcard">
+        <p class="q">需要一页里最强的一次强调</p>
+        <p class="a"><i style="background:#C6392C"></i>赭石街巷 · 招牌红</p>
+        <p class="why">「一点高饱和压住整片暖色」是这套独有的音量结构——全页只允许一个红色元素，弱元素反而撑起了它。</p>
+      </div>
+      <div class="dcard">
+        <p class="q">要让人「看出怎么按」，或手上没有任何图</p>
+        <p class="a"><i style="background:#E8555A"></i>柔面凸凹</p>
+        <p class="why">唯一不依赖照片的一套，画面本身就是一件实物。代价是明度空间窄——元素超过 12 个就糊成一片。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="skeleton">
+  <div class="wrap">
+    <h2>一套规范要填满的十六格</h2>
+    <p class="sub">每套都按这十六节写，顺序固定。<b>01–11 是静态视觉层，12–16 是视频层</b>——后者不是某一套的补充，是任何一套要进流水线都得回答的问题。判据只有一条：<b>能直接抄成 CSS 才算写完</b>——形容词要配数字，否则等于没写。</p>
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr><th>格</th><th>必须给出的内容</th><th>写完的判据</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="name">01 定位与适用</td><td>一句话定义 + 适用题材 + 避开题材</td><td>能凭它一眼排除掉一半题材</td></tr>
+          <tr><td class="name">02 画布与尺度</td><td>底色 · 安全区 · 主元素占屏 · 间距档 · 留白下限</td><td>全是具体值，没有「适中」「适量」</td></tr>
+          <tr><td class="name">03 形状语汇</td><td>基本形 + 圆角公式 + 形变幅度</td><td>圆角 / 抖动 / 切角都带 px 或比例</td></tr>
+          <tr><td class="name">04 层次与边缘</td><td>边缘手法（投影 / 色调面 / 材质模糊 / 描边，四选一）· L0–L4 分级 · 光源方向 · 语言边界</td><td>写明「只由 X 承担」，其余手法不参与</td></tr>
+          <tr><td class="name">05 色彩系统</td><td>色板 + 每色语义 + 面积占比 + 明度序 + 强调额度</td><td>每种颜色都有占比上限</td></tr>
+          <tr><td class="name">06 字体系统</td><td>6 级字号 + 字重 + 字距 + 行高</td><td>数值可直接粘进 CSS</td></tr>
+          <tr><td class="name">07 版式骨架</td><td>2–3 个骨架 + 重心位置 + 元素数上限</td><td>说得出「一屏最多放几个块」</td></tr>
+          <tr><td class="name">08 表面与材质</td><td>纹理种类 + 强度 + 模糊半径</td><td>强度是数字（5% / 8px），不是「轻微」</td></tr>
+          <tr><td class="name">09 运动语汇</td><td>时长档 + 曲线 + 入场退场 + 背景是否常动</td><td>曲线写成 cubic-bezier</td></tr>
+          <tr><td class="name">10 组件映射</td><td>大数字 / 数据卡 / 引语 / 章节卡 / 对比进度，各写一个</td><td>五个都能照着直接画出来</td></tr>
+          <tr><td class="name">11 容错与边界</td><td>长文本 · 空态 · 超长数字 · 深色降级</td><td>每条给的是替代方案，不是「不要」</td></tr>
+          <tr><td class="name">12 画幅与载体</td><td>横竖两版骨架 + 组件换型表 + 透明载体的承载板（若走透明支线）</td><td>横竖各给一套值，且不靠模板的 76% 上限兜底</td></tr>
+          <tr><td class="name">13 幕与节奏</td><td>一屏几幕 · 构件上限 · 停留时长 · 幕内错开 · 幕间过渡 · 背景是否常动</td><td>幕内入场与幕间过渡分开定义</td></tr>
+          <tr><td class="name">14 组件全映射</td><td><code>components.md</code> 的 15 个组件各写一个 + 分隔件裁决</td><td>每个组件都说得出「在这套里是什么形」</td></tr>
+          <tr><td class="name">15 小元素与动效库</td><td>状态点 · 徽章 · 箭头 · 开关 · 角标 · 坐标轴 + 专属 keyframes 与注册写法</td><td>动效名<b>逐字</b>对上模板的注册表，含数值区间</td></tr>
+          <tr><td class="name">16 在场演化</td><td>入场之后信息怎么继续动：数字跳涨 · 柱条生长 · 大小对比 · 循环呼吸，各带实现与适用边界</td><td>每个动作都写明「什么场合别用」——只列能用等于没写</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin:24px 0 0;line-height:1.75">
+      其中 <b>09 / 13 / 15 / 16</b> 四格（运动语汇 · 幕与节奏 · 小元素与动效库 · 在场演化）有一条<b>不随风格变化</b>的公共层——
+      定格机制能表达什么、交错与转场怎么写、动效的抽帧成本。它不写进任何一套，单独放在
+      <a href="./motion-spec.md" target="_blank" style="color:var(--txt);text-decoration:none;border-bottom:1px solid var(--line2)">动效规范 · Motion Spec</a>。
+      各套只回答「在本套语言里取什么值」。
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>目录结构：本页是 <code>design-specs/index.html</code>，六套各占一个子目录，每套都是 <code>design-spec.html</code> + <code>design-spec.md</code> + <code>cover.jpg</code> 三件套。各套页面左上角可返回本页。</p>
+    <p>加第七套：把新目录放进 <code>design-specs/</code>，在本页脚本顶部的 <code>SPECS</code> 数组里加一条（名称、目录名、色板、比例、参数、适合度），定位图与卡片会一起更新。</p>
+    <p>注意事项：<b>规则不能跨套复用</b>。比如「用虚化做远近」是牧场那套的规定，而冰川那套恰恰要求不做虚化分层；柔面凸凹则一律不用描边与模糊——混用会立刻串味。</p>
+    <p>前五套色值为视觉采样估算（对原图跑的算法聚类可从简）；第六套是从零设计的材质语言，色值是设计值不是采样值。</p>
+  </div>
+</footer>
+
+<div id="toast">已复制</div>
+
+<script>
+const SPECS = [
+  {
+    id:'c1', no:'01 · 暖 · 浅底', name:'晨光牧场', dir:'studiofriluma-design',
+    mood:'晨光 lit · 生长 alive · 温润 warm',
+    chips:['#2E4736','#5F8F3C','#E9C42C'],
+    pos:'清晨侧逆光下的草地，草尖和野花近乎透明，远处云杉沉在阴影里压住重心。真实、有重量的自然，而不是「可爱农场」式的甜腻。',
+    palette:[['云杉','#2E4736'],['牧草','#5F8F3C'],['受光','#A8BA5E'],['牛棕','#8C5B3B'],['高光棕','#B47C4E'],
+             ['可可','#4A3226'],['野花黄','#E9C42C'],['天空蓝','#8FB6D8'],['米白','#EFE9DC']],
+    ratio:[[60,'#5F8F3C','自然绿'],[25,'#8C5B3B','暖棕'],[10,'#E9C42C','光黄'],[5,'#8FB6D8','蓝白']],
+    pills:[['画布','#F7F4EC'],['标题字重','700'],['字距','−2%'],['圆角','24px'],
+           ['空间','两级景深'],['转场','清晰→模糊→清晰'],['节奏','中']],
+    good:'自然 / 农业 / 食品 / 生活方式；温暖纪实、有重量的质感内容',
+    bad:'需要冷峻权威，或需要高能量冲击的场合'
+  },
+  {
+    id:'c2', no:'02 · 冷 · 深底', name:'碎金海面', dir:'reagan-sea-design',
+    mood:'深寂 depth · 流动 flow · 碎金 glint',
+    chips:['#0A1B2C','#2E5A82','#D4AE72'],
+    pos:'没有地平线、没有主体、没有任何参照物，只有起伏的水与浪脊上的碎光。纯粹的光与纹理，金色只存在于波峰那一瞬。',
+    palette:[['深渊','#0A1B2C'],['深海','#16324F'],['靛中','#2E5A82'],['浅海','#5B84A8'],['雾蓝','#8FA5B8'],
+             ['碎金','#D4AE72'],['浅金','#E6CE9C'],['浪尖白','#F0E9DA'],['层蓝','#17324E']],
+    ratio:[[60,'#16324F','深蓝'],[22,'#2E5A82','中蓝'],[13,'#D4AE72','碎金'],[5,'#F0E9DA','高光']],
+    pills:[['画布','#0A1B2C'],['标题字重','200'],['字距','+4%'],['圆角','4px'],
+           ['空间','远近水层'],['转场','横向波纹推移'],['背景循环','20s']],
+    good:'金融 / 数据可视化 / 抽象主题；需要高级冷静感的品牌片与年度汇报',
+    bad:'需要暖意、亲和力或市井烟火气的内容'
+  },
+  {
+    id:'c3', no:'03 · 暖 · 深底', name:'暮林星火', dir:'betidraws-halloween-design',
+    mood:'暮色 dusk · 童话 fable · 星火 spark',
+    chips:['#1C1008','#C2541F','#D9B87A'],
+    pos:'暮色森林：背景是透过树干的暖雾，狼在仰头嚎叫，女巫从雾里飞过，前景堆着结霜的南瓜。童话式的危险——好看、有魔法感，但底下藏着暗。',
+    palette:[['墨夜','#1C1008'],['树皮','#2B1A12'],['焦棕','#3D2418'],['赭棕','#6B3E22'],['赭金','#A9762F'],
+             ['蜜金','#D9B87A'],['雾米','#E8D5A8'],['南瓜','#C2541F'],['朱砂','#C0392B'],['暗赭红','#8E3418']],
+    ratio:[[50,'#2B1A12','深褐'],[27,'#C2541F','橙红'],[18,'#D9B87A','蜜金'],[5,'#FFF3D6','星芒白']],
+    pills:[['画布','#1C1008'],['标题字重','衬线 400'],['字距','+5%'],['圆角','16px'],
+           ['空间','三景深'],['转场','粒子掠过 / 剪影压边'],['粒子层','永不缺席']],
+    good:'故事叙事 / 节日 / 品牌传说；需要魔法感与危险感的内容',
+    bad:'需要冷静中立的场合——粒子层与颗粒会削弱严肃性'
+  },
+  {
+    id:'c4', no:'04 · 冷 · 浅底', name:'冰川层理', dir:'iceland-ice-design',
+    mood:'冷寂 glacial · 层理 strata · 悬浮 suspended',
+    chips:['#E9EBE8','#5E9AA8','#26383B'],
+    pos:'灰白天、雾吃掉地平线，浮冰里横贯着几百年前火山灰压成的深色条纹。光无方向、无影子，颜色只有一种——从冰芯里透出来的青。',
+    palette:[['雾白','#E9EBE8'],['云灰','#CDD3D2'],['岩灰','#98A0A1'],['炭纹','#4E5658'],['玄水','#26383B'],
+             ['冰蓝','#A6D0D7'],['冰芯','#5E9AA8'],['幽蓝','#3F6B77'],['冰晶白','#F5F8F7']],
+    ratio:[[62,'#CDD3D2','雾白+云灰'],[24,'#A6D0D7','冰蓝系'],[9,'#3F6B77','深青'],[5,'#4E5658','炭纹']],
+    pills:[['画布','#E9EBE8'],['标题字重','300'],['字距','+12%'],['圆角','2px'],
+           ['版式','三段式 22/50/28'],['转场','雾起雾落'],['背景循环','50s']],
+    good:'研究报告 / 气候环境 / 医疗公卫 / 审计合规；时间与沉积、长期复利',
+    bad:'需要行动号召、需要热情与庆祝的内容'
+  },
+  {
+    id:'c5', no:'05 · 暖 · 浅底 · 强透视', name:'赭石街巷', dir:'chloe-street-design',
+    mood:'市集 market · 纵深 depth · 节日 fête',
+    chips:['#E3B463','#C6392C','#4E7360'],
+    pos:'窄到只容两人的石板路，两侧赭石色房子退向远处的灭点，尽头撞上一整块青绿色的山。暖色全在近处、冷色全在远处——颜色在这里是坐标系，不是情绪。',
+    palette:[['石灰白','#F2E9DA'],['蜜墙黄','#E3B463'],['赭石','#C98B3F'],['陶土','#B4572C'],['招牌红','#C6392C'],
+             ['暗棕','#4A3628'],['远山青','#4E7360'],['深林绿','#2F4A3A'],['谷口暖光','#E9C79A']],
+    ratio:[[58,'#C98B3F','暖色主体'],[10,'#C6392C','橙红'],[27,'#4E7360','冷山'],[5,'#E9C79A','谷口暖光']],
+    pills:[['画布','#F2E9DA'],['标题字重','700'],['字距','−1%'],['圆角','3px'],
+           ['版式','峡谷式 19/62/19'],['转场','沿透视线推进'],['背景循环','10s']],
+    good:'城市 / 旅行 / 市集 / 文旅 / 餐饮；roadmap、发展阶段、改造前后等推进类内容',
+    bad:'需要冷静中立的场合——暖度太高会显得轻，那类内容交给冰川那套'
+  },
+  {
+    id:'c6', no:'06 · 中性 · 浅底 · 零图像', name:'柔面凸凹', dir:'neumorph-design',
+    mood:'静置 still · 手感 tactile · 单色 monochrome',
+    chips:['#E4E9F0','#A3B1C6','#E8555A'],
+    pos:'整幅画面只有一个颜色。没有照片、没有插画、没有描边线，所有东西靠同一道左上光源的两侧柔影，从底色上被「托起来」或「压下去」。画面本身就是一件磨砂塑料的物件。',
+    palette:[['画布','#E4E9F0'],['亮影白','#FFFFFF'],['暗影灰','#A3B1C6'],['主文字','#3D4A5C'],['次文字','#6B7A90'],
+             ['弱文字','#97A3B5'],['强调红','#E8555A'],['对照蓝','#4A90D9']],
+    ratio:[[78,'#E4E9F0','画布'],[11,'#A3B1C6','影灰'],[8,'#3D4A5C','文字'],[3,'#E8555A','强调红']],
+    pills:[['画布','#E4E9F0'],['标题字重','700'],['字距','−2%'],['圆角','28px'],
+           ['边缘','双向柔影'],['空间','凸起 / 凹陷'],['节奏','静止'],['载体','横竖 · 透明需自带板']],
+    good:'概念解释 / 产品演示 / 教程步骤；不依赖任何图像、需要安静与手感的内容',
+    bad:'元素超过 12 个，或需要强对比排序的场合——本套的明度空间撑不住密集排布；进透明支线必须自带承载板'
+  }
+];
+
+const grid = document.getElementById('grid');
+grid.innerHTML = SPECS.map(s => `
+<article class="card" id="${s.id}">
+  <div class="cover">
+    <img src="./${s.dir}/cover.jpg" alt="${s.name}参考图" loading="lazy">
+    <div class="veil"></div>
+    <div class="chipset">${s.chips.map(c => `<span style="background:${c}"></span>`).join('')}</div>
+    <div class="meta">
+      <p class="no">${s.no}</p>
+      <h3>${s.name}</h3>
+      <p class="mood">${s.mood}</p>
+    </div>
+  </div>
+  <div class="body">
+    <p class="pos">${s.pos}</p>
+
+    <div class="sws">
+      ${s.palette.map(([n,h]) => `
+        <div class="sw" data-hex="${h}" title="点击复制 ${h}">
+          <div class="chip" style="background:${h}"></div>
+          <div class="nm">${n}</div>
+          <div class="hx">${h.slice(1)}</div>
+        </div>`).join('')}
+    </div>
+
+    <div>
+      <div class="ratio">
+        ${s.ratio.map(([v,c]) => `<i style="background:${c};flex:${v}"></i>`).join('')}
+      </div>
+      <div class="rlabel">
+        ${s.ratio.map(([v,c,n]) => `<span><b>${v}%</b> ${n}</span>`).join('')}
+      </div>
+    </div>
+
+    <div class="pills">
+      ${s.pills.map(([k,v]) => `<span class="pill">${k} <b>${v}</b></span>`).join('')}
+    </div>
+
+    <div class="fit">
+      <div><span class="k">适合</span><span class="v">${s.good}</span></div>
+      <div><span class="k">避开</span><span class="v no">${s.bad}</span></div>
+    </div>
+
+    <a class="btn" href="./${s.dir}/design-spec.html" target="_blank">
+      <span>打开完整规范 <em>· 配色 / 字体 / 版式 / 动效</em></span><span class="arw">→</span>
+    </a>
+  </div>
+</article>`).join('');
+
+/* 点击色块复制色值 */
+const toast = document.getElementById('toast');
+let toastTimer;
+function flash(msg){
+  toast.textContent = msg;
+  toast.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('on'), 1400);
+}
+function copyText(text){
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((res, rej) => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-100px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); res(); } catch(e) { rej(e); }
+    document.body.removeChild(ta);
+  });
+}
+grid.addEventListener('click', e => {
+  const sw = e.target.closest('.sw');
+  if (!sw) return;
+  const hex = sw.dataset.hex;
+  copyText(hex).then(() => flash('已复制 ' + hex)).catch(() => flash(hex));
+});
+</script>
+
+</body>
+</html>

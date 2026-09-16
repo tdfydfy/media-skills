@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+<defs>
+  <filter id="emb" x="-45%" y="-45%" width="190%" height="190%">
+    <feDropShadow dx="-9" dy="-9" stdDeviation="11" flood-color="#FFFFFF" flood-opacity="0.95"/>
+    <feDropShadow dx="11" dy="11" stdDeviation="14" flood-color="#A3B1C6" flood-opacity="0.6"/>
+  </filter>
+  <filter id="embS" x="-45%" y="-45%" width="190%" height="190%">
+    <feDropShadow dx="-5" dy="-5" stdDeviation="7" flood-color="#FFFFFF" flood-opacity="0.95"/>
+    <feDropShadow dx="7" dy="7" stdDeviation="9" flood-color="#A3B1C6" flood-opacity="0.6"/>
+  </filter>
+  <filter id="soft" x="-70%" y="-70%" width="240%" height="240%">
+    <feGaussianBlur stdDeviation="34"/>
+  </filter>
+  <clipPath id="slotA"><rect x="380" y="300" width="400" height="180" rx="42"/></clipPath>
+  <clipPath id="rail"><rect x="380" y="540" width="840" height="120" rx="60"/></clipPath>
+</defs>
+
+<rect width="1600" height="1000" fill="#E4E9F0"/>
+
+<rect x="320" y="230" width="960" height="540" rx="60" fill="#E4E9F0" filter="url(#emb)"/>
+
+<g clip-path="url(#slotA)">
+  <rect x="380" y="300" width="400" height="180" fill="#DFE4EC"/>
+  <rect x="190" y="110" width="390" height="350" fill="#A3B1C6" opacity="0.55" filter="url(#soft)"/>
+  <rect x="580" y="410" width="390" height="350" fill="#FFFFFF" opacity="0.95" filter="url(#soft)"/>
+</g>
+<rect x="410" y="322" width="340" height="136" rx="32" fill="#E4E9F0" filter="url(#embS)"/>
+
+<rect x="820" y="300" width="400" height="180" rx="42" fill="#E4E9F0" filter="url(#emb)"/>
+<text x="1020" y="424" font-family="-apple-system,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif" font-size="94" font-weight="700" fill="#3D4A5C" text-anchor="middle">06</text>
+
+<g clip-path="url(#rail)">
+  <rect x="380" y="540" width="840" height="120" fill="#DFE4EC"/>
+  <rect x="190" y="350" width="650" height="350" fill="#A3B1C6" opacity="0.55" filter="url(#soft)"/>
+  <rect x="760" y="580" width="650" height="350" fill="#FFFFFF" opacity="0.95" filter="url(#soft)"/>
+</g>
+<rect x="406" y="566" width="300" height="68" rx="34" fill="#E4E9F0" filter="url(#embS)"/>
+</svg>

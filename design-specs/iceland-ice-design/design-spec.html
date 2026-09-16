@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cco Rest · 冰川层理 视觉色彩规范 v1</title>
+<style>
+  :root{
+    --ink:#26383B; --ash:#4E5658; --stone:#98A0A1; --cloud:#CDD3D2;
+    --fog:#E9EBE8; --paper:#F4F6F4;
+    --core:#5E9AA8; --deepice:#3F6B77; --ice:#A6D0D7; --crystal:#F5F8F7;
+    --txt:#26383B; --txt-2:#5E6869; --txt-3:#8A9394;
+    --line-ink:rgba(38,56,59,.12);
+    --line-cool:rgba(63,107,119,.18);
+    --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Source Han Sans SC","Segoe UI",system-ui,sans-serif;
+    --serif:"Cormorant Garamond",Georgia,"Times New Roman","Songti SC",serif;
+    --mono:"SF Mono","Cascadia Mono",Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--fog);
+    color:var(--txt);
+    font-family:var(--sans);
+    font-size:16px;
+    font-weight:400;
+    line-height:1.8;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 32px 120px}
+
+  /* ---------- 封面 ---------- */
+  .cover{position:relative;height:620px;overflow:hidden}
+  .cover img{width:100%;height:100%;object-fit:cover;object-position:50% 52%;display:block;filter:saturate(1.04) contrast(1.02)}
+  .cover-veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(233,235,232,.34) 0%,rgba(233,235,232,.10) 34%,rgba(233,235,232,.86) 78%,rgba(233,235,232,.97) 100%)}
+  .cover-body{position:absolute;left:56px;right:56px;bottom:46px}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--deepice)}
+  .cover-title{font-size:58px;font-weight:300;line-height:1.14;letter-spacing:.04em;margin:16px 0 12px;color:var(--ink)}
+  .cover-title em{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--deepice);letter-spacing:0}
+  .cover-sub{font-size:15.5px;color:#4A5556;max-width:640px;line-height:1.85}
+  .cover-rule{width:64px;height:1px;background:var(--deepice);margin-top:22px;opacity:.6}
+
+  /* ---------- 目录 ---------- */
+  .toc{display:flex;flex-wrap:wrap;gap:8px;margin:44px 0 8px}
+  .toc a{
+    font-size:13px;text-decoration:none;color:var(--txt-2);
+    background:var(--paper);border:1px solid var(--line-ink);
+    padding:7px 15px;border-radius:2px;transition:.2s;
+  }
+  .toc a:hover{color:var(--deepice);border-color:var(--deepice);background:rgba(63,107,119,.06)}
+  .toc a b{font-family:var(--mono);font-weight:400;opacity:.5;margin-right:6px}
+
+  /* ---------- 章节 ---------- */
+  section{padding-top:76px}
+  .sec-head{margin-bottom:32px}
+  .sec-line{display:flex;align-items:baseline;gap:16px;padding-bottom:16px;border-bottom:1px solid var(--line-ink);position:relative}
+  .sec-line::after{content:"";position:absolute;left:0;bottom:-1px;width:72px;height:1px;background:var(--deepice)}
+  .sec-num{font-family:var(--mono);font-size:12.5px;color:var(--deepice);letter-spacing:.16em}
+  .sec-head h2{font-size:28px;font-weight:400;letter-spacing:.06em;color:var(--ink)}
+  h3{font-size:17px;font-weight:500;margin:38px 0 16px;display:flex;align-items:center;gap:11px;color:var(--ink);letter-spacing:.04em}
+  h3::before{content:"";width:20px;height:1px;background:var(--deepice)}
+  p{max-width:78ch}
+  .lead{font-size:17px;line-height:1.9;color:#3C4749;max-width:74ch}
+  .muted{color:var(--txt-3);font-size:14px}
+  strong{font-weight:600;color:var(--ink)}
+  code{font-family:var(--mono);font-size:13px;background:rgba(63,107,119,.10);color:var(--deepice);padding:2px 7px;border-radius:2px}
+
+  /* ---------- 关键词 ---------- */
+  .keys{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:30px 0 8px}
+  .key{background:var(--paper);border-radius:2px;padding:28px 24px 26px;border:1px solid var(--line-ink);position:relative;overflow:hidden}
+  .key::before{content:"";position:absolute;left:0;top:0;width:100%;height:2px;background:linear-gradient(90deg,var(--core),rgba(166,208,215,0) 70%)}
+  .key .en{font-family:var(--serif);font-style:italic;font-size:14px;color:var(--deepice);letter-spacing:.06em}
+  .key b{display:block;font-size:24px;font-weight:400;margin:10px 0 10px;letter-spacing:.1em;color:var(--ink)}
+  .key span{font-size:14px;color:var(--txt-2);line-height:1.8;display:block}
+
+  /* ---------- 情绪坐标 ---------- */
+  .axes{background:var(--paper);border:1px solid var(--line-ink);border-radius:2px;padding:28px 30px;margin-top:22px}
+  .axis{display:flex;align-items:center;gap:14px;margin:15px 0}
+  .axis-lab{flex:0 0 132px;font-size:13px;color:var(--txt-2);text-align:right}
+  .axis-track{flex:1;height:1px;background:var(--cloud);position:relative}
+  .axis-fill{position:absolute;left:0;top:-1px;height:3px;background:var(--core)}
+  .axis-dot{position:absolute;top:-6px;width:13px;height:13px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 4px rgba(38,56,59,.10)}
+  .axis-end{flex:0 0 132px;font-size:13px;color:var(--txt-2)}
+
+  /* ---------- 色卡 ---------- */
+  .swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}
+  .sw{background:var(--paper);border:1px solid var(--line-ink);border-radius:2px;overflow:hidden}
+  .sw .chip{height:136px;position:relative;display:flex;align-items:flex-end;padding:14px 16px}
+  .sw .chip code{background:rgba(255,255,255,.82);color:var(--ink);font-size:12px;letter-spacing:.06em}
+  .sw .chip.dark code{background:rgba(38,56,59,.72);color:var(--crystal)}
+  .sw .meta{padding:16px 18px 18px}
+  .sw .meta b{font-size:16px;font-weight:500;display:block;color:var(--ink);letter-spacing:.03em}
+  .sw .meta .en{font-family:var(--serif);font-style:italic;font-size:12.5px;color:var(--txt-3);display:block;margin-top:2px}
+  .sw .meta ul{list-style:none;margin-top:12px;font-size:13.5px;color:var(--txt-2);line-height:1.7}
+  .sw .meta li{padding-left:13px;position:relative}
+  .sw .meta li::before{content:"";position:absolute;left:0;top:10px;width:5px;height:1px;background:var(--deepice)}
+
+  /* ---------- 比例条 ---------- */
+  .ratio{margin-top:30px}
+  .ratio-bar{display:flex;height:54px;border-radius:2px;overflow:hidden;border:1px solid var(--line-ink)}
+  .ratio-bar div{display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;letter-spacing:.06em}
+  .ratio-legend{display:flex;flex-wrap:wrap;gap:20px;margin-top:15px;font-size:13.5px;color:var(--txt-2)}
+  .ratio-legend span{display:flex;align-items:center;gap:7px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+
+  /* ---------- 表格 ---------- */
+  table{width:100%;border-collapse:collapse;margin-top:20px;font-size:14.5px;background:var(--paper);border-radius:2px;overflow:hidden;border:1px solid var(--line-ink)}
+  th{background:rgba(63,107,119,.08);text-align:left;font-weight:500;font-size:12.5px;letter-spacing:.12em;color:var(--deepice);padding:14px 16px;text-transform:uppercase}
+  td{padding:13px 16px;border-top:1px solid var(--line-ink);vertical-align:top;color:var(--txt-2)}
+  td:first-child{font-weight:500;color:var(--ink)}
+  td.num{font-family:var(--mono);font-size:13px;color:var(--deepice)}
+
+  /* ---------- 规则卡 ---------- */
+  .rules{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+  .rule{background:var(--paper);border:1px solid var(--line-ink);border-radius:2px;padding:22px 24px;position:relative}
+  .rule::before{content:"";position:absolute;left:24px;top:0;width:28px;height:2px}
+  .rule.c::before{background:var(--core)}
+  .rule.d::before{background:var(--deepice)}
+  .rule.s::before{background:var(--stone)}
+  .rule.i::before{background:var(--ice)}
+  .rule h4{font-size:14.5px;font-weight:500;margin-bottom:9px;color:var(--ink);letter-spacing:.04em;padding-top:8px}
+  .rule p{font-size:14px;color:var(--txt-2);line-height:1.8;max-width:none}
+  .rule code{font-size:12px}
+
+  /* ---------- 字体样例 ---------- */
+  .fontdemo{background:var(--paper);border:1px solid var(--line-ink);border-radius:2px;padding:30px;margin-top:22px}
+  .fontdemo .row{display:flex;align-items:baseline;gap:20px;padding:16px 0;border-bottom:1px dashed var(--line-ink)}
+  .fontdemo .row:last-child{border-bottom:0}
+  .fontdemo .row .lab{flex:0 0 124px;font-size:11.5px;color:var(--txt-3);font-family:var(--mono);letter-spacing:.06em}
+  .fontdemo .d1{font-size:40px;font-weight:300;letter-spacing:.14em;color:var(--ink);line-height:1.15}
+  .fontdemo .d2{font-size:26px;font-weight:400;color:var(--ink);letter-spacing:.12em}
+  .fontdemo .d3{font-size:19px;font-weight:400;color:#3C4749;letter-spacing:.08em}
+  .fontdemo .d4{font-size:16px;font-weight:400;color:var(--txt-2);letter-spacing:.02em}
+  .fontdemo .d5{font-family:var(--mono);font-size:30px;font-weight:400;color:var(--deepice);letter-spacing:.02em}
+  .fontdemo .d6{font-family:var(--serif);font-size:32px;font-style:italic;color:var(--deepice)}
+
+  /* ---------- 版式示意 ---------- */
+  .layouts{display:grid;grid-template-columns:1.78fr 1fr;gap:20px;margin-top:24px}
+  .frame{background:var(--paper);border:1px solid var(--line-ink);border-radius:2px;padding:16px}
+  .frame .cap{font-size:12px;color:var(--txt-3);margin-top:11px;text-align:center;font-family:var(--mono);letter-spacing:.04em}
+  .canvas{position:relative;border-radius:2px;background:var(--fog);border:1px solid var(--line-cool);overflow:hidden}
+  .canvas.wide{aspect-ratio:16/9}
+  .canvas.tall{aspect-ratio:9/16;max-height:340px;margin:0 auto;width:auto}
+  .band{position:absolute;left:0;right:0}
+  .band-fog{top:0;height:22%;background:repeating-linear-gradient(90deg,rgba(63,107,119,.07) 0 3px,transparent 3px 9px)}
+  .band-water{bottom:0;height:26%;background:rgba(38,56,59,.86)}
+  .strata{position:absolute;left:0;right:0;height:2px;background:rgba(78,86,88,.55)}
+  .safe{position:absolute;inset:8%;border:1px dashed rgba(63,107,119,.24);border-radius:1px}
+  .zn{position:absolute}
+  .zn-title{left:8%;top:28%;width:44%;height:12%;background:rgba(94,154,168,.45);border-left:2px solid var(--deepice)}
+  .zn-body{left:8%;top:46%;width:32%;height:20%;background:rgba(152,160,161,.35)}
+  .zn-data{left:54%;top:46%;width:38%;height:28%;background:rgba(166,208,215,.55)}
+  .zn-mark{right:8%;bottom:4%;width:11%;height:4%;background:rgba(245,248,247,.5)}
+  .tall .band-fog{height:16%}
+  .tall .band-water{height:22%}
+  .tall .zn-title{left:10%;top:30%;width:64%;height:7%;background:rgba(94,154,168,.45);border-left:2px solid var(--deepice)}
+  .tall .zn-body{left:10%;top:44%;width:52%;height:12%;background:rgba(152,160,161,.35)}
+  .tall .zn-data{left:10%;top:62%;width:74%;height:14%;background:rgba(166,208,215,.55)}
+  .tall .zn-mark{right:10%;bottom:5%;width:22%;height:3%}
+  .grid12{position:absolute;inset:8%;display:grid;grid-template-columns:repeat(12,1fr);gap:4px}
+  .grid12 i{background:rgba(63,107,119,.05)}
+
+  /* ---------- 形态母题 ---------- */
+  .motifs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}
+  .motif{background:var(--paper);border:1px solid var(--line-ink);border-radius:2px;padding:20px}
+  .motif .art{height:80px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;background:var(--fog);border-radius:2px}
+  .motif b{font-size:15px;font-weight:500;display:block;color:var(--ink);letter-spacing:.04em}
+  .motif .use{font-size:13px;color:var(--txt-2);margin-top:7px;line-height:1.75}
+  .motif .param{font-family:var(--mono);font-size:11.5px;color:var(--txt-3);margin-top:12px;padding-top:11px;border-top:1px dashed var(--line-ink);line-height:1.65}
+
+  .ease{font-family:var(--mono);font-size:12px;color:var(--deepice)}
+
+  /* ---------- Token ---------- */
+  pre{background:var(--ink);border-radius:2px;padding:26px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.9;margin-top:20px;color:#C8D5D6}
+  pre .k{color:var(--ice)}
+  pre .v{color:#EAF2F0}
+  pre .c{color:#7E8C8D;font-style:italic}
+
+  /* ---------- 应用示例 ---------- */
+  .demos{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-top:24px}
+  .demo{aspect-ratio:16/9;border-radius:2px;overflow:hidden;position:relative;border:1px solid var(--line-ink)}
+  .demo .lbl{position:absolute;left:14px;bottom:11px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;z-index:3}
+
+  .d-a{background:var(--fog);padding:26px 30px;display:flex;flex-direction:column;justify-content:center}
+  .d-a::after{content:"";position:absolute;left:0;right:0;bottom:0;height:24%;background:rgba(38,56,59,.88)}
+  .d-a .wk{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--deepice)}
+  .d-a .ttl{font-size:29px;font-weight:300;color:var(--ink);line-height:1.3;letter-spacing:.08em;margin-top:12px;position:relative;z-index:2}
+  .d-a .ttl i{font-style:normal;color:var(--deepice)}
+  .d-a .ln{width:52px;height:1px;background:var(--deepice);margin-top:16px;opacity:.7}
+  .d-a .lbl{color:var(--txt-3)}
+
+  .d-b{background:var(--paper);padding:24px 26px;display:flex;flex-direction:column}
+  .d-b .h{font-size:13px;color:var(--txt-2);letter-spacing:.08em}
+  .d-b .big{font-family:var(--mono);font-size:46px;font-weight:400;color:var(--ink);line-height:1;margin:12px 0 4px}
+  .d-b .cap{font-size:11.5px;color:var(--txt-3)}
+  .d-b .cols{display:flex;align-items:flex-end;gap:6px;height:52px;margin-top:auto}
+  .d-b .cols i{flex:1;background:var(--ice);border-radius:1px 1px 0 0}
+  .d-b .cols i:nth-child(3){background:var(--core)}
+  .d-b .cols i:nth-child(5){background:var(--stone)}
+  .d-b .lbl{color:var(--txt-3)}
+
+  .d-c{background:var(--ink);display:flex;align-items:center;justify-content:center;padding:0 40px;position:relative}
+  .d-c .strata{background:rgba(166,208,215,.22)}
+  .d-c .q{font-size:20px;font-weight:300;color:var(--crystal);line-height:1.8;letter-spacing:.1em;text-align:center;position:relative;z-index:2}
+  .d-c .q b{color:var(--ice);font-weight:400}
+  .d-c .lbl{color:rgba(245,248,247,.42)}
+
+  .d-d{background:var(--paper);padding:24px 26px;display:flex;flex-direction:column;gap:0;justify-content:center}
+  .d-d .rowline{display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--txt-2);padding:9px 0;border-top:1px solid rgba(78,86,88,.35)}
+  .d-d .rowline:last-of-type{border-bottom:1px solid rgba(78,86,88,.35)}
+  .d-d .rowline .n{font-family:var(--mono);font-size:11px;color:var(--deepice);flex:0 0 20px}
+  .d-d .rowline .bar{flex:1;height:1px;background:var(--cloud);position:relative}
+  .d-d .rowline .bar i{position:absolute;left:0;top:-1px;height:3px;background:var(--core)}
+  .d-d .lbl{color:var(--txt-3)}
+
+  footer{margin-top:92px;padding-top:30px;border-top:1px solid var(--line-ink);font-size:13px;color:var(--txt-3);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+  @media(max-width:880px){
+    .wrap{padding:0 20px 80px}
+    .cover{height:460px}
+    .cover-body{left:26px;right:26px;bottom:32px}
+    .cover-title{font-size:33px}
+    .swatches,.motifs,.keys{grid-template-columns:1fr}
+    .rules,.demos,.layouts{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<a href="../index.html" style="position:fixed;left:18px;top:18px;z-index:200;display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:999px;font:600 13px/1 -apple-system,'PingFang SC','Microsoft YaHei',sans-serif;text-decoration:none;color:#fff;background:rgba(18,20,24,.60);border:1px solid rgba(255,255,255,.26);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)">&#8592; 全部规范</a>
+
+<header class="cover">
+  <img src="cover.jpg" alt="冰岛冰河湖中覆着火山灰条纹的巨大浮冰">
+  <div class="cover-veil"></div>
+  <div class="cover-body">
+    <div class="kicker">Cco Rest · Visual Color Spec</div>
+    <h1 class="cover-title">冰川层理 <em>Glacial Strata</em></h1>
+    <p class="cover-sub">一份从冰河湖浮冰里提取出来的配色与元素系统。唯一一个色相、漫射无影的光、横贯的灰纹层。用于视频与演示文稿。</p>
+    <div class="cover-rule"></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc">
+    <a href="#s1"><b>01</b>调性定位</a>
+    <a href="#s2"><b>02</b>色彩系统</a>
+    <a href="#s3"><b>03</b>用色规则</a>
+    <a href="#s4"><b>04</b>字体层级</a>
+    <a href="#s5"><b>05</b>版式与网格</a>
+    <a href="#s6"><b>06</b>形态母题</a>
+    <a href="#s7"><b>07</b>动效</a>
+    <a href="#s8"><b>08</b>图文搭配</a>
+    <a href="#s9"><b>09</b>Token</a>
+    <a href="#s10"><b>10</b>应用示例</a>
+  </nav>
+
+  <!-- ========== 01 ========== -->
+  <section id="s1">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">01</span><h2>调性定位</h2></div>
+    </div>
+
+    <p class="lead">
+      灰白的天压得很低，雾把地平线吃掉了，分不清哪是水哪是空气。前景一块巨大的浮冰横躺着，上面压着一小堆斜切的冰垛；
+      冰体里横贯着一道道灰黑色的条纹——那不是脏，是几百年前某一座火山喷发落下的灰，被后来的雪一层层盖住、压实，成了冰的一部分。
+      光是漫射的，没有方向，也没有影子；颜色只有一种，就是从冰芯里透出来的青。
+    </p>
+    <p class="lead" style="margin-top:16px">
+      这是整套四套里<strong>唯一没有暖色、也没有直射光</strong>的一套。前三套里有两套深底、一套浅底，这一套补上的正是「冷 + 浅」那一格。
+    </p>
+
+    <div class="keys">
+      <div class="key">
+        <span class="en">glacial</span>
+        <b>冷寂</b>
+        <span>只有一种色相（青），其余全是中性灰。整张图的彩度低到近乎黑白，颜色是「透出来的」而不是「涂上去的」。</span>
+      </div>
+      <div class="key">
+        <span class="en">strata</span>
+        <b>层理</b>
+        <span>画面由横向叠压的层构成：雾在上、冰在中、水在下。灰纹是层与层的分界，也是时间留下的刻度。</span>
+      </div>
+      <div class="key">
+        <span class="en">suspended</span>
+        <b>悬浮</b>
+        <span>雾里没有地平线，巨大的冰看起来是浮着的、失重的。重量感来自体块，不来自透视。</span>
+      </div>
+    </div>
+
+    <div class="axes">
+      <div style="font-size:13px;color:var(--txt-3);margin-bottom:8px;letter-spacing:.04em">情绪坐标 · 本套配色应当落在的位置</div>
+
+      <div class="axis">
+        <div class="axis-lab">温暖</div>
+        <div class="axis-track"><div class="axis-fill" style="width:4%"></div><div class="axis-dot" style="left:calc(4% - 6px)"></div></div>
+        <div class="axis-end">清冷</div>
+      </div>
+      <div class="axis">
+        <div class="axis-lab">安静</div>
+        <div class="axis-track"><div class="axis-fill" style="width:96%"></div><div class="axis-dot" style="left:calc(96% - 6px)"></div></div>
+        <div class="axis-end">热闹</div>
+      </div>
+      <div class="axis">
+        <div class="axis-lab">有机</div>
+        <div class="axis-track"><div class="axis-fill" style="width:30%"></div><div class="axis-dot" style="left:calc(30% - 6px)"></div></div>
+        <div class="axis-end">几何</div>
+      </div>
+      <div class="axis">
+        <div class="axis-lab">抽象</div>
+        <div class="axis-track"><div class="axis-fill" style="width:52%"></div><div class="axis-dot" style="left:calc(52% - 6px)"></div></div>
+        <div class="axis-end">具象</div>
+      </div>
+      <div class="axis">
+        <div class="axis-lab">低沉</div>
+        <div class="axis-track"><div class="axis-fill" style="width:22%"></div><div class="axis-dot" style="left:calc(22% - 6px)"></div></div>
+        <div class="axis-end">高扬</div>
+      </div>
+    </div>
+
+    <h3>设计语言的五条翻译</h3>
+    <div class="rules">
+      <div class="rule c">
+        <h4>一个色相，其余全是灰</h4>
+        <p>整页只允许出现青这一个色相，明度从雾白到玄水拉开。面积上颜色只占四分之一，其余交给中性灰。一旦引入第二个色相（哪怕只是暖灰），这张图立刻变成「旧照片」而不是「冰川」。</p>
+      </div>
+      <div class="rule d">
+        <h4>没有影子，只有柔过渡</h4>
+        <p>漫射光下不存在硬边投影。光影一律用大半径、低浓度的柔扩散表达——半径 40–80px、浓度 8%–12%。这是跟「晨光牧场」那套强光比、硬投影最相反的一条。</p>
+      </div>
+      <div class="rule s">
+        <h4>层是结构，不是装饰</h4>
+        <p>上雾、中冰、下水的三段式是骨架。同时灰纹本身就是「层」的符号，它代表时间——所以它只出现在分隔、时间轴、进度这类功能位置上，不做纹理填充。</p>
+      </div>
+      <div class="rule i">
+        <h4>几何体块，圆角为零</h4>
+        <p>冰是被压出来的多面体，全是斜切的平面，没有一处圆润的转折。圆角统一 2px，允许 6°–14° 的斜切。</p>
+      </div>
+      <div class="rule c">
+        <h4>体积靠明度，不靠透视</h4>
+        <p>雾里没法用透视表达远近。前后关系统一由明度解决：越靠前越亮越实，越靠后越贴向雾白。不用虚化分层——这张照片景深极大，全画面都是清晰的。</p>
+      </div>
+      <div class="rule d">
+        <h4>永远只动一点点</h4>
+        <p>冰在漂，但慢到几乎看不出在动。这是全套四套里最慢的一档：背景循环 40–60 秒，靠时间尺度本身表达「这些冰用了几百年才到这里」。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 02 ========== -->
+  <section id="s2">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">02</span><h2>色彩系统</h2></div>
+    </div>
+
+    <h3>主色板</h3>
+    <p class="muted" style="margin-bottom:4px">九色。五个中性灰撑面积，三个青是唯一的色相，白只用于极值。</p>
+
+    <div class="swatches">
+      <div class="sw">
+        <div class="chip" style="background:#E9EBE8"><code>#E9EBE8</code></div>
+        <div class="meta"><b>雾白</b><span class="en">Fog</span>
+          <ul><li>默认画布，面积最大</li><li>留白区、顶部雾带</li><li>注意：是冷白，不是纯白</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#CDD3D2"><code>#CDD3D2</code></div>
+        <div class="meta"><b>云灰</b><span class="en">Cloud</span>
+          <ul><li>次级面、分区底</li><li>网格线、基座</li><li>弱化信息的底</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#98A0A1"><code>#98A0A1</code></div>
+        <div class="meta"><b>岩灰</b><span class="en">Stone</span>
+          <ul><li>中性色，注解文字</li><li>对照序列</li><li>描边、次级信息</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip dark" style="background:#4E5658"><code>#4E5658</code></div>
+        <div class="meta"><b>炭纹</b><span class="en">Ash</span>
+          <ul><li>正文文字</li><li>灰纹层的重色</li><li>火山灰夹层的颜色</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip dark" style="background:#26383B"><code>#26383B</code></div>
+        <div class="meta"><b>玄水</b><span class="en">Deep Water</span>
+          <ul><li>深底、底部压边</li><li>极值数字、结论</li><li>反白页的整块底</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#A6D0D7"><code>#A6D0D7</code></div>
+        <div class="meta"><b>冰蓝</b><span class="en">Ice</span>
+          <ul><li>唯一的色相，面积担当</li><li>大块面积填充、堆叠底层</li><li>只做面，不做点（见 §03）</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#5E9AA8"><code>#5E9AA8</code></div>
+        <div class="meta"><b>冰芯</b><span class="en">Core</span>
+          <ul><li>主数据序列</li><li>核心区、强调块</li><li>这套配色的「签名色」</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip dark" style="background:#3F6B77"><code>#3F6B77</code></div>
+        <div class="meta"><b>幽蓝</b><span class="en">Deep Ice</span>
+          <ul><li>次序列、深部</li><li>可做正文文字（对比 5.0:1）</li><li>图表轴线、关键描边</li></ul>
+        </div>
+      </div>
+      <div class="sw">
+        <div class="chip" style="background:#F5F8F7"><code>#F5F8F7</code></div>
+        <div class="meta"><b>冰晶白</b><span class="en">Crystal</span>
+          <ul><li>最高光、霜边</li><li>深底上的文字</li><li>极值数字的内部高光</li></ul>
+        </div>
+      </div>
+    </div>
+
+    <h3>配色比例</h3>
+    <div class="ratio">
+      <div class="ratio-bar">
+        <div style="flex:62;background:#E9EBE8;color:#26383B">雾白 + 云灰 62%</div>
+        <div style="flex:24;background:#A6D0D7;color:#26383B">冰蓝系 24%</div>
+        <div style="flex:9;background:#3F6B77;color:#F5F8F7">深青 9%</div>
+        <div style="flex:5;background:#4E5658;color:#F5F8F7">炭纹 5%</div>
+      </div>
+      <div class="ratio-legend">
+        <span><i class="dot" style="background:#E9EBE8;border:1px solid rgba(38,56,59,.3)"></i>雾白 + 云灰</span>
+        <span><i class="dot" style="background:#A6D0D7"></i>冰蓝 + 冰芯</span>
+        <span><i class="dot" style="background:#3F6B77"></i>幽蓝 + 玄水</span>
+        <span><i class="dot" style="background:#4E5658"></i>岩灰 + 炭纹</span>
+      </div>
+    </div>
+
+    <h3>扩展阶（同色系深浅）</h3>
+    <p class="muted" style="margin-bottom:16px">做层次时优先在同一色相里改明度。以下每色 5 阶，从左到右由亮到暗。</p>
+
+    <table>
+      <thead><tr><th style="width:130px">色族</th><th>阶梯（从左至右）</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>雾白</td>
+          <td><div style="display:flex;gap:6px">
+            <span style="flex:1;height:32px;border-radius:1px;background:#FBFCFB;border:1px solid rgba(38,56,59,.1)"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#F1F3F1;border:1px solid rgba(38,56,59,.1)"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#E9EBE8;border:1px solid rgba(38,56,59,.1)"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#DDE1DE"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#CED4D2"></span>
+          </div><div class="num" style="margin-top:8px;color:var(--txt-3);font-size:11.5px">#FBFCFB · #F1F3F1 · #E9EBE8 · #DDE1DE · #CED4D2</div></td>
+        </tr>
+        <tr>
+          <td>岩灰</td>
+          <td><div style="display:flex;gap:6px">
+            <span style="flex:1;height:32px;border-radius:1px;background:#C6CCCD"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#AFB6B7"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#98A0A1"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#7C8485"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#616869"></span>
+          </div><div class="num" style="margin-top:8px;color:var(--txt-3);font-size:11.5px">#C6CCCD · #AFB6B7 · #98A0A1 · #7C8485 · #616869</div></td>
+        </tr>
+        <tr>
+          <td>冰蓝</td>
+          <td><div style="display:flex;gap:6px">
+            <span style="flex:1;height:32px;border-radius:1px;background:#D8ECEF"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#BFDEE3"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#A6D0D7"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#89BAC4"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#6EA5B1"></span>
+          </div><div class="num" style="margin-top:8px;color:var(--txt-3);font-size:11.5px">#D8ECEF · #BFDEE3 · #A6D0D7 · #89BAC4 · #6EA5B1</div></td>
+        </tr>
+        <tr>
+          <td>冰芯 / 幽蓝</td>
+          <td><div style="display:flex;gap:6px">
+            <span style="flex:1;height:32px;border-radius:1px;background:#7FB2BD"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#5E9AA8"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#4C8391"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#3F6B77"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#2F525C"></span>
+          </div><div class="num" style="margin-top:8px;color:var(--txt-3);font-size:11.5px">#7FB2BD · #5E9AA8 · #4C8391 · #3F6B77 · #2F525C</div></td>
+        </tr>
+        <tr>
+          <td>炭纹 / 玄水</td>
+          <td><div style="display:flex;gap:6px">
+            <span style="flex:1;height:32px;border-radius:1px;background:#6A7274"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#4E5658"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#3A4648"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#26383B"></span>
+            <span style="flex:1;height:32px;border-radius:1px;background:#182729"></span>
+          </div><div class="num" style="margin-top:8px;color:var(--txt-3);font-size:11.5px">#6A7274 · #4E5658 · #3A4648 · #26383B · #182729</div></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>数据可视化色序</h3>
+    <p class="muted" style="margin-bottom:16px">这套是浅底，所以逻辑跟深底那套正好反过来——<strong>越深越重要</strong>，最深的一档留给结论。</p>
+    <table>
+      <thead><tr><th style="width:150px">语义</th><th style="width:150px">用色</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>结论 / 极值</td><td><span class="dot" style="background:#26383B"></span> 玄水</td><td>最暗的一档，用来钉住最终的那个数</td></tr>
+        <tr><td>主序列 / 核心</td><td><span class="dot" style="background:#5E9AA8"></span> 冰芯</td><td>被讨论的那一组数据，浅底上唯一有色的主角</td></tr>
+        <tr><td>对照 / 次级</td><td><span class="dot" style="background:#98A0A1"></span> 岩灰</td><td>同期、均值、参考线</td></tr>
+        <tr><td>深部 / 强调</td><td><span class="dot" style="background:#3F6B77"></span> 幽蓝</td><td>需要单独指出的一段（也用于坐标轴、关键描边）</td></tr>
+        <tr><td>面积 / 基座</td><td><span class="dot" style="background:#A6D0D7"></span> 冰蓝</td><td>堆叠面积的最底层、大块背景填充</td></tr>
+        <tr><td>缺失 / 未填</td><td><span class="dot" style="background:#CDD3D2"></span> 云灰</td><td>用比画布深一档的灰表示空缺，不用描边</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 03 ========== -->
+  <section id="s3">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">03</span><h2>用色规则</h2></div>
+    </div>
+
+    <h3>三种画布</h3>
+    <div class="rules">
+      <div class="rule c">
+        <h4>雾画布（默认）</h4>
+        <p>底 <code>#E9EBE8</code>，文字 <code>#26383B</code>（对比 11.2:1）。这套的主场。注意它是<strong>带一点绿的冷白</strong>，换成暖白或纯白立刻丢掉冰川感。</p>
+      </div>
+      <div class="rule d">
+        <h4>玄水画布（反白）</h4>
+        <p>底 <code>#26383B</code>，文字 <code>#F5F8F7</code>。用于金句、章节扉页、以及每页底部那条压边。占比不超过两成。</p>
+      </div>
+      <div class="rule s">
+        <h4>纸画布（卡片）</h4>
+        <p>卡片底 <code>#F4F6F4</code>，比画布亮一档，靠明度差分层。描边 1px <code>rgba(38,56,59,.12)</code>，不用投影。</p>
+      </div>
+      <div class="rule i">
+        <h4>照片画布</h4>
+        <p>这张照片本身很亮很平，压字不需要压暗，反而要<strong>提亮</strong>：叠 30% 雾白蒙版，再整体抬一档亮度。文字用玄水，落在冰体的亮面或雾上。</p>
+      </div>
+    </div>
+
+    <h3>六条硬约束</h3>
+    <table>
+      <thead><tr><th style="width:210px">规则</th><th>做法</th></tr></thead>
+      <tbody>
+        <tr><td>只有一个色相</td><td>全页只允许青（170°–195°）。中性灰必须是不带色相的冷灰（R≈G≈B），不能用棕灰、米白、暖白。混进一丝暖就变成「旧的」而不是「冷的」。</td></tr>
+        <tr><td>冰蓝只做面，不做点</td><td><code>#A6D0D7</code> 与画布明度太近（对比仅 1.3:1），做小色块会直接化掉。它只能用于大块填充；需要被看清的标记一律用冰芯或更深。</td></tr>
+        <tr><td>冰蓝总量 ≤ 25%</td><td>它是冰的体积，不是底纹。需要更多面积时加云灰，而不是把冰蓝铺开。</td></tr>
+        <tr><td>深色只在底部或整块</td><td>照片里深水只出现在画面下缘。玄水要么是整块底，要么是贴底的横带，不要零散点状撒在画面中间。</td></tr>
+        <tr><td>不用纯白，也不用纯黑</td><td>最亮 <code>#F5F8F7</code>，最暗 <code>#182729</code>。纯白让雾变硬，纯黑让冰变脏。</td></tr>
+        <tr><td>灰纹不与文字平行相邻</td><td>灰纹是暗色细线，紧贴正文下方会读成删除线。灰纹与文字之间至少留 12px。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>对比度底线</h3>
+    <table>
+      <thead><tr><th style="width:220px">用途</th><th style="width:140px">最低对比</th><th>检查方式</th></tr></thead>
+      <tbody>
+        <tr><td>正文</td><td class="num">4.5 : 1</td><td>冰芯在雾白上只有 2.7:1，绝不能做正文；幽蓝 5.0:1 可用</td></tr>
+        <tr><td>大标题（≥ 32px 细体）</td><td class="num">3 : 1</td><td>浅底上的细字比深底更易糊，实际按 4:1 执行</td></tr>
+        <tr><td>图表面积色</td><td class="num">1.3 : 1 起</td><td>面积可以低对比，但必须配标注；纯靠颜色区分不成立</td></tr>
+        <tr><td>关键信息</td><td class="num">—</td><td>颜色 + 位置 + 标签三者至少占其二</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 04 ========== -->
+  <section id="s4">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">04</span><h2>字体层级</h2></div>
+    </div>
+
+    <h3>字体选择</h3>
+    <div class="rules">
+      <div class="rule d">
+        <h4>默认方向 · 中性无衬线</h4>
+        <p>中文 思源黑体 Regular；英文 Inter / Helvetica Neue。<strong>字重落在 300–500，且以宽字距为主</strong>——浅底上的细字容易糊，靠字距而不是靠字重拉开呼吸。</p>
+      </div>
+      <div class="rule s">
+        <h4>可替换 · 刻痕感</h4>
+        <p>标题改用低反差衬线或几何无衬线（如 Söhne / 思源宋体 SemiBold 小字号），模拟冰被压出的分层面。字重不要超过 600，这套语言里没有「喊」字。</p>
+      </div>
+    </div>
+
+    <h3>层级与字号（以 1920×1080 为基准）</h3>
+    <div class="fontdemo">
+      <div class="row"><div class="lab">Display</div><div class="d1">冰芯之下</div></div>
+      <div class="row"><div class="lab">H1</div><div class="d2">第二章 · 灰纹记年</div></div>
+      <div class="row"><div class="lab">H2</div><div class="d3">同一块冰，两种时间尺度</div></div>
+      <div class="row"><div class="lab">Body</div><div class="d4">顶上那层灰落下来的那一年，雪还在往它身上盖。</div></div>
+      <div class="row"><div class="lab">Metric</div><div class="d5">1,240</div></div>
+      <div class="row"><div class="lab">Serif 备选</div><div class="d6">Glacial Strata</div></div>
+    </div>
+
+    <table>
+      <thead><tr><th style="width:150px">层级</th><th style="width:150px">字号</th><th style="width:100px">字重</th><th style="width:90px">字距</th><th>行距</th></tr></thead>
+      <tbody>
+        <tr><td>主标题 Display</td><td class="num">100 – 140 px</td><td>300</td><td class="num">+12%</td><td class="num">1.15</td></tr>
+        <tr><td>章节标题 H1</td><td class="num">58 – 72 px</td><td>400</td><td class="num">+10%</td><td class="num">1.22</td></tr>
+        <tr><td>二级标题 H2</td><td class="num">36 – 44 px</td><td>400</td><td class="num">+7%</td><td class="num">1.36</td></tr>
+        <tr><td>正文 Body</td><td class="num">24 – 28 px</td><td>400</td><td class="num">+2%</td><td class="num">1.80</td></tr>
+        <tr><td>数据数字 Metric</td><td class="num">120 – 200 px</td><td>400</td><td class="num">+2%</td><td class="num">1.00</td></tr>
+        <tr><td>注解 Caption</td><td class="num">17 – 19 px</td><td>400</td><td class="num">+10%</td><td class="num">1.60</td></tr>
+      </tbody>
+    </table>
+
+    <h3>排版细则</h3>
+    <table>
+      <tbody>
+        <tr><td style="width:200px">字距比常规宽一档</td><td>标题加到 10%–12%，注解 10%。这是全套四套里字距最宽的一档——雾里的空气感全靠它，比调字号有效。</td></tr>
+        <tr><td>字号可以更小</td><td>主标题 100–140px（比海面那套小一档）。浅底 + 宽字距让字看起来更轻，不需要靠体量压场。</td></tr>
+        <tr><td>字重只到 500</td><td>需要强调时提字号、加字距、或换成冰芯色，不加粗。这套语言里没有重音。</td></tr>
+        <tr><td>行长更短</td><td>一行中文最多 15 字，比一般规范短。行距 1.8，让行与行之间有雾。</td></tr>
+        <tr><td>数字用等宽</td><td>全部等宽老式数字，滚动时宽度不跳。</td></tr>
+        <tr><td>对齐靠左轴</td><td>一律左对齐到同一条竖轴，不同版块共用这条轴。居中只用于金句与单数字页。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 05 ========== -->
+  <section id="s5">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">05</span><h2>版式与网格</h2></div>
+    </div>
+
+    <h3>三段式分层</h3>
+    <p class="lead" style="margin-bottom:4px">这是这套规范跟其他三套差别最大的地方：画面有明确的上下分层，结构就是「雾 / 冰 / 水」。</p>
+    <div class="rules">
+      <div class="rule c"><h4>上段 · 雾（22%）</h4><p>纯留白或只放一行 kicker。这一段不含信息，它的作用是让标题「浮」起来。放任何内容都会破坏失重感。</p></div>
+      <div class="rule d"><h4>中段 · 冰（50%）</h4><p>所有内容都落在这里。用 12 列网格，左对齐到同一条轴。这一段是全页唯一的亮区，也是唯一允许出现彩色的地方。</p></div>
+      <div class="rule s"><h4>下段 · 水（28%）</h4><p>一条玄水深色横带贴底，放脚注、页码、数据来源。它把画面压住——没有这一层，整页会飘。</p></div>
+      <div class="rule i"><h4>层与层之间</h4><p>交界处用一条灰纹（2px、<code>#4E5658</code> 55% 不透明度）而不是空白分隔。这条线是这套语言里最容易被识别的一笔。</p></div>
+    </div>
+
+    <div class="layouts">
+      <div class="frame">
+        <div class="canvas wide">
+          <div class="band band-fog"></div>
+          <div class="grid12"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="safe"></div>
+          <div class="strata" style="top:22%"></div>
+          <div class="zn zn-title"></div>
+          <div class="zn zn-body"></div>
+          <div class="zn zn-data"></div>
+          <div class="strata" style="bottom:26%"></div>
+          <div class="band band-water"></div>
+          <div class="zn zn-mark"></div>
+        </div>
+        <div class="cap">16:9 · 22% 雾 / 50% 冰 / 28% 水</div>
+      </div>
+      <div class="frame">
+        <div class="canvas tall">
+          <div class="band band-fog"></div>
+          <div class="safe"></div>
+          <div class="strata" style="top:16%"></div>
+          <div class="zn zn-title"></div>
+          <div class="zn zn-body"></div>
+          <div class="zn zn-data"></div>
+          <div class="strata" style="bottom:22%"></div>
+          <div class="band band-water"></div>
+          <div class="zn zn-mark"></div>
+        </div>
+        <div class="cap">9:16 · 底部深色带同时充当平台 UI 安全区</div>
+      </div>
+    </div>
+
+    <table style="margin-top:24px">
+      <thead><tr><th style="width:150px">画幅</th><th>规则</th></tr></thead>
+      <tbody>
+        <tr><td>16:9（视频/PPT）</td><td>安全区 80% × 80%。三段比例 22 / 50 / 28，允许 ±4% 浮动，但<strong>下段不能低于 20%</strong>。内容严格落在中段，不越界到雾里。</td></tr>
+        <tr><td>9:16（竖屏）</td><td>比例改成 16 / 62 / 22。底部那条深色带正好覆盖平台 UI 遮挡区，不用再额外留空。</td></tr>
+        <tr><td>分层不是页头页脚</td><td>注意区别：这三段是画面构图的一部分，不是导航条。不要在里面加 logo 栏、栏目名这类界面元素。</td></tr>
+      </tbody>
+    </table>
+
+    <h3>留白 / 圆角 / 光影</h3>
+    <div class="rules">
+      <div class="rule c"><h4>留白最大</h4><p>单屏最多两个信息块。画面边缘最少留 110px（1920 宽下），比海面那套再多 14px——雾本来就该是空的。</p></div>
+      <div class="rule i"><h4>圆角归零</h4><p>卡片 2px、小元素 0–1px。冰是压出来的多面体，任何明显的圆角都会让它变成「卡片 UI」。</p></div>
+      <div class="rule s"><h4>柔影，不用发光</h4><p>浅底上用极淡的冷影：<code>0 8px 40px rgba(38,56,59,.10)</code>。半径大、浓度低，模拟漫射光下的浮起。深底反白页上则完全不用影。</p></div>
+      <div class="rule d"><h4>霜边代替描边</h4><p>元素边界用<strong>内白线 + 外冷灰线</strong>的组合：<code>inset 0 0 0 1px rgba(245,248,247,.7)</code> 配 <code>0 0 0 1px rgba(38,56,59,.12)</code>。这一层白就是冰的霜。</p></div>
+    </div>
+  </section>
+
+  <!-- ========== 06 ========== -->
+  <section id="s6">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">06</span><h2>形态母题</h2></div>
+    </div>
+    <p class="lead">所有图形元素从这六个母题里来。这条规则比色值更重要——它决定了整套东西看起来像不像同一块冰。</p>
+
+    <div class="motifs">
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <path d="M12 52 L30 14 L64 8 L92 34 L118 52 Z" fill="#A6D0D7" opacity=".55"/>
+            <path d="M12 52 L30 14 L64 8 L92 34 L118 52 Z" fill="none" stroke="#3F6B77" stroke-width="1.2"/>
+            <path d="M30 14 L92 34" stroke="#3F6B77" stroke-width="1" opacity=".7"/>
+            <path d="M64 8 L64 52" stroke="#3F6B77" stroke-width="1" opacity=".45"/>
+          </svg>
+        </div>
+        <b>冰脊切面</b>
+        <div class="use">卡片形状、图表区域划分、内容块边界。斜切的平面，转折处允许 6°–14° 倾斜。</div>
+        <div class="param">边数 4–6 · 斜角 6°–14° · 圆角 ≤2px</div>
+      </div>
+
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <rect x="6" y="16" width="118" height="3" fill="#4E5658" opacity=".85"/>
+            <rect x="6" y="24" width="118" height="1.5" fill="#98A0A1"/>
+            <rect x="6" y="33" width="118" height="4.5" fill="#4E5658" opacity=".6"/>
+            <rect x="6" y="43" width="118" height="2" fill="#98A0A1" opacity=".8"/>
+          </svg>
+        </div>
+        <b>灰纹层</b>
+        <div class="use">分层线、时间轴、进度、沉积序列。粗细不均、间距不等——等距就变成表格线了。</div>
+        <div class="param">厚度 1.5–4.5px · 间距不规律 · 不透明度 .55–.85</div>
+      </div>
+
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <circle cx="20" cy="20" r="1" fill="#3F6B77" opacity=".7"/>
+            <circle cx="33" cy="34" r=".8" fill="#5E9AA8" opacity=".6"/>
+            <circle cx="46" cy="16" r="1.2" fill="#3F6B77" opacity=".55"/>
+            <circle cx="58" cy="42" r=".9" fill="#5E9AA8" opacity=".5"/>
+            <circle cx="72" cy="24" r="1" fill="#3F6B77" opacity=".65"/>
+            <circle cx="86" cy="38" r=".7" fill="#98A0A1" opacity=".7"/>
+            <circle cx="98" cy="18" r="1.1" fill="#3F6B77" opacity=".5"/>
+            <circle cx="112" cy="30" r=".9" fill="#5E9AA8" opacity=".55"/>
+          </svg>
+        </div>
+        <b>冰晶点</b>
+        <div class="use">数据点、背景颗粒、密度表示。极细、极克制——比海面那套的碎金斑小一半，是「霜」不是「光」。</div>
+        <div class="param">直径 0.7–1.2px · 不透明度 .5–.7 · 密度随数值</div>
+      </div>
+
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <ellipse cx="65" cy="30" rx="42" ry="18" fill="#CDD3D2"/>
+            <ellipse cx="65" cy="31" rx="34" ry="14" fill="#B8BFC0"/>
+            <ellipse cx="65" cy="32" rx="24" ry="9.5" fill="#98A0A1" opacity=".8"/>
+            <ellipse cx="65" cy="32" rx="12" ry="5" fill="#7C8485" opacity=".7"/>
+          </svg>
+        </div>
+        <b>融孔</b>
+        <div class="use">空缺、未填、被排除的数据、深度的层级。柔边内收的椭圆凹洞，不用描边。</div>
+        <div class="param">椭圆比 1 : 0.42 · 每层内缩 22% · 边缘 6px 柔化</div>
+      </div>
+
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <defs>
+              <linearGradient id="fogband" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#E9EBE8" stop-opacity="0"/>
+                <stop offset="45%" stop-color="#DFE4E2" stop-opacity=".9"/>
+                <stop offset="100%" stop-color="#E9EBE8" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <rect x="0" y="20" width="130" height="20" fill="url(#fogband)"/>
+            <rect x="6" y="29" width="118" height="1" fill="#98A0A1" opacity=".5"/>
+            <rect x="6" y="34" width="94" height="1" fill="#98A0A1" opacity=".3"/>
+          </svg>
+        </div>
+        <b>雾带</b>
+        <div class="use">转场、遮罩、内容与背景的融合、远退的元素。两端完全淡出，中间最实。</div>
+        <div class="param">高度 20–60px · 两端淡出 45% · 水平方向</div>
+      </div>
+
+      <div class="motif">
+        <div class="art">
+          <svg viewBox="0 0 130 60" width="130" height="60">
+            <rect x="6" y="26" width="118" height="9" fill="#26383B" opacity=".85"/>
+            <rect x="6" y="37" width="118" height="3" fill="#3F6B77" opacity=".5"/>
+            <rect x="6" y="42" width="118" height="2" fill="#4E5658" opacity=".3"/>
+            <rect x="6" y="46" width="118" height="1.5" fill="#4E5658" opacity=".18"/>
+          </svg>
+        </div>
+        <b>水面镜</b>
+        <div class="use">页脚、脚注区、画面底部的压边、章节收束。极低对比的横向反射，几乎看不出边界。</div>
+        <div class="param">自上而下 4 层 · 明度每层减 30% · 无描边</div>
+      </div>
+    </div>
+
+    <h3>材质与光影</h3>
+    <table>
+      <tbody>
+        <tr><td style="width:180px">内部透光</td><td>冰的蓝是从内部透出来的。元素用 92%–96% 不透明度并让底层微微透出，比实心色更有冰的通透感。只在彩色块上做，灰块保持实心。</td></tr>
+        <tr><td>颗粒最轻</td><td>整页叠 2%–3% 灰噪点。这张照片是干净的雾，颗粒比海面那套（4%–6%）少一半。颗粒重了会读成「划痕」。</td></tr>
+        <tr><td>不做虚化分层</td><td>这张照片景深极大，全画面都是清晰的。远近关系交给明度，不要用模糊——这是海面那套的规则，不适用于这里。</td></tr>
+        <tr><td>冷暖对照为零</td><td>没有暖色，所以不存在冷暖对比。层次全部靠明度——这是四级明度（雾白 / 冰蓝 / 冰芯 / 玄水）要拉开的原因。</td></tr>
+        <tr><td>图标</td><td>线性图标 stroke 1–1.5px，圆头，但转折处用尖角。优先用切面、层、孔这三类变体。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 07 ========== -->
+  <section id="s7">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">07</span><h2>动效</h2></div>
+    </div>
+    <p class="lead">核心是<strong>慢到几乎不动</strong>。冰在漂，但它用了几百年才漂到这里——时间尺度本身就是这套调性要表达的东西之一。与海面那套的区别在于：那里是「水在流」，这里是「冰在等」。</p>
+
+    <table>
+      <thead><tr><th style="width:150px">用途</th><th style="width:250px">动作</th><th style="width:130px">时长</th><th>缓动</th></tr></thead>
+      <tbody>
+        <tr><td>背景漂移</td><td>水平位移，位移量极小（画面宽度的 1.5%–2%），无限往返</td><td class="num">40 – 60 s</td><td class="ease">linear</td></tr>
+        <tr><td>雾起雾落</td><td>雾带从一侧漫过整屏，再散开</td><td class="num">1200 – 1600 ms</td><td class="ease">cubic-bezier(.4,0,.2,1)</td></tr>
+        <tr><td>元素浮出</td><td>从雾中显形：blur 8px → 0 + 上移 8px + 淡入</td><td class="num">900 – 1200 ms</td><td class="ease">cubic-bezier(.22,1,.36,1)</td></tr>
+        <tr><td>灰纹沉积</td><td>灰纹逐条显现，自上而下依次出现，间隔 120ms</td><td class="num">每条 400 ms</td><td class="ease">ease-out</td></tr>
+        <tr><td>数据生长</td><td>面积块从下沿向上撑开，数值同步跳动</td><td class="num">1000 – 1400 ms</td><td class="ease">cubic-bezier(.33,1,.68,1)</td></tr>
+        <tr><td>章节转场</td><td>整屏被雾吞掉 → 换内容 → 雾散开</td><td class="num">1400 ms</td><td class="ease">cubic-bezier(.4,0,.2,1)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>五条节奏规则</h3>
+    <table>
+      <tbody>
+        <tr><td style="width:200px">比海面再慢一倍</td><td>背景循环 40–60 秒（海面是 20 秒）。入场反而要快一点——雾散得比水流得快，900–1200ms 即可。</td></tr>
+        <tr><td>位移极小</td><td>漂移量不超过画面宽度的 2%。冰的移动应该处于「看得出在动，但说不清动了多少」的临界点。</td></tr>
+        <tr><td>转场用雾，不用推</td><td>这套语言里唯一正确的转场是雾的浓度变化。横向推移、滑动、缩放都属于海面那套，不属于这里。</td></tr>
+        <tr><td>浮出要带模糊</td><td>入场必须走 blur→0，而不是纯淡入。从雾里显形和从透明变实，观感差别很大。</td></tr>
+        <tr><td>只做位移、模糊、透明度</td><td>不做旋转、不做缩放、不做 3D。冰不会翻滚，也不会弹跳。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 08 ========== -->
+  <section id="s8">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">08</span><h2>图文搭配</h2></div>
+    </div>
+    <div class="rules">
+      <div class="rule c"><h4>照片要提亮，不要压暗</h4><p>这张照片本身很亮很平。压字前叠 30% 雾白蒙版并抬一档亮度，让文字有落脚点——跟深色照片的处理方向正好相反。</p></div>
+      <div class="rule d"><h4>文字落在冰体亮面</h4><p>灰纹密集的地方不压字。选冰体的受光面或雾区，那里明度最高、对比最干净。</p></div>
+      <div class="rule s"><h4>满版克制使用</h4><p>这张图有明确的具象主体（那块浮冰），不是纯纹理。满版铺图控制在总页数的 1/4 以内，其余用雾画布排版。</p></div>
+      <div class="rule i"><h4>按层组织内容</h4><p>内容结构优先用「层」的隐喻：不是一二三四条平行列出，而是自上而下叠压——最上面是最新的，最下面是最早的。这跟灰纹的语义一致。</p></div>
+      <div class="rule c"><h4>单屏更少字</h4><p>单屏不超过 25 字。这套调性靠空和慢撑场，字多了雾就被填满了。</p></div>
+      <div class="rule d"><h4>统一调色</h4><p>所有照片套同一条：曝光 +0.25、对比 -8、高光 +6、阴影 +12、色温 -8（偏冷）、青色饱和 +10。重点是把暗部提起来，压平对比。</p></div>
+    </div>
+
+    <h3>这套适合讲什么</h3>
+    <table>
+      <tbody>
+        <tr><td style="width:180px">时间与沉积</td><td>几十年、几百年的变化，逐年累加的过程，冰川、地层、考古、长期投资、复利。灰纹的时间轴语义在这里最成立。</td></tr>
+        <tr><td>严肃与克制</td><td>研究报告、气候与环境、医疗与公共卫生、审计与合规。没有暖色、没有情绪起伏，天然不带倾向性。</td></tr>
+        <tr><td>慢变量</td><td>变化极小但不可逆的趋势。这套比任何一套都适合表达「几乎看不出，但一直在变」。</td></tr>
+        <tr><td>不适合</td><td>需要行动号召、需要热情、需要庆祝的内容。这套语言里没有「喊」的语气，硬套会显得冷得莫名其妙。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ========== 09 ========== -->
+  <section id="s9">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">09</span><h2>可复用 Token</h2></div>
+    </div>
+    <p class="muted">直接粘进 HTML / 视频工程的样式表，命名与前面的色卡一一对应。</p>
+
+<pre><span class="c">/* Cco Rest · 冰川层理 · v1 */</span>
+<span class="k">:root</span> {
+  <span class="c">/* 中性 · 面积与结构 */</span>
+  <span class="k">--fog</span>:        <span class="v">#E9EBE8</span>;  <span class="c">/* 雾白 · 默认画布 */</span>
+  <span class="k">--paper</span>:      <span class="v">#F4F6F4</span>;  <span class="c">/* 纸 · 卡片浮层 */</span>
+  <span class="k">--cloud</span>:      <span class="v">#CDD3D2</span>;  <span class="c">/* 云灰 · 分区/网格 */</span>
+  <span class="k">--stone</span>:      <span class="v">#98A0A1</span>;  <span class="c">/* 岩灰 · 中性/对照 */</span>
+  <span class="k">--ash</span>:        <span class="v">#4E5658</span>;  <span class="c">/* 炭纹 · 正文/分层线 */</span>
+  <span class="k">--ink</span>:        <span class="v">#26383B</span>;  <span class="c">/* 玄水 · 深底/结论 */</span>
+
+  <span class="c">/* 青 · 唯一的色相 */</span>
+  <span class="k">--ice</span>:        <span class="v">#A6D0D7</span>;  <span class="c">/* 冰蓝 · 只做面积 */</span>
+  <span class="k">--core</span>:       <span class="v">#5E9AA8</span>;  <span class="c">/* 冰芯 · 主序列/签名色 */</span>
+  <span class="k">--deep-ice</span>:   <span class="v">#3F6B77</span>;  <span class="c">/* 幽蓝 · 次序列/轴线 */</span>
+  <span class="k">--crystal</span>:    <span class="v">#F5F8F7</span>;  <span class="c">/* 冰晶白 · 霜边/极值 */</span>
+
+  <span class="c">/* 文字 */</span>
+  <span class="k">--txt</span>:        <span class="v">#26383B</span>;
+  <span class="k">--txt-2</span>:      <span class="v">#5E6869</span>;
+  <span class="k">--txt-3</span>:      <span class="v">#8A9394</span>;
+
+  <span class="c">/* 分层构图 · 三段式 */</span>
+  <span class="k">--band-fog</span>:   <span class="v">22%</span>;     <span class="c">/* 上 · 雾 · 纯留白 */</span>
+  <span class="k">--band-ice</span>:   <span class="v">50%</span>;     <span class="c">/* 中 · 冰 · 内容区 */</span>
+  <span class="k">--band-water</span>: <span class="v">28%</span>;     <span class="c">/* 下 · 水 · 压底带 */</span>
+
+  <span class="c">/* 形状与光影 */</span>
+  <span class="k">--radius</span>:       <span class="v">2px</span>;   <span class="c">/* 圆角归零 */</span>
+  <span class="k">--skew</span>:         <span class="v">6deg</span>;  <span class="c">/* 切面斜角 6°–14° */</span>
+  <span class="k">--shadow</span>:       <span class="v">0 8px 40px rgba(38,56,59,.10)</span>;
+  <span class="k">--frost</span>:        <span class="v">inset 0 0 0 1px rgba(245,248,247,.70)</span>;
+  <span class="k">--line-ink</span>:     <span class="v">1px solid rgba(38,56,59,.12)</span>;
+  <span class="k">--strata</span>:       <span class="v">2px solid rgba(78,86,88,.55)</span>;
+  <span class="k">--grain</span>:        <span class="v">.025</span>;  <span class="c">/* 噪点 · 比常规轻 */</span>
+
+  <span class="c">/* 字体 */</span>
+  <span class="k">--weight-body</span>:   <span class="v">400</span>;    <span class="c">/* 只用 300/400/500 */</span>
+  <span class="k">--tracking-title</span>:<span class="v">.12em</span>;  <span class="c">/* 全套最宽字距 */</span>
+  <span class="k">--tracking-body</span>: <span class="v">.02em</span>;
+
+  <span class="c">/* 节奏 · 比常规慢一个半数量级 */</span>
+  <span class="k">--ease-drift</span>:  <span class="v">cubic-bezier(.22,1,.36,1)</span>;
+  <span class="k">--ease-fog</span>:    <span class="v">cubic-bezier(.4,0,.2,1)</span>;
+  <span class="k">--t-in</span>:         <span class="v">1100ms</span>;
+  <span class="k">--t-fog</span>:        <span class="v">1400ms</span>;  <span class="c">/* 雾起雾落 */</span>
+  <span class="k">--t-drift</span>:      <span class="v">50s</span>;     <span class="c">/* 背景漂移循环 */</span>
+  <span class="k">--blur-in</span>:      <span class="v">8px</span>;     <span class="c">/* 浮出起始模糊 */</span>
+}</pre>
+  </section>
+
+  <!-- ========== 10 ========== -->
+  <section id="s10">
+    <div class="sec-head">
+      <div class="sec-line"><span class="sec-num">10</span><h2>应用示例</h2></div>
+    </div>
+    <p class="muted" style="margin-bottom:4px">四个典型版式，可直接当模板用。</p>
+
+    <div class="demos">
+      <div class="demo d-a">
+        <div class="wk">GLACIAL STRATA</div>
+        <div class="ttl">冰记得<br><i>每一年的灰</i></div>
+        <div class="ln"></div>
+        <div class="lbl">封面页 · 雾白底 + 底部压边带</div>
+      </div>
+
+      <div class="demo d-b">
+        <div class="h">冰龄 <span style="color:var(--txt-3)">年</span></div>
+        <div class="big">1,240</div>
+        <div class="cap">灰纹夹层数：31 · 最近一次沉积 1918 年</div>
+        <div class="cols">
+          <i style="height:34%"></i><i style="height:52%"></i><i style="height:92%"></i><i style="height:64%"></i><i style="height:78%"></i>
+        </div>
+        <div class="lbl">数据页 · 冰芯主序列 + 玄水极值</div>
+      </div>
+
+      <div class="demo d-c">
+        <div class="strata" style="top:26%;height:2px"></div>
+        <div class="strata" style="bottom:26%;height:2px;background:rgba(166,208,215,.18)"></div>
+        <div class="q">最上面那层灰落下时，<br>下面已经压了 <b>九百年</b>。</div>
+        <div class="lbl">金句页 · 玄水反白 + 上下灰纹</div>
+      </div>
+
+      <div class="demo d-d">
+        <div class="rowline"><span class="n">01</span><span style="flex:0 0 84px">雾层</span><span class="bar"><i style="width:88%"></i></span></div>
+        <div class="rowline"><span class="n">02</span><span style="flex:0 0 84px">浮冰层</span><span class="bar"><i style="width:62%"></i></span></div>
+        <div class="rowline"><span class="n">03</span><span style="flex:0 0 84px">灰纹夹层</span><span class="bar"><i style="width:36%"></i></span></div>
+        <div class="rowline"><span class="n">04</span><span style="flex:0 0 84px">水层</span><span class="bar"><i style="width:14%"></i></span></div>
+        <div class="lbl">列表页 · 用横向分层线代替卡片</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Cco Rest · 冰川层理 视觉色彩规范 v1</span>
+    <span>取自 ccorest-iceland-8498630 · 单文件 HTML，无外部依赖</span>
+  </footer>
+
+</div>
+</body>
+</html>
