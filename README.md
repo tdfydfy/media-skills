@@ -2,7 +2,10 @@
 
 视频创作类 Skill 集合，配套 [Codex CLI](https://github.com/openai/codex)、[Claude Code](https://docs.claude.com/en/docs/claude-code) 与 WorkBuddy 使用。
 
-当前是一套**信息图视频流水线**：把文稿、逐字稿或 SRT 变成成片或透明素材。产物是一份脚本 JSON 和单文件 HTML，环与环之间只靠约定好的文件与属性通信，不互相越界。
+当前有**两条信息图视频流水线**，产物都是一份脚本 JSON 和单文件 HTML，环与环之间只靠约定好的文件与属性通信，不互相越界。
+
+- **整屏流水线**（`ivh-script-*` → `ivh-standalone` / `ivh-overlay` → `ivh-render`）：把文稿、逐字稿或 SRT 变成成片或透明素材，画面**铺满整屏**。
+- **叠加流水线**（`ivh-next`）：拿**别人的口播成片 + SRT**，产出几块贴在剪辑软件里的**透明强调素材**。见下方「另一条线：ivh-next」。
 
 ## 流水线
 
@@ -49,7 +52,7 @@
 | --- | --- |
 | [ivh-script-core](./ivh-script-core) | ① 两个脚本技能共用的**契约与工具**：`script-format.md`（JSON 契约）、`text-layers.md`、`distillation.md`、`chart-choices.md`、`scripts/parse-srt.mjs`、`scripts/check-script.mjs` |
 | [ivh-html-core](./ivh-html-core) | ②③④ 共用的**产物契约与词汇表**：`interop.md`（`data-*` 属性与运行时名字）、`components.md`（组件库 15 种 + 动效清单）、`visual-styles.md`（六风格规格） |
-| [design-specs](./design-specs) | **风格规范库（设计资产，不是运行时契约）**：6 套完整视觉语言，每套 `design-spec.html` + `design-spec.md` + `cover.jpg`；入口是 `index.html`（定位图 + 卡片 + 横向对比表 + 十六格检查表）；`motion-spec.md` 是**动效公共层** |
+| [design-specs](./design-specs) | **风格规范库（设计资产，不是运行时契约）**：6 套完整视觉语言，每套 `design-spec.html` + `design-spec.md` + `cover.jpg`；入口是 `index.html`（定位图 + 卡片 + 横向对比表 + 十六格检查表）；`motion-spec.md` 是**动效公共层**。它服务**整屏流水线**；`ivh-next` 的风格在 `ivh-next/styles/` 下，两边不共用 |
 
 **它们都没有 `SKILL.md`，不会被当成技能加载。** `ivh-script-core` / `ivh-html-core` 是流水线的共享契约，靠相对路径 `../ivh-*-core/…` 被引用；`design-specs` 是**给人（和 AI）看的设计资产库**，不参与运行时，也不被任何技能的 `SKILL.md` 引用。
 
@@ -58,6 +61,43 @@
 > `components.md` 的组件库与动效表，两份各有约 150 行字面重复。
 > 下游拿到哪一份，行为就变一次，而且没人知道变了。
 
+## 另一条线：ivh-next
+
+上面那套是**整屏**的思路：每一句口播都配一块画面。如果画面本身是别人拍好的**口播视频**，
+你只想在关键处往上叠几块强调素材，走 `ivh-next` —— 它读同一份 SRT，但产物是给剪辑软件用的
+透明贴片（1080×1440），**自带不透明承载板**，所以叠在任何画面上都读得清。
+
+```text
+别人的口播成片 + SRT
+        │
+        ▼
+①  提取       extract.md + 该风格 spec.md      →  脚本.json      ← 闸门 1：文本
+        │
+        ▼
+②  生成 HTML  build.md + template.html 样板间   →  脚本.html      ← 闸门 2：效果
+        │
+        ▼
+③  ivh-render                                   →  透明 .mov / .webm
+```
+
+**它不是 Skill，没有 `SKILL.md`** —— 是一套「文档即提示词」的流程，照着读的文档就是提示词：
+
+| 文件 | 讲什么 |
+| --- | --- |
+| [ivh-next/extract.md](./ivh-next/extract.md) | ① 的提示词。挑哪句、压成什么字、认哪种关系、落在第几秒 |
+| [ivh-next/build.md](./ivh-next/build.md) | ② 的提示词。从脚本 JSON 到 HTML 的机械动作，含逐 `kind` 的填法表 |
+| `ivh-next/styles/<风格>/spec.md` | 这一风格把这些关系**画成什么**、容量、硬约束、动效配方 |
+| `ivh-next/styles/<风格>/template.html` | 引擎 + 样板间 + 产物区。**② 只抄样板间** |
+
+> **别再另外维护一份「提示词」** —— 提示词和规范分开写，两边必然会漂。
+
+| 风格 | 设计语言 |
+| --- | --- |
+| `soft-relief` · 柔面凸凹 | 整个画面只有一个颜色，靠同一道光源的两侧柔影把东西托起 / 压下 |
+| `neon-terminal` · 赛博朋克 | 荧光绿发光；壳分括标 / 折叠 / 亮条 / 无壳四档 |
+
+风格之间**从设计语言到形状完全无关**，不考虑继承、复用、族。加新风格要做什么、怎么跑、
+两道闸门各自的门规，都在 [ivh-next/README.md](./ivh-next/README.md)。
 ## 两道闸门
 
 机器只做「读文本」层面的校验，任何「好不好看」的判断都交给用户：
@@ -95,7 +135,7 @@ node ivh-render/scripts/check-alpha.mjs 素材.mov                   # alpha 真
   `meta.contentType` 决定圈什么当屏幕字（`data` / `narrative` / `drama` / `opinion`）。**两轴正交。**
 - **时间码来自音轨，不是估的**：两条支线都拿 SRT / ASR 的真实时间码做基准，
   只有手上连音频都没有时才按 `字/4.5` 估算；透明素材的时间码必须来自宿主音轨，它贴的是别人拍好的画面。
-- **六个视觉风格**：`doodle` 手绘科普 · `riso` 潮流观点 · `blueprint` 技术工程 · `minimal` 商务数据 · `neon` 科技发布 · `pixel` 复古趣味。风格由用户在 ① 选定，下游取全套变量，不各自发挥。
+- **六个视觉风格（整屏流水线专用）**：`doodle` 手绘科普 · `riso` 潮流观点 · `blueprint` 技术工程 · `minimal` 商务数据 · `neon` 科技发布 · `pixel` 复古趣味。风格由用户在 ① 选定，下游取全套变量，不各自发挥。
 - **三层文本**：口播稿（给听，15~40 字/句）、整屏标题（给看，≤2 行 × ≤12 字）、信息卡与标签（≤14 字/行，标签 ≤6 字）。屏幕字念出来不应与口播重复。
 - **提炼先于排版**：屏幕字来自一条压缩链（抓手 → 论点 → 主张 → 屏幕字），主张必须**能被反驳**；每个位置写 5 个候选再挑 1 个。方法与判据见 `ivh-script-core/distillation.md`。
 - **素材模式自动跳过空档**：透明素材只渲染「有内容的帧」，空档复用一张实测全透明的帧 —— 30s 素材的渲染帧数约降到 4 成，成品逐字节不变。
