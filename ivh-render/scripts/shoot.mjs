@@ -38,14 +38,21 @@
  *   auto  先试 cdp，两种传输都连不上才退回 cli。两条路的画面逐像素一致，回退只影响耗时。
  *
  * 抽帧并行度（--workers）：
- *   默认 核数 − 2（留给系统与 ffmpeg），上限 6；`--workers N` / IVH_WORKERS 可覆盖。
+ *   默认「逻辑核 − 2」，两端封顶：≤8 逻辑核封 3，其余封 16（留给系统与 ffmpeg）；
+ *   `--workers N` / IVH_WORKERS 可覆盖。
  *   实现是「多进程」：每路一个 node 子进程 + 一个独立浏览器。不在一进程里并发几个
  *   浏览器，是因为 CDP 消息的 JSON.parse 与 base64 解码发生在 node 这一侧，
  *   合在一个进程里会挤在同一个核上 —— 分进程后每路各占一个核。
- *   ★ 但别指望 ÷N：实测 8 逻辑核 / 1920×1080 / 374 帧 —— 1 路 51s、3 路 29s（1.76×）、
- *     6 路 30s。超线程对 zlib 几乎无效（PNG 编码吃的是物理核），3 路就把这台 4 物理核
- *     的机器吃满了，再加路数只是多起进程。跨路数渲染的**同一帧逐字节相同**
- *     （374/374 MD5 一致）—— 并行只动速度，不动画面。换机器要重标。
+ *   ★ 饱和点跟机器走，差得很远，所以默认值必须分档 —— 实测两个样本：
+ *       笔记本 8 逻辑核 / 4 物理核 / 1920×1080 / 374 帧：
+ *         1 路 51s、3 路 29s（1.76×）、6 路 30s —— 3 路就把 4 物理核吃满了；
+ *       台式 i5-14600K 20 逻辑核 / 14 物理核 / 1080×1440 / 3072 帧实渲染：
+ *         6 路 39.4s、10 路 28.1s、16 路 24.5s —— 到 16 路仍在线性区，没见拐点。
+ *     超线程对 zlib 几乎无效（PNG 编码吃的是物理核），两个饱和点的差距主要来自物理核数。
+ *     换机器要重标这两行。
+ *   ★ 跨路数**不是**逐字节相同：台式上 6 路 vs 16 路有 90/4105 帧差 1~2 个色阶
+ *     （PSNR 64 dB，肉眼是同一帧），而 6 vs 6、16 vs 16 各自 4105/4105 完全一致 ——
+ *     渲染是「分片布局的确定性函数」。**要逐字节比对，必须同路数。**
  *   ★ worker 只负责抓帧，不跑 ffmpeg。编码只占出片总耗时 4%（93 帧/秒 vs 抽帧 8 帧/秒），
  *     分 N 次编再 concat 只是多一道工序、多一处参数必须完全一致的风险。分片是
  *     「捕获侧的工作单位」，不是「输出单位」。
@@ -105,10 +112,11 @@ const KEEP_FRAMES = argv.includes("--keep-frames");
 const GPU = argv.includes("--gpu");
 if (GPU) process.env.IVH_GPU = "1";
 
-/* ---------- 并行度：核数 − 2，上限 6 ---------- */
+/* ---------- 并行度：逻辑核 − 2，小机器封 3、大机器封 16（见文件头「抽帧并行度」） ---------- */
+const WORKER_CAP = os.cpus().length <= 8 ? 3 : 16;
 const resolveWorkers = () => {
   const override = Number(getArg("--workers", 0)) || Number(process.env.IVH_WORKERS || 0);
-  const auto = Math.max(1, Math.min(os.cpus().length - 2, 6));
+  const auto = Math.max(1, Math.min(os.cpus().length - 2, WORKER_CAP));
   return Math.max(1, Math.min(override || auto, 16));
 };
 const WORKERS = resolveWorkers();
@@ -356,7 +364,7 @@ const captureInParallel = async (times, tag, W) => {
   });
 
   console.log(`[shoot] 并行抽帧 ${jobs.length} 路 × 约 ${chunk} 帧/路`
-    + `（本机 ${os.cpus().length} 逻辑核 − 2 预留，上限 6）`);
+    + `（本机 ${os.cpus().length} 逻辑核 − 2 预留，上限 ${WORKER_CAP}）`);
 
   const run = j => new Promise(resolve => {
     const a = [fileURLToPath(import.meta.url), FILE, "--out", outDir, "--scale", String(SCALE),

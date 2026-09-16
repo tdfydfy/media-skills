@@ -10,7 +10,7 @@
  *   node scripts/render.mjs <产物.html> --no-verify        # 跳过透明通道复检
  *   node scripts/render.mjs <产物.html> --no-reuse-blank   # 素材模式空档不复用（逐帧老实渲染）
  *   node scripts/render.mjs <产物.html> --keep-frames      # 保留 seq/ 中间帧（默认出完即清）
- *   node scripts/render.mjs <产物.html> --workers 4        # 抽帧并行路数（默认 核数−2，上限 6）
+ *   node scripts/render.mjs <产物.html> --workers 4        # 抽帧并行路数（默认 逻辑核−2，小机器封 3、大机器封 16）
  *   node scripts/render.mjs <产物.html> --gpu              # 放开 GPU 光栅化（默认关，只值 15%）
  *
  * 它做三件事，按顺序：
@@ -161,15 +161,18 @@ const RENDER_EST = reuseBlank ? plan.activeTimes.length + 1 : FRAMES_EST;
    单帧 1920×1080：seek+双rAF 0.011s + 抓取 0.120s（optimizeForSpeed 快压后）
                  = 0.131s（软件光栅化，单路实测）/ 约 0.11s（开 GPU，按 −15% 折）
    逐帧浏览器（cli 回退）1.1s/帧。
-   并行提速有上限，实测标定：8 逻辑核 / 1920×1080 / 374 帧 —— 1 路 51s、3 路 29s（1.76×）、
-   6 路 30s。超线程对 zlib 几乎无效（PNG 编码吃的是物理核），可用容量 ≈ 逻辑核 / 4.5。
-   不要做「W × 系数」的线性外推 —— 实测 6 路的收益与 3 路完全一样。 */
+   并行提速的饱和点跟机器走，差得很远 —— 实测两个样本：
+     笔记本 8 逻辑核 / 4 物理核：3 路就满了（1.76×），再加只是多起进程；
+     台式 i5-14600K 20 逻辑核 / 14 物理核：6 路 39.4s、10 路 28.1s、16 路 24.5s，仍在线性区。
+   所以 SPEEDUP 取 逻辑核 / 1.6（本机 20 逻辑核 → 12.5×）。小机器会被 3 路的封顶拉低，
+   那时预估值偏大 —— 这条 ETA 只用来判断「半分钟还是十分钟」，不追求精确。 */
+const WORKER_CAP = os.cpus().length <= 8 ? 3 : 16;
 const WORKERS = Math.max(1, Math.min(
   Number(getArg("--workers", 0)) || Number(process.env.IVH_WORKERS || 0)
-    || Math.max(1, Math.min(os.cpus().length - 2, 6)), 16));
+    || Math.max(1, Math.min(os.cpus().length - 2, WORKER_CAP)), 16));
 const GPU = has("--gpu");
 const PER_FRAME = GPU ? 0.111 : 0.131;
-const SPEEDUP = WORKERS > 1 ? Math.min(WORKERS, Math.max(1, os.cpus().length / 4.5)) : 1;
+const SPEEDUP = WORKERS > 1 ? Math.min(WORKERS, Math.max(1, os.cpus().length / 1.6)) : 1;
 const FAST_SEC = RENDER_EST * PER_FRAME / SPEEDUP, SLOW_SEC = RENDER_EST * 1.1;
 const fmt = s => s < 90 ? `${s.toFixed(0)}s` : `${(s / 60).toFixed(1)}min`;
 console.log(`\n[render] 采样 ${SAMPLE_FPS}fps（step=${STEP.toFixed(3)}s${ON_GRID ? " · 落在帧栅格上" : ""}）→ 约 ${FRAMES_EST} 帧 · 输出 ${OUT_FPS}fps CFR`);
@@ -180,7 +183,7 @@ if (reuseBlank) {
     + ` → 只渲染 ${plan.activeTimes.length} 帧（+1 张空档帧），其余 ${FRAMES_EST - plan.activeTimes.length} 帧复用，画面不变`);
 }
 console.log(`[render] 抽帧引擎：单浏览器引擎 ${WORKERS} 路并行`
-  + `（本机 ${os.cpus().length} 逻辑核 − 2 预留，上限 6${GPU ? " · 已放开 GPU 光栅化" : ""}）`);
+  + `（本机 ${os.cpus().length} 逻辑核 − 2 预留，上限 ${WORKER_CAP}${GPU ? " · 已放开 GPU 光栅化" : ""}）`);
 console.log(`[render] 预计耗时：单浏览器引擎约 ${fmt(FAST_SEC)}；回退到逐帧浏览器约 ${fmt(SLOW_SEC)}`);
 if (SLOW_SEC > 900 && preset === "normal" && !has("--step")) {
   console.log(`  ! 帧数偏多。先用 --preset draft 出一版看效果，满意再出 ${preset}。`);
