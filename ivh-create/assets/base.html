@@ -43,6 +43,23 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 <input id="seek" type="range" min="0" max="1" step="0.001" value="0" aria-label="播放进度">
 </nav>
 <script>
+/*
+  可选效果层 —— 不写下面这些属性时，引擎行为与旧版逐字一致（只有默认的淡入上浮）。
+
+    .comp[data-enter="none"]   关掉默认入场，入场完全交给 CSS
+    元素[data-anim="NAME"]     CSS 关键帧的入场/退场挂点；元素放在卡片内部即可
+    [data-to]                  数字跳涨，配 data-prefix / data-suffix / data-dur / data-dec / data-group
+    [data-grow="0~1"]          生长量写进 --grow；带 .arc 的 SVG 圆改走 stroke-dash
+
+  引擎在每个 .comp 上写四个自定义属性和两个类，CSS 靠它们读相位：
+    --hold   距入场多少秒（入场与持续态用）
+    --exit   距退场起点多少秒（退场用；退场起点 = data-out 前 240ms）
+    --entry  入场进度 0~1        --glow 角括标呼吸值
+    in       卡片在场             out 卡片正在退场
+
+  相位只由当前 t 算出，与墙钟和播放顺序无关 —— 同一秒永远同一帧。
+  CSS 里固定写成：animation:… both paused; animation-delay:calc(var(--hold,0s) * -1)
+*/
 const CONFIG = {
   PURPOSE: 'overlay', BASE: 'timeline', BG: 'transparent',
   RATIO: '3:4', STYLE: 'custom', ANIMATE: true, HIDE_HUD: true
@@ -54,7 +71,10 @@ const CONFIG = {
   const cards = [...document.querySelectorAll('#track > .comp')].map(el => {
     const start = Number(el.dataset.in), end = Number(el.dataset.out);
     if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) throw new Error('Invalid card interval: ' + el.id);
-    return {el, start, end, reveals: [...el.querySelectorAll('[data-reveal]')].map(node => {
+    return {el, start, end, plain: el.dataset.enter === 'none',
+      nums: [...el.querySelectorAll('[data-to]')],
+      grows: [...el.querySelectorAll('[data-grow]')],
+      reveals: [...el.querySelectorAll('[data-reveal]')].map(node => {
       const at = Number(node.dataset.reveal);
       if (!Number.isFinite(at) || at < start || at >= end) throw new Error('Invalid reveal time: ' + el.id);
       return {node, at};
@@ -71,10 +91,36 @@ const CONFIG = {
       const enter = ease((current - c.start) / .42);
       const leave = clamp((c.end - current) / .24);
       c.el.style.visibility = active ? 'visible' : 'hidden';
-      c.el.style.opacity = active ? (enter * leave).toFixed(6) : '0';
-      c.el.style.transform = `translateY(${((1-enter)*24+(1-leave)*-10).toFixed(4)}px) scale(${(.974+.026*enter).toFixed(6)})`;
+      c.el.classList.toggle('in', active);
+      c.el.classList.toggle('out', leave < 1);
+      c.el.style.setProperty('--hold', Math.max(0, current - c.start).toFixed(3) + 's');
+      c.el.style.setProperty('--exit', Math.max(0, Math.min(.24, current - (c.end - .24))).toFixed(3) + 's');
+      if (c.plain) {
+        c.el.style.opacity = active ? leave.toFixed(6) : '0';
+        c.el.style.transform = '';
+      } else {
+        c.el.style.opacity = active ? (enter * leave).toFixed(6) : '0';
+        c.el.style.transform = `translateY(${((1-enter)*24+(1-leave)*-10).toFixed(4)}px) scale(${(.974+.026*enter).toFixed(6)})`;
+      }
       c.el.style.setProperty('--glow', (.72 + .12 * Math.sin((current-c.start)*2)).toFixed(6));
       c.el.style.setProperty('--entry', enter.toFixed(6));
+      const elapsed = current < c.start ? 0 : (active ? current - c.start : 1e9);
+      for (const n of c.nums) {
+        const to = Number(n.dataset.to) || 0;
+        let text = (to * Math.min(1, elapsed / (Number(n.dataset.dur) || 1))).toFixed(Number(n.dataset.dec) || 0);
+        if (n.dataset.group === '1') text = text.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        n.textContent = (n.dataset.prefix || '') + text + (n.dataset.suffix || '');
+      }
+      for (const g of c.grows) {
+        const amount = Math.min(1, elapsed / (Number(g.dataset.dur) || 1)) * (Number(g.dataset.grow) || 0);
+        if (g.classList.contains('arc')) {
+          const radius = Number(g.getAttribute('r')) || 78, perimeter = 2 * Math.PI * radius;
+          g.style.strokeDasharray = perimeter.toFixed(2);
+          g.style.strokeDashoffset = (perimeter * (1 - amount)).toFixed(2);
+        } else {
+          g.style.setProperty('--grow', amount.toFixed(4));
+        }
+      }
       for (const r of c.reveals) {
         const progress = ease((current-r.at)/.32);
         r.node.style.opacity = progress.toFixed(6);
