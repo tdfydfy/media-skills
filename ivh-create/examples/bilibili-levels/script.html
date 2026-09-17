@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B 站升级 · 霓虹终端</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:transparent}body{font-family:"Microsoft YaHei","PingFang SC",sans-serif}
+#viewport{width:1080px;height:1440px}#stage{position:relative;width:1080px;height:1440px;overflow:hidden;transform-origin:top left}
+#track{position:absolute;inset:0;display:grid;place-items:center}.comp{grid-area:1/1;visibility:hidden;opacity:0;will-change:transform,opacity}
+[data-reveal]{opacity:0}.preview-header,.controls{display:none}
+body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-direction:column;align-items:center;padding:20px 16px 104px}
+.view .preview-header{display:flex;align-items:center;justify-content:space-between;gap:24px;width:min(920px,100%);max-width:calc(100vw - 32px);min-width:0;margin-bottom:16px;font-size:13px;color:#8baba0}
+.preview-header strong{color:#e8f2ed;font-size:15px;font-weight:500}
+.view #viewport{background-color:#17221d;background-image:linear-gradient(45deg,#1c2822 25%,transparent 25%,transparent 75%,#1c2822 75%),linear-gradient(45deg,#1c2822 25%,transparent 25%,transparent 75%,#1c2822 75%);background-size:32px 32px;background-position:0 0,16px 16px;box-shadow:0 0 0 1px #33463d}
+.view .controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;position:fixed;bottom:16px;width:min(920px,calc(100% - 32px));max-width:calc(100vw - 32px);min-width:0;padding:14px 16px;background:#13221af5;border:1px solid #3b5947;border-radius:12px;box-shadow:0 10px 36px #0007;z-index:100}
+.controls button,.controls select{border:1px solid #46604f;background:#243a2c;color:#e8f2ed;border-radius:6px;padding:7px 10px;font:inherit;font-size:13px;cursor:pointer}.controls button:hover{background:#36543e}
+.controls button:focus-visible,.controls select:focus-visible,.controls input:focus-visible{outline:2px solid #39ff6a;outline-offset:3px}
+.controls select{flex:1;min-width:160px;max-width:340px}.controls output{margin-left:auto;font:12px Consolas,monospace;color:#9cbbab}
+.controls input{flex-basis:100%;width:100%;accent-color:#39ff6a;cursor:pointer}
+@media (max-width:600px){
+  body.view{padding:16px 16px 124px}
+  .view .preview-header{gap:10px;font-size:11px}
+  .preview-header strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+  .view .preview-header span{flex:none}
+  .view .controls{bottom:10px;gap:8px;padding:12px}
+  .controls button{padding:7px 9px}
+  .controls select{order:1;flex:1 1 180px;min-width:180px;max-width:none}
+  .controls output{order:1;margin-left:0;flex:none;font-size:11px}
+  .controls input{order:2}
+}
+</style>
+<style id="art-style">
+:root{--green:#39ff6a;--white:#eafff2;--muted:#92b5a1;--line:#39ff6a4d;--mono:Consolas,"Liberation Mono",monospace}
+.comp{width:844px;color:var(--white);font-family:"Microsoft YaHei","PingFang SC",sans-serif;letter-spacing:.015em}
+.panel{position:relative;padding:52px 54px;background:linear-gradient(135deg,rgba(9,29,18,.97),rgba(3,13,8,.95));border:1px solid var(--line);box-shadow:0 18px 65px #0006,inset 0 0 55px #39ff6a05}
+.panel:before,.panel:after{content:"";position:absolute;width:24px;height:24px;border-color:var(--green);border-style:solid;opacity:var(--glow,.8)}
+.panel:before{top:-2px;left:-2px;border-width:3px 0 0 3px}.panel:after{right:-2px;bottom:-2px;border-width:0 3px 3px 0}
+.eyebrow{font-size:26px;color:var(--muted);display:flex;align-items:center;gap:16px;letter-spacing:.14em;margin-bottom:32px}
+.eyebrow:before{content:"";width:36px;height:4px;background:var(--green);box-shadow:0 0 16px #39ff6a7a;transform:scaleX(var(--entry,1));transform-origin:left}
+.mono{font-family:var(--mono);letter-spacing:-.065em}.green{color:var(--green);text-shadow:0 0 30px #39ff6a38}.muted{color:var(--muted)}
+.rule{height:1px;background:linear-gradient(90deg,var(--green),#39ff6a08);margin:32px 0;transform:scaleX(var(--entry,1));transform-origin:left}
+.large{font-size:82px;font-weight:700;line-height:1.24;margin:0}.sub{font-size:34px;line-height:1.6;margin:0;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:12px;padding:10px 18px;border:1px solid #39ff6a66;color:var(--green);font-size:27px;background:#39ff6a0a}
+.tier-head{display:flex;gap:27px;align-items:center}.tier-number{font:88px/1 var(--mono);letter-spacing:-.08em;color:transparent;-webkit-text-stroke:1.5px var(--green);width:105px;flex:none}
+.tier-name{font-size:49px;font-weight:700;letter-spacing:.015em;line-height:1.32;margin:0}.tier-name.long{font-size:43px}
+.actions{font-size:30px;line-height:1.9;min-height:58px;color:#c3d9cb}.actions b{font-weight:500;color:var(--green)}
+.rate{display:flex;align-items:baseline;gap:10px;margin-top:15px}.rate strong{font:64px/1 var(--mono);color:var(--green);letter-spacing:-.06em}.rate span{font-size:27px;color:var(--muted)}
+.result{margin-top:30px;border-top:1px solid #39ff6a30;padding-top:22px}.days{font:28px/1.5 var(--mono);letter-spacing:.02em;color:var(--muted);min-height:42px}.days span{font-family:"Microsoft YaHei",sans-serif;font-size:25px}
+.years{display:flex;align-items:baseline;gap:12px;white-space:nowrap}.years small{font-size:27px;color:var(--muted)}.years strong{font:180px/1.12 var(--mono);letter-spacing:-.09em;color:var(--white);font-weight:700}.years em{font-size:46px;font-style:normal;color:var(--green)}
+.path{display:flex;align-items:center;justify-content:space-between;gap:22px}.level{font:110px/1.3 var(--mono);letter-spacing:-.06em}.level.destination{font-size:156px;color:var(--green)}.arrow{font:65px var(--mono);color:var(--green)}
+.center{text-align:center}.center .eyebrow{justify-content:center}.hero-level{font:218px/.98 var(--mono);letter-spacing:-.09em;font-weight:700;margin:18px 0 20px;text-shadow:0 0 44px #39ff6a35}.bolt{width:72px;height:106px;fill:var(--green);filter:drop-shadow(0 0 18px #39ff6a88)}
+.hero-number{font:230px/.95 var(--mono);letter-spacing:-.09em;font-weight:700}.hero-unit{font-size:56px;color:var(--green);padding-left:16px}.condition{padding:20px 26px;margin-top:34px;border-left:4px solid var(--green);background:#39ff6a0c;font-size:40px;line-height:1.4}
+.note .panel{border-left:5px solid var(--green)}.note-text{font-size:56px;line-height:1.6;margin:0}.note-text .mono{font-size:84px;color:var(--green)}
+.award{width:120px;height:110px;margin-bottom:30px;stroke:var(--green);stroke-width:2.5;fill:none;filter:drop-shadow(0 0 13px #39ff6a33)}
+.resume-row{display:flex;align-items:center;gap:24px}.resume-year{font:166px/1 var(--mono);color:var(--green);letter-spacing:-.07em}.resume-year small{font:36px "Microsoft YaHei",sans-serif}.resume-label{font-size:42px;line-height:1.55}.tag{display:inline-block;padding:14px 20px;border:1px dashed #39ff6a60;color:var(--muted);font-size:29px;margin-top:30px}
+.price{font:166px/1.1 var(--mono);letter-spacing:-.085em;font-weight:700;white-space:nowrap}.unit-line{font-size:36px;color:var(--green);margin-top:15px}.exchange{display:flex;align-items:center;gap:22px;font-size:38px;line-height:1.5}.exchange .equal{color:var(--green);font:45px var(--mono)}
+.footnote{font-size:25px;color:#b8cbbb;line-height:1.5;margin:26px 0 0}.destination-line{font-size:50px;font-weight:700;margin-top:30px;color:var(--green)}
+.caution{color:#ffc99f;border-color:#f2b57980;background:#f2b5790c}.caution:before{background:#f2b579}.cost .panel{border-color:#f2b57966}.cost .panel:before,.cost .panel:after{border-color:#f2b579}
+.request-flow{display:flex;align-items:center;justify-content:center;gap:25px}.request-flow .node{padding:22px 28px;border:1px solid #39ff6a66;font-size:47px}.request-flow .node.target{color:var(--green);background:#39ff6a0b}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:30px}.split-side{border-top:1px solid #39ff6a60;padding:26px 0 10px}.split-side small{font-size:28px;color:var(--muted)}.split-side strong{display:block;font-size:53px;margin-top:20px;font-weight:500}.win{margin:28px auto 0;width:max-content;font-size:34px;color:var(--green);letter-spacing:.2em}
+</style>
+
+</head>
+<body>
+<header class="preview-header"><strong id="preview-title">透明动画素材</strong><span>透明叠加 · 无声预览</span></header>
+<main id="viewport"><div id="stage"><div id="track">
+
+<div class="comp" id="P01" data-label="等级路径" data-in="1.900" data-out="6.766">
+  <div class="panel"><div class="eyebrow">等级之路</div><div class="path"><span class="level">LV0</span><span class="arrow">→</span><span class="level destination">LV6</span></div><div class="rule"></div><div class="sub" data-reveal="4.500">一共 <span class="green mono" style="font-size:52px">7</span> 级</div></div>
+</div>
+<div class="comp center" id="P02" data-label="闪电 LV6" data-in="8.000" data-out="13.333">
+  <div class="panel"><svg class="bolt" viewBox="0 0 72 106" aria-label="闪电"><path d="M42 0 7 58h25l-8 48 41-63H40Z"/></svg><div class="hero-level">LV6</div><div class="sub" data-reveal="9.800">评论区存在感</div></div>
+</div>
+<div class="comp" id="P03" data-label="最快 10 秒？" data-in="18.866" data-out="22.666">
+  <div class="panel"><div class="eyebrow">最快</div><div><span class="hero-number">10</span><span class="hero-unit">秒？</span></div><div class="condition" data-reveal="20.533">前提：<strong class="green">钱够</strong></div></div>
+</div>
+<div class="comp tier" id="P04" data-label="祖传遗产流" data-in="31.800" data-out="40.500">
+  <div class="panel"><div class="tier-head"><span class="tier-number">01</span><h2 class="tier-name">祖传遗产流</h2></div><div class="rule"></div><div class="actions" data-reveal="34.000">只登录</div><div class="rate" data-reveal="34.000"><strong>5</strong><span>经验 / 天</span></div><div class="result"><div class="days" data-reveal="35.733">5,760 <span>天</span></div><div class="years" data-reveal="37.500"><small>≈</small><strong>15.78</strong><em>年</em></div></div></div>
+</div>
+<div class="comp note" id="P05" data-label="遗产清单" data-in="47.700" data-out="52.733">
+  <div class="panel"><div class="eyebrow">遗产清单</div><p class="note-text">一个即将 <span class="mono">LV6</span><br>的 B 站号</p><div class="rule"></div><p class="sub" data-reveal="49.600">且登且珍惜</p></div>
+</div>
+<div class="comp tier" id="P06" data-label="佛系熬鹰流" data-in="54.933" data-out="64.866">
+  <div class="panel"><div class="tier-head"><span class="tier-number">02</span><h2 class="tier-name">佛系熬鹰流</h2></div><div class="rule"></div><div class="actions" data-reveal="57.066">登录 + <b>看视频 10 分钟</b></div><div class="rate" data-reveal="58.700"><strong>10</strong><span>经验 / 天</span></div><div class="result"><div class="days" data-reveal="59.666">2,880 <span>天</span></div><div class="years" data-reveal="59.666"><small>≈</small><strong>7.89</strong><em>年</em></div></div></div>
+</div>
+<div class="comp tier" id="P07" data-label="时间管理大师流" data-in="72.066" data-out="82.600">
+  <div class="panel"><div class="tier-head"><span class="tier-number">03</span><h2 class="tier-name long">时间管理大师流</h2></div><div class="rule"></div><div class="actions" data-reveal="74.466">登录 + 看视频 + <b>分享</b></div><div class="rate" data-reveal="75.900"><strong>15</strong><span>经验 / 天</span></div><div class="result"><div class="days" data-reveal="76.866">1,920 <span>天</span></div><div class="years" data-reveal="76.866"><small>≈</small><strong>5.26</strong><em>年</em></div></div></div>
+</div>
+<div class="comp center" id="P08" data-label="单身守恒奖" data-in="85.966" data-out="89.933">
+  <div class="panel"><svg class="award" viewBox="0 0 120 110" aria-hidden="true"><path d="M32 8h56v35c0 24-56 24-56 0V8Zm0 8H10v19c0 14 16 22 29 21m49-40h22v19c0 14-16 22-29 21M60 62v27M35 103h50M44 89h32l9 14H35Z"/></svg><h2 class="large">单身守恒奖</h2><div class="rule"></div><p class="sub" data-reveal="88.366">别人谈恋爱，你刷经验</p></div>
+</div>
+<div class="comp tier" id="P09" data-label="考研卷王流" data-in="91.333" data-out="103.600">
+  <div class="panel"><div class="tier-head"><span class="tier-number">04</span><h2 class="tier-name">考研卷王流</h2></div><div class="rule"></div><div class="actions" data-reveal="93.533">登录 + 看视频 + 分享 + <b>投 1 币</b></div><div class="rate" data-reveal="96.066"><strong>25</strong><span>经验 / 天</span></div><div class="result"><div class="days" data-reveal="96.066">1,152 <span>天</span></div><div class="years" data-reveal="98.733"><small>≈</small><strong>3.16</strong><em>年</em></div></div></div>
+</div>
+<div class="comp note" id="P10" data-label="个人简历" data-in="108.400" data-out="112.866">
+  <div class="panel"><div class="eyebrow">个人简历</div><div class="resume-row" data-reveal="110.100"><div class="resume-year">3<small> 年</small></div><div class="resume-label">B 站<br>升级经验</div></div><div class="tag" data-reveal="111.866">擅长长期主义</div></div>
+</div>
+<div class="comp tier" id="P11" data-label="究极肝帝流" data-in="116.133" data-out="125.366">
+  <div class="panel"><div class="tier-head"><span class="tier-number">05</span><h2 class="tier-name">究极肝帝流</h2></div><div class="rule"></div><div class="actions" data-reveal="116.766">登录 + 看视频 + 分享 + <b>投 5 币</b></div><div class="rate" data-reveal="119.700"><strong>65</strong><span>经验 / 天</span></div><div class="result"><div class="days" aria-hidden="true"></div><div class="years" data-reveal="120.900"><small>约</small><strong>1.21</strong><em>年</em></div></div></div>
+</div>
+<div class="comp" id="P12" data-label="付费路线 · 待核" data-in="134.566" data-out="143.466">
+  <div class="panel"><div class="eyebrow">付费路线</div><p class="footnote" style="margin:0 0 30px">口播说法，规则待核</p><div class="exchange" data-reveal="137.100"><span>1 电池</span><span class="equal">=</span><span>1 经验</span></div><div class="rule"></div><div data-reveal="138.666"><div class="price">28,800</div><div class="unit-line">电池</div></div><div class="destination-line" data-reveal="140.933">当场 <span class="mono">LV6</span>？</div></div>
+</div>
+<div class="comp cost" id="P13" data-label="代价提示" data-in="146.000" data-out="156.666">
+  <div class="panel"><div class="eyebrow">代价</div><div class="price">28,800</div><div class="unit-line">电池</div><div class="condition caution" data-reveal="153.466">普通人慎用</div></div>
+</div>
+<div class="comp" id="P14" data-label="求投币" data-in="159.333" data-out="167.600">
+  <div class="panel"><div class="eyebrow">求投币</div><div class="request-flow"><span class="node" data-reveal="162.200">发视频</span><span class="arrow" data-reveal="162.200">→</span><span class="node target">求投币</span></div><div class="rule"></div><p class="sub" data-reveal="165.866">给孩子投两个币吧</p></div>
+</div>
+<div class="comp" id="P15" data-label="双赢" data-in="176.066" data-out="183.533">
+  <div class="panel"><div class="eyebrow">投两个币</div><div class="split"><div class="split-side" data-reveal="179.800"><small>你</small><strong>得经验</strong></div><div class="split-side" data-reveal="181.133"><small>我</small><strong>长面子</strong></div></div><div class="win" data-reveal="182.266">双赢</div></div>
+</div>
+
+</div></div></main>
+<nav class="controls" aria-label="动画预览">
+<button id="play" type="button">播放</button><button id="previous" type="button" aria-label="上一张卡片">上一张</button><button id="next" type="button" aria-label="下一张卡片">下一张</button>
+<select id="cards" aria-label="选择卡片"></select><output id="time">0.00 / 0.00</output>
+<input id="seek" type="range" min="0" max="1" step="0.001" value="0" aria-label="播放进度">
+</nav>
+<script>
+const CONFIG = {
+  PURPOSE: 'overlay', BASE: 'timeline', BG: 'transparent',
+  RATIO: '3:4', STYLE: 'neon-terminal', ANIMATE: true, HIDE_HUD: true
+};
+(() => {
+  'use strict';
+  const clamp = n => Math.max(0, Math.min(1, n));
+  const ease = n => 1 - Math.pow(1 - clamp(n), 3);
+  const cards = [...document.querySelectorAll('#track > .comp')].map(el => {
+    const start = Number(el.dataset.in), end = Number(el.dataset.out);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) throw new Error('Invalid card interval: ' + el.id);
+    return {el, start, end, reveals: [...el.querySelectorAll('[data-reveal]')].map(node => {
+      const at = Number(node.dataset.reveal);
+      if (!Number.isFinite(at) || at < start || at >= end) throw new Error('Invalid reveal time: ' + el.id);
+      return {node, at};
+    })};
+  });
+  const duration = Math.max(0, ...cards.map(c => c.end));
+  const ui = {play: document.getElementById('play'), seek: document.getElementById('seek'), select: document.getElementById('cards'), time: document.getElementById('time')};
+  let current = 0, playing = false, raf = 0, origin = 0;
+  const view = new URLSearchParams(location.search).get('view') === '1';
+  function draw(t) {
+    current = Math.max(0, Math.min(duration, Number(t) || 0));
+    for (const c of cards) {
+      const active = current >= c.start && current < c.end;
+      const enter = ease((current - c.start) / .42);
+      const leave = clamp((c.end - current) / .24);
+      c.el.style.visibility = active ? 'visible' : 'hidden';
+      c.el.style.opacity = active ? (enter * leave).toFixed(6) : '0';
+      c.el.style.transform = `translateY(${((1-enter)*24+(1-leave)*-10).toFixed(4)}px) scale(${(.974+.026*enter).toFixed(6)})`;
+      c.el.style.setProperty('--glow', (.72 + .12 * Math.sin((current-c.start)*2)).toFixed(6));
+      c.el.style.setProperty('--entry', enter.toFixed(6));
+      for (const r of c.reveals) {
+        const progress = ease((current-r.at)/.32);
+        r.node.style.opacity = progress.toFixed(6);
+        r.node.style.transform = `translateY(${((1-progress)*14).toFixed(4)}px)`;
+      }
+    }
+    if (view) {
+      ui.seek.value = String(current);
+      ui.time.textContent = `${current.toFixed(2)} / ${duration.toFixed(2)} s`;
+      const index = cards.findIndex(c => current >= c.start && current < c.end);
+      if (index >= 0) ui.select.value = String(index);
+    }
+  }
+  function pause() {playing=false;cancelAnimationFrame(raf);ui.play.textContent='播放';}
+  function tick(now) {
+    if (!playing) return;
+    draw((now-origin)/1000);
+    if (current >= duration) {pause();return;}
+    raf=requestAnimationFrame(tick);
+  }
+  function play() {
+    if (playing || !duration) return;
+    if (current >= duration) draw(cards[0]?.start || 0);
+    playing=true;origin=performance.now()-current*1000;ui.play.textContent='暂停';raf=requestAnimationFrame(tick);
+  }
+  window.IVH = {
+    seekAt(t) {pause();draw(t);}, play, pause,
+    get duration() {return duration;}, get currentTime() {return current;}
+  };
+  document.documentElement.dataset.duration=String(duration);
+  if (view) {
+    document.body.classList.add('view');
+    document.getElementById('preview-title').textContent=document.title;
+    function fit() {
+      const scale=Math.max(.1,Math.min((innerWidth-32)/1080,(innerHeight-158)/1440,1));
+      document.getElementById('stage').style.transform=`scale(${scale})`;
+      const viewport=document.getElementById('viewport');viewport.style.width=`${1080*scale}px`;viewport.style.height=`${1440*scale}px`;
+    }
+    fit();addEventListener('resize',fit);
+    ui.seek.max=String(duration);
+    cards.forEach((c,i)=>{const option=document.createElement('option');option.value=String(i);option.textContent=`${c.el.id} · ${c.el.dataset.label || ''}`;ui.select.append(option);});
+    ui.play.onclick=()=>playing?pause():play();
+    ui.seek.oninput=()=>window.IVH.seekAt(ui.seek.value);
+    ui.select.onchange=()=>window.IVH.seekAt(cards[Number(ui.select.value)].start+.001);
+    function jump(direction) {
+      const target=direction>0?cards.find(c=>c.start>current+.01):[...cards].reverse().find(c=>c.start<current-.01);
+      if(target)window.IVH.seekAt(target.start+.001);
+    }
+    document.getElementById('previous').onclick=()=>jump(-1);
+    document.getElementById('next').onclick=()=>jump(1);
+    addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|SELECT|BUTTON/.test(e.target.tagName)){e.preventDefault();playing?pause():play();}});
+  }
+  const params=new URLSearchParams(location.search);
+  draw(params.has('t')?Number(params.get('t')):(view?cards[0]?.start || 0:0));
+  if(view&&!params.has('t'))play();
+})();
+</script>
+</body>
+</html>

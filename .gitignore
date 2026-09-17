@@ -19,3 +19,8 @@ frames/
 
 # ivh-next 的跑批过程稿，不入库（正式样例在 ivh-next/example/）
 ivh-next/runs/
+
+# ivh-create 例子的渲染产物与校验截图，不入库（源稿、脚本与 HTML 在 examples/ 下）
+ivh-create/examples/*/render-script/
+ivh-create/examples/*/shots/
+*.mov

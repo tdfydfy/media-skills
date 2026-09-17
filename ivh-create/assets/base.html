@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>透明动画素材</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:transparent}body{font-family:"Microsoft YaHei","PingFang SC",sans-serif}
+#viewport{width:1080px;height:1440px}#stage{position:relative;width:1080px;height:1440px;overflow:hidden;transform-origin:top left}
+#track{position:absolute;inset:0;display:grid;place-items:center}.comp{grid-area:1/1;visibility:hidden;opacity:0;will-change:transform,opacity}
+[data-reveal]{opacity:0}.preview-header,.controls{display:none}
+body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-direction:column;align-items:center;padding:20px 16px 104px}
+.view .preview-header{display:flex;align-items:center;justify-content:space-between;gap:24px;width:min(920px,100%);max-width:calc(100vw - 32px);min-width:0;margin-bottom:16px;font-size:13px;color:#8baba0}
+.preview-header strong{color:#e8f2ed;font-size:15px;font-weight:500}
+.view #viewport{background-color:#17221d;background-image:linear-gradient(45deg,#1c2822 25%,transparent 25%,transparent 75%,#1c2822 75%),linear-gradient(45deg,#1c2822 25%,transparent 25%,transparent 75%,#1c2822 75%);background-size:32px 32px;background-position:0 0,16px 16px;box-shadow:0 0 0 1px #33463d}
+.view .controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;position:fixed;bottom:16px;width:min(920px,calc(100% - 32px));max-width:calc(100vw - 32px);min-width:0;padding:14px 16px;background:#13221af5;border:1px solid #3b5947;border-radius:12px;box-shadow:0 10px 36px #0007;z-index:100}
+.controls button,.controls select{border:1px solid #46604f;background:#243a2c;color:#e8f2ed;border-radius:6px;padding:7px 10px;font:inherit;font-size:13px;cursor:pointer}.controls button:hover{background:#36543e}
+.controls button:focus-visible,.controls select:focus-visible,.controls input:focus-visible{outline:2px solid #39ff6a;outline-offset:3px}
+.controls select{flex:1;min-width:160px;max-width:340px}.controls output{margin-left:auto;font:12px Consolas,monospace;color:#9cbbab}
+.controls input{flex-basis:100%;width:100%;accent-color:#39ff6a;cursor:pointer}
+@media (max-width:600px){
+  body.view{padding:16px 16px 124px}
+  .view .preview-header{gap:10px;font-size:11px}
+  .preview-header strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+  .view .preview-header span{flex:none}
+  .view .controls{bottom:10px;gap:8px;padding:12px}
+  .controls button{padding:7px 9px}
+  .controls select{order:1;flex:1 1 180px;min-width:180px;max-width:none}
+  .controls output{order:1;margin-left:0;flex:none;font-size:11px}
+  .controls input{order:2}
+}
+</style>
+<!-- STYLE -->
+</head>
+<body>
+<header class="preview-header"><strong id="preview-title">透明动画素材</strong><span>透明叠加 · 无声预览</span></header>
+<main id="viewport"><div id="stage"><div id="track">
+<!-- CONTENT -->
+</div></div></main>
+<nav class="controls" aria-label="动画预览">
+<button id="play" type="button">播放</button><button id="previous" type="button" aria-label="上一张卡片">上一张</button><button id="next" type="button" aria-label="下一张卡片">下一张</button>
+<select id="cards" aria-label="选择卡片"></select><output id="time">0.00 / 0.00</output>
+<input id="seek" type="range" min="0" max="1" step="0.001" value="0" aria-label="播放进度">
+</nav>
+<script>
+const CONFIG = {
+  PURPOSE: 'overlay', BASE: 'timeline', BG: 'transparent',
+  RATIO: '3:4', STYLE: 'custom', ANIMATE: true, HIDE_HUD: true
+};
+(() => {
+  'use strict';
+  const clamp = n => Math.max(0, Math.min(1, n));
+  const ease = n => 1 - Math.pow(1 - clamp(n), 3);
+  const cards = [...document.querySelectorAll('#track > .comp')].map(el => {
+    const start = Number(el.dataset.in), end = Number(el.dataset.out);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) throw new Error('Invalid card interval: ' + el.id);
+    return {el, start, end, reveals: [...el.querySelectorAll('[data-reveal]')].map(node => {
+      const at = Number(node.dataset.reveal);
+      if (!Number.isFinite(at) || at < start || at >= end) throw new Error('Invalid reveal time: ' + el.id);
+      return {node, at};
+    })};
+  });
+  const duration = Math.max(0, ...cards.map(c => c.end));
+  const ui = {play: document.getElementById('play'), seek: document.getElementById('seek'), select: document.getElementById('cards'), time: document.getElementById('time')};
+  let current = 0, playing = false, raf = 0, origin = 0;
+  const view = new URLSearchParams(location.search).get('view') === '1';
+  function draw(t) {
+    current = Math.max(0, Math.min(duration, Number(t) || 0));
+    for (const c of cards) {
+      const active = current >= c.start && current < c.end;
+      const enter = ease((current - c.start) / .42);
+      const leave = clamp((c.end - current) / .24);
+      c.el.style.visibility = active ? 'visible' : 'hidden';
+      c.el.style.opacity = active ? (enter * leave).toFixed(6) : '0';
+      c.el.style.transform = `translateY(${((1-enter)*24+(1-leave)*-10).toFixed(4)}px) scale(${(.974+.026*enter).toFixed(6)})`;
+      c.el.style.setProperty('--glow', (.72 + .12 * Math.sin((current-c.start)*2)).toFixed(6));
+      c.el.style.setProperty('--entry', enter.toFixed(6));
+      for (const r of c.reveals) {
+        const progress = ease((current-r.at)/.32);
+        r.node.style.opacity = progress.toFixed(6);
+        r.node.style.transform = `translateY(${((1-progress)*14).toFixed(4)}px)`;
+      }
+    }
+    if (view) {
+      ui.seek.value = String(current);
+      ui.time.textContent = `${current.toFixed(2)} / ${duration.toFixed(2)} s`;
+      const index = cards.findIndex(c => current >= c.start && current < c.end);
+      if (index >= 0) ui.select.value = String(index);
+    }
+  }
+  function pause() {playing=false;cancelAnimationFrame(raf);ui.play.textContent='播放';}
+  function tick(now) {
+    if (!playing) return;
+    draw((now-origin)/1000);
+    if (current >= duration) {pause();return;}
+    raf=requestAnimationFrame(tick);
+  }
+  function play() {
+    if (playing || !duration) return;
+    if (current >= duration) draw(cards[0]?.start || 0);
+    playing=true;origin=performance.now()-current*1000;ui.play.textContent='暂停';raf=requestAnimationFrame(tick);
+  }
+  window.IVH = {
+    seekAt(t) {pause();draw(t);}, play, pause,
+    get duration() {return duration;}, get currentTime() {return current;}
+  };
+  document.documentElement.dataset.duration=String(duration);
+  if (view) {
+    document.body.classList.add('view');
+    document.getElementById('preview-title').textContent=document.title;
+    function fit() {
+      const scale=Math.max(.1,Math.min((innerWidth-32)/1080,(innerHeight-158)/1440,1));
+      document.getElementById('stage').style.transform=`scale(${scale})`;
+      const viewport=document.getElementById('viewport');viewport.style.width=`${1080*scale}px`;viewport.style.height=`${1440*scale}px`;
+    }
+    fit();addEventListener('resize',fit);
+    ui.seek.max=String(duration);
+    cards.forEach((c,i)=>{const option=document.createElement('option');option.value=String(i);option.textContent=`${c.el.id} · ${c.el.dataset.label || ''}`;ui.select.append(option);});
+    ui.play.onclick=()=>playing?pause():play();
+    ui.seek.oninput=()=>window.IVH.seekAt(ui.seek.value);
+    ui.select.onchange=()=>window.IVH.seekAt(cards[Number(ui.select.value)].start+.001);
+    function jump(direction) {
+      const target=direction>0?cards.find(c=>c.start>current+.01):[...cards].reverse().find(c=>c.start<current-.01);
+      if(target)window.IVH.seekAt(target.start+.001);
+    }
+    document.getElementById('previous').onclick=()=>jump(-1);
+    document.getElementById('next').onclick=()=>jump(1);
+    addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|SELECT|BUTTON/.test(e.target.tagName)){e.preventDefault();playing?pause():play();}});
+  }
+  const params=new URLSearchParams(location.search);
+  draw(params.has('t')?Number(params.get('t')):(view?cards[0]?.start || 0:0));
+  if(view&&!params.has('t'))play();
+})();
+</script>
+</body>
+</html>
