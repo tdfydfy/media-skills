@@ -262,7 +262,9 @@ html,body{margin:0;padding:0;background:transparent}
 .comp.in[data-anim="GROW-IN"] .c-flow,
 .comp.in[data-anim="GROW-IN"] .c-vs,
 .comp.in[data-anim="GROW-IN"] .c-chapter,
-.comp.in[data-anim="GROW-IN"] .c-quote{
+.comp.in[data-anim="GROW-IN"] .c-quote,
+.comp.in[data-anim="GROW-IN"] .c-word,
+.comp.in[data-anim="GROW-IN"] .c-toc{
   animation:nt-growup 640ms var(--ease) both paused;
   animation-delay:calc(var(--hold,0s) * -1 + .12s);
 }
@@ -282,7 +284,8 @@ html,body{margin:0;padding:0;background:transparent}
 .comp.in[data-anim="TRACE-IN"] .c-steps,
 .comp.in[data-anim="TRACE-IN"] .c-log,
 .comp.in[data-anim="TRACE-IN"] .c-vs,
-.comp.in[data-anim="TRACE-IN"] .c-term{
+.comp.in[data-anim="TRACE-IN"] .c-term,
+.comp.in[data-anim="TRACE-IN"] .c-word{
   animation:nt-trace 900ms linear both paused;
   animation-delay:calc(var(--hold,0s) * -1);
 }
@@ -300,7 +303,8 @@ html,body{margin:0;padding:0;background:transparent}
 .comp.in[data-anim="WAVE-IN"] .c-steps,
 .comp.in[data-anim="WAVE-IN"] .c-log,
 .comp.in[data-anim="WAVE-IN"] .c-quote,
-.comp.in[data-anim="WAVE-IN"] .c-chapter{
+.comp.in[data-anim="WAVE-IN"] .c-chapter,
+.comp.in[data-anim="WAVE-IN"] .c-word{
   animation:nt-wave 900ms var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1);
 }
 .comp.out{animation:nt-fade 220ms var(--ease) both}
@@ -546,6 +550,39 @@ html,body{margin:0;padding:0;background:transparent}
 .c-log .row + .row{margin-top:28px}
 .c-log .tx{font-size:42px;letter-spacing:.01em}
 
+/* c-word · 关键词（一次提醒，没有释义、没有数值） */
+.c-word{text-align:center}
+.c-word .w{
+  display:inline-block;font-size:120px;font-weight:700;letter-spacing:.02em;line-height:1.06;
+  color:var(--neon);
+}
+/* 无底壳上照样读得出来：暗描边打底 + 绿光做身份（与 .num / .kw 同一套） */
+.pnl.bare .c-word .w{
+  text-shadow:0 0 4px rgba(2,8,5,.95),0 3px 16px rgba(2,8,5,.92),0 0 44px rgba(2,8,5,.72),
+              0 0 30px rgba(57,255,106,.60);
+}
+.c-word .line{display:block;width:68%;margin:32px auto 0}   /* 必须 display:block —— 行内元素量不到宽 */
+.comp.in .c-word .line{animation:nt-growx .7s var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1 + .18s)}
+
+/* c-toc · 目录（逐条点亮；"当前"那一条是全屏唯一的 L2） */
+.c-toc .row{
+  display:flex;align-items:center;gap:24px;padding:20px 26px;border-radius:3px;
+  border:1px dashed rgba(127,168,148,.5);
+}
+.c-toc .row + .row{margin-top:22px}
+.c-toc .ix{flex:none;font-family:var(--mono);font-size:32px;letter-spacing:.08em;color:var(--ink2)}
+.c-toc .tx{flex:1;font-size:42px;font-weight:700;letter-spacing:.01em;color:var(--ink2)}
+.c-toc .dashed{flex:none;width:110px}
+/* 当前 */
+.c-toc .row.cur{border:1px solid var(--neon);background:var(--deep);box-shadow:var(--glow),var(--glow-in)}
+.c-toc .row.cur .ix{color:var(--neon)}
+.c-toc .row.cur .tx{color:var(--neon);text-shadow:0 0 22px rgba(57,255,106,.45)}
+/* 已讲 */
+.c-toc .row.done{border-color:transparent;background:rgba(4,12,8,.5)}
+.c-toc .row.done .tx{opacity:.72}
+.comp.in .c-toc .stg{--stg:160ms}          /* 逐条点亮的错峰 */
+.comp.in .c-toc .row.cur .tx{animation:nt-breathe 2.6s linear infinite paused;animation-delay:calc(var(--hold,0s) * -1)}
+
 /* ---------- 6 · 预览控件（渲染时不存在，因为渲染带 ?t=） ---------- */
 #hud{
   position:fixed;left:0;right:0;bottom:0;height:56px;display:none;
@@ -566,10 +603,24 @@ html,body{margin:0;padding:0;background:transparent}
 <div id="stage">
   <div class="track" id="track">
 
-      <!-- ↓↓↓ 产物区：把这里换成真实的素材点（从下面的样板间抄） ↓↓↓ -->
+      <!-- run 2026-09-15 · 企业AI落地 · 26 个点（片头目录 1 + 局部提纲 3） -->
+      <!-- kind: 目录 -->
+      <div class="comp bare" data-in="0.2" data-out="8.2" data-anim="STEP-IN">
+        <div class="pnl frame">
+          <i class="beam"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">这条片子的五段</span></div>
+          <div class="c-toc">
+          <div class="row stg" style="--i:0"><span class="ix">01</span><span class="tx">别把AI当摆设</span><i class="dashed"></i></div>
+          <div class="row stg" style="--i:1"><span class="ix">02</span><span class="tx">智能副驾演示</span><i class="dashed"></i></div>
+          <div class="row stg" style="--i:2"><span class="ix">03</span><span class="tx">管理盲区在哪</span><i class="dashed"></i></div>
+          <div class="row stg" style="--i:3"><span class="ix">04</span><span class="tx">破局的三个逻辑</span><i class="dashed"></i></div>
+          <div class="row stg" style="--i:4"><span class="ix">05</span><span class="tx">结论与行动</span><i class="dashed"></i></div>
+          </div>
+        </div>
+      </div>
 
       <!-- kind: 对照 -->
-      <div class="comp bare" data-in="1.3" data-out="7.2" data-anim="SPLIT-IN">
+      <div class="comp bare" data-in="9.8" data-out="12.8" data-anim="SPLIT-IN">
         <div class="pnl fold">
             <div class="kick"><i class="tick"></i><span class="tx">开场反题</span></div>
           <div class="c-vs">
@@ -580,7 +631,7 @@ html,body{margin:0;padding:0;background:transparent}
       </div>
 
       <!-- kind: 三步递进 -->
-      <div class="comp bare" data-in="10.7" data-out="14.6" data-anim="STEP-IN">
+      <div class="comp bare" data-in="14.4" data-out="18.3" data-anim="STEP-IN">
         <div class="pnl bar">
             <div class="kick"><i class="tick"></i><span class="tx">工作台三个区</span></div>
           <div class="c-steps">
@@ -592,7 +643,7 @@ html,body{margin:0;padding:0;background:transparent}
       </div>
 
       <!-- kind: 转化 -->
-      <div class="comp bare" data-in="16.3" data-out="20.4" data-anim="FOLD-IN">
+      <div class="comp bare" data-in="19.9" data-out="24.0" data-anim="FOLD-IN">
         <div class="pnl fold">
           <i class="beam"></i>
             <div class="kick"><i class="tick"></i><span class="tx">对话到建议</span></div>
@@ -605,7 +656,7 @@ html,body{margin:0;padding:0;background:transparent}
       </div>
 
       <!-- kind: 转化 -->
-      <div class="comp bare" data-in="22.2" data-out="26.6" data-anim="SURGE-IN">
+      <div class="comp bare" data-in="25.6" data-out="28.7" data-anim="SURGE-IN">
         <div class="pnl bar">
             <div class="kick"><i class="tick"></i><span class="tx">线下也跑一遍</span></div>
           <div class="c-flow">
@@ -680,21 +731,21 @@ html,body{margin:0;padding:0;background:transparent}
         </div>
       </div>
 
-      <!-- kind: 章节标记 -->
-      <div class="comp bare pos-tl" data-in="58.2" data-out="62.2" data-anim="SLAM-IN">
-        <div class="pnl bracket">
-          <i class="ripple"></i>
-            <div class="kick"><i class="tick"></i><span class="tx">破局</span></div>
-          <div class="c-chapter">
-          <span class="idx flick">01</span>
-          <i class="bar"></i>
-          <span class="title">三个核心逻辑</span>
+      <!-- kind: 目录 | cur=01 · 概括句「三个核心逻辑」处的局部提纲，先报全三条 -->
+      <div class="comp bare" data-in="58.2" data-out="63.0" data-anim="GROW-IN">
+        <div class="pnl frame">
+          <i class="beam"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">破局的三条</span></div>
+          <div class="c-toc">
+          <div class="row stg cur" style="--i:0"><span class="ix">01</span><span class="tx">业务过程数据化</span><i class="dashed dash"></i></div>
+          <div class="row stg"     style="--i:1"><span class="ix">02</span><span class="tx">建议要实时</span><i class="dashed"></i></div>
+          <div class="row stg"     style="--i:2"><span class="ix">03</span><span class="tx">业务要透明</span><i class="dashed"></i></div>
           </div>
         </div>
       </div>
 
       <!-- kind: 转化 -->
-      <div class="comp bare" data-in="63.8" data-out="68.8" data-anim="TRACE-IN">
+      <div class="comp bare" data-in="64.6" data-out="68.8" data-anim="TRACE-IN">
         <div class="pnl bar">
             <div class="kick"><i class="tick"></i><span class="tx">语音变数据</span></div>
           <div class="c-flow">
@@ -717,15 +768,15 @@ html,body{margin:0;padding:0;background:transparent}
         </div>
       </div>
 
-      <!-- kind: 章节标记 -->
-      <div class="comp bare pos-tl" data-in="75.4" data-out="78.5" data-anim="SLAM-IN">
+      <!-- kind: 目录 | cur=02 · 讲到第二条，只换 cur，条目一个字不动 -->
+      <div class="comp bare" data-in="75.4" data-out="78.5" data-anim="STEP-IN">
         <div class="pnl frame">
-          <i class="ripple"></i>
-            <div class="kick"><i class="tick"></i><span class="tx">第二步</span></div>
-          <div class="c-chapter">
-          <span class="idx flick">02</span>
-          <i class="bar"></i>
-          <span class="title">建议要实时</span>
+          <i class="beam"></i>
+            <div class="kick"><i class="tick"></i><span class="tx">第二条</span></div>
+          <div class="c-toc">
+          <div class="row stg done" style="--i:0"><span class="ix">01</span><span class="tx">业务过程数据化</span><i class="dashed"></i></div>
+          <div class="row stg cur"  style="--i:1"><span class="ix">02</span><span class="tx">建议要实时</span><i class="dashed dash"></i></div>
+          <div class="row stg"      style="--i:2"><span class="ix">03</span><span class="tx">业务要透明</span><i class="dashed"></i></div>
           </div>
         </div>
       </div>
@@ -765,21 +816,21 @@ html,body{margin:0;padding:0;background:transparent}
         </div>
       </div>
 
-      <!-- kind: 章节标记 -->
-      <div class="comp bare pos-tl" data-in="95.8" data-out="98.8" data-anim="SLAM-IN">
+      <!-- kind: 目录 | cur=03 · 讲到第三条，三条全部交代完 -->
+      <div class="comp bare" data-in="95.8" data-out="98.8" data-anim="GROW-IN">
         <div class="pnl bracket">
           <i class="ripple"></i>
-            <div class="kick"><i class="tick"></i><span class="tx">第三步</span></div>
-          <div class="c-chapter">
-          <span class="idx flick">03</span>
-          <i class="bar"></i>
-          <span class="title">业务要透明</span>
+            <div class="kick"><i class="tick"></i><span class="tx">第三条</span></div>
+          <div class="c-toc">
+          <div class="row stg done" style="--i:0"><span class="ix">01</span><span class="tx">业务过程数据化</span><i class="dashed"></i></div>
+          <div class="row stg done" style="--i:1"><span class="ix">02</span><span class="tx">建议要实时</span><i class="dashed"></i></div>
+          <div class="row stg cur"  style="--i:2"><span class="ix">03</span><span class="tx">业务要透明</span><i class="dashed dash"></i></div>
           </div>
         </div>
       </div>
 
       <!-- kind: 清单 -->
-      <div class="comp bare" data-in="101.3" data-out="104.8" data-anim="GROW-IN">
+      <div class="comp bare" data-in="101.3" data-out="104.8" data-anim="LOG-IN">
         <div class="pnl frame">
             <div class="kick"><i class="tick"></i><span class="tx">后台能做什么</span></div>
           <div class="c-log">
@@ -1050,6 +1101,43 @@ html,body{margin:0;padding:0;background:transparent}
           <i class="caret pulse">›</i>
           <span class="tx type" style="--i:0">把货铺到低线城市，而不是继续在一线抢存量。</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 关键词 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="WAVE-IN">
+    <div class="pnl bare">
+      <div class="kick"><i class="tick"></i><span class="tx">核心词</span></div>
+      <div class="c-word">
+        <div class="w wave">渠道下沉</div>
+        <i class="line"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 目录 -->
+  <div class="comp bare" data-in="0" data-out="11" data-anim="STEP-IN">
+    <div class="pnl frame">
+      <i class="beam"></i>
+      <div class="kick"><i class="tick"></i><span class="tx">这条片子的三段</span></div>
+      <div class="c-toc">
+        <div class="row stg" style="--i:0"><span class="ix">01</span><span class="tx">渠道结构变化</span><i class="dashed"></i></div>
+        <div class="row stg" style="--i:1"><span class="ix">02</span><span class="tx">一线为什么见顶</span><i class="dashed"></i></div>
+        <div class="row stg" style="--i:2"><span class="ix">03</span><span class="tx">三四线怎么接</span><i class="dashed"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- kind: 目录 | 变体：章节内的提纲，cur = 当前章的序号，比它小的加 done -->
+  <div class="comp bare" data-in="0" data-out="11" data-anim="GROW-IN">
+    <div class="pnl bar">
+      <i class="beam"></i>
+      <div class="kick"><i class="tick"></i><span class="tx">本节要讲的</span></div>
+      <div class="c-toc">
+        <div class="row stg done" style="--i:0"><span class="ix">01</span><span class="tx">一线为什么见顶</span><i class="dashed"></i></div>
+        <div class="row stg cur"  style="--i:1"><span class="ix">02</span><span class="tx">结构性的天花板</span><i class="dashed dash"></i></div>
+        <div class="row stg"      style="--i:2"><span class="ix">03</span><span class="tx">增量去了哪里</span><i class="dashed"></i></div>
       </div>
     </div>
   </div>

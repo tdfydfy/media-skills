@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -232,15 +232,6 @@ html,body{margin:0;padding:0;background:transparent}
 .c-cmp .blk.b .tx{color:var(--hot)}
 .c-cmp .seam{margin:26px auto;width:56%}
 
-/* c-vs · 对照（左右，仅当两侧各 <=4 字才用） */
-.c-vs{display:flex;align-items:center;gap:24px}
-.c-vs .side{
-  flex:1;background:var(--plate);border-radius:var(--r-card);box-shadow:var(--sh-raise);
-  padding:36px 18px;text-align:center;font-size:40px;font-weight:700;
-}
-.c-vs .side:first-child{font-weight:500;font-size:34px;color:var(--ink3);text-decoration:line-through}
-.c-vs .mid{width:6px;height:72px;border-radius:3px;background:var(--plate);box-shadow:var(--sh-groove)}
-
 /* c-stack · 三步递进（宽度递减靠 margin-inline，不用 width） */
 .c-stack .row{
   margin-inline:calc(var(--i) * 36px);
@@ -276,6 +267,31 @@ html,body{margin:0;padding:0;background:transparent}
 }
 .c-list .row + .row{margin-top:20px}
 
+/* c-word · 关键词（一次提醒：只有那个词 + 一条凹槽收尾） */
+.c-word{text-align:center}
+.c-word .w{font-size:112px;font-weight:700;letter-spacing:-.02em;line-height:1.05}
+.c-word .groove{width:56%;margin:38px auto 0}
+
+/* c-toc · 目录（每行一条凹槽；当前章抬成凸起 —— 凸凹本身就是状态） */
+.c-toc .row{
+  display:flex;align-items:center;gap:24px;
+  padding:24px 30px;border-radius:var(--r-slot);
+  background:var(--plate);box-shadow:var(--sh-sink);
+}
+.c-toc .row + .row{margin-top:20px}
+.c-toc .ix{flex:none;font-size:26px;font-weight:700;color:var(--ink3)}
+.c-toc .tx{flex:1;font-size:32px;font-weight:500;color:var(--ink2)}
+.c-toc .row.cur{box-shadow:var(--sh-raise);}          /* 当前：抬起来 */
+.c-toc .row.cur .ix{color:var(--ink)}
+.c-toc .row.cur .tx{font-weight:700;color:var(--ink)}
+.c-toc .row.done .tx{color:var(--ink3)}               /* 已讲：字压回去 */
+/* 逐行压入，错峰 120ms。相位仍由 --hold 唯一决定 */
+.comp.in .c-toc .row{
+  animation:press 300ms var(--ease) both;
+  animation-play-state:paused;
+  animation-delay:calc(var(--hold,0s) * -1 + var(--i,0) * 120ms);
+}
+
 /* ---------- 5 · 预览控件（渲染时不存在，因为渲染带 ?t=） ---------- */
 #hud{
   position:fixed;left:0;right:0;bottom:0;height:56px;display:none;
@@ -297,26 +313,36 @@ html,body{margin:0;padding:0;background:transparent}
 <div id="stage">
   <div class="track" id="track">
 
-      <!-- ↓↓↓ 产物区：把这里换成真实的素材点（从下面的样板间抄） ↓↓↓ -->
-      <!-- 点 1 · 4.0s「先看第二部分，渠道结构发生了什么变化。」 -->
+            <!-- 示例：渠道下沉带来的结构性增长 · 10 个点（含片头目录，片头第一个点必须是它） -->
+      <!-- 点 1 · 0.2s · 片头目录（`meta.outline` 整张表，省略 cur） -->
+      <!-- kind: 目录 -->
+      <div class="comp bare" data-in="0.2" data-out="5.0" data-anim="PRESS-IN">
+        <div class="c-toc">
+          <div class="row" style="--i:0"><span class="ix">01</span><span class="tx">渠道结构变化</span></div>
+          <div class="row" style="--i:1"><span class="ix">02</span><span class="tx">投放与复购口径</span></div>
+          <div class="row" style="--i:2"><span class="ix">03</span><span class="tx">走势与结论</span></div>
+        </div>
+      </div>
+
+      <!-- 点 2 · 6.6s「先看第一部分，渠道结构发生了什么变化。」 -->
       <!-- kind: 章节标记 -->
-      <div class="comp raise" data-in="4.0" data-out="7.5" data-anim="PRESS-IN">
+      <div class="comp raise" data-in="6.6" data-out="9.6" data-anim="PRESS-IN">
         <div class="c-step">
-          <span class="micro-idx">02</span>
+          <span class="micro-idx">01</span>
           <span class="title">渠道结构变化</span>
         </div>
       </div>
 
-      <!-- 点 2 · 11.1s「所有增量里，三四线贡献了百分之五十四。」 -->
+      <!-- 点 3 · 11.2s「所有增量里，三四线贡献了百分之五十四。」 -->
       <!-- kind: 大数字 -->
-      <div class="comp raise" data-in="11.1" data-out="15.0" data-anim="EMBOSS-IN">
+      <div class="comp raise" data-in="11.2" data-out="15.0" data-anim="EMBOSS-IN">
         <div class="c-data">
           <div class="num"><span data-to="54" data-suffix="%" data-dur="1.05"></span></div>
           <div class="cap">增量贡献 · 三四线</div>
         </div>
       </div>
 
-      <!-- 点 3 · 18.6s「过去一年，一线从四成掉到三四线七成以上。」 -->
+      <!-- 点 4 · 18.6s「过去一年，一线从四成掉到三四线七成以上。」 -->
       <!-- kind: 转化 -->
       <div class="comp bare" data-in="18.6" data-out="22.5" data-anim="EMBOSS-IN">
         <div class="c-flow">
@@ -326,7 +352,7 @@ html,body{margin:0;padding:0;background:transparent}
         </div>
       </div>
 
-      <!-- 点 4 · 25.1s「三线及以下占五成四，二线三成一，一线只剩一成五。」 -->
+      <!-- 点 5 · 25.1s「三线及以下占五成四，二线三成一，一线只剩一成五。」 -->
       <!-- kind: 数值比大小 -->
       <div class="comp bare" data-in="25.1" data-out="29.0" data-anim="EMBOSS-IN">
         <div class="c-bar">
@@ -345,7 +371,7 @@ html,body{margin:0;padding:0;background:transparent}
         </div>
       </div>
 
-      <!-- 点 5 · 32.6s「去年是百分之十二，今年翻到了百分之三十七。」 -->
+      <!-- 点 6 · 32.6s「去年是百分之十二，今年翻到了百分之三十七。」 -->
       <!-- kind: 对照 -->
       <div class="comp bare" data-in="32.6" data-out="36.5" data-anim="EMBOSS-IN">
         <div class="c-cmp">
@@ -355,7 +381,7 @@ html,body{margin:0;padding:0;background:transparent}
         </div>
       </div>
 
-      <!-- 点 6 · 39.1s「三四线的复购占到整体的六成二。」 -->
+      <!-- 点 7 · 39.1s「三四线的复购占到整体的六成二。」 -->
       <!-- kind: 占比 -->
       <div class="comp bare" data-in="39.1" data-out="43.0" data-anim="EMBOSS-IN">
         <div class="c-ring">
@@ -367,7 +393,7 @@ html,body{margin:0;padding:0;background:transparent}
         </div>
       </div>
 
-      <!-- 点 7 · 46.6s「三四线渗透率从二零二三年到二零二六年一路走高。」 -->
+      <!-- 点 8 · 46.6s「三四线渗透率从二零二三年到二零二六年一路走高。」 -->
       <!-- kind: 趋势 -->
       <div class="comp bare" data-in="46.6" data-out="50.5" data-anim="EMBOSS-IN">
         <div class="c-line">
@@ -382,7 +408,7 @@ html,body{margin:0;padding:0;background:transparent}
         </div>
       </div>
 
-      <!-- 点 8 · 53.1s「降低理解成本，建立信息层级，提供视觉锚点。」 -->
+      <!-- 点 9 · 53.1s「降低理解成本，建立信息层级，提供视觉锚点。」 -->
       <!-- kind: 清单 -->
       <div class="comp bare" data-in="53.1" data-out="57.0" data-anim="PRESS-IN">
         <div class="c-list">
@@ -392,13 +418,14 @@ html,body{margin:0;padding:0;background:transparent}
         </div>
       </div>
 
-      <!-- 点 9 · 59.0s「动效不是装饰，是把声音里看不见的结构，翻译成眼睛能抓住的形状。」 -->
+      <!-- 点 10 · 59.0s「动效不是装饰，是把声音里看不见的结构，翻译成眼睛能抓住的形状。」 -->
       <!-- kind: 引语 -->
       <div class="comp sunk" data-in="59.0" data-out="62.4" data-anim="QUOTE-IN">
         <div class="c-quote">
           <div class="tx">动效不是装饰，是把声音里看不见的结构，翻译成眼睛能抓住的形状。</div>
         </div>
       </div>
+
       <!-- ↑↑↑ 产物区 ↑↑↑ -->
 
   </div>
@@ -499,15 +526,6 @@ html,body{margin:0;padding:0;background:transparent}
     </div>
   </div>
 
-  <!-- kind: 对照 | 左右（仅当两侧各 ≤4 字） -->
-  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
-    <div class="c-vs">
-      <div class="side">技术问题</div>
-      <div class="mid"></div>
-      <div class="side">组织问题</div>
-    </div>
-  </div>
-
   <!-- kind: 三步递进 -->
   <div class="comp bare" data-in="0" data-out="5" data-anim="PRESS-IN">
     <div class="c-stack">
@@ -522,6 +540,32 @@ html,body{margin:0;padding:0;background:transparent}
     <div class="c-kw">
       <div class="kw">渠道下沉</div>
       <div class="note">把货铺到低线城市，而不是继续在一线抢存量。</div>
+    </div>
+  </div>
+
+  <!-- kind: 关键词 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-word">
+      <div class="w">渠道下沉</div>
+      <div class="groove"></div>
+    </div>
+  </div>
+
+  <!-- kind: 目录 -->
+  <div class="comp bare" data-in="0" data-out="11" data-anim="PRESS-IN">
+    <div class="c-toc">
+      <div class="row" style="--i:0"><span class="ix">01</span><span class="tx">渠道结构变化</span></div>
+      <div class="row" style="--i:1"><span class="ix">02</span><span class="tx">一线为什么见顶</span></div>
+      <div class="row" style="--i:2"><span class="ix">03</span><span class="tx">三四线怎么接</span></div>
+    </div>
+  </div>
+
+  <!-- kind: 目录 | 变体：章节内的提纲，cur = 当前章的序号，比它小的加 done -->
+  <div class="comp bare" data-in="0" data-out="11" data-anim="PRESS-IN">
+    <div class="c-toc">
+      <div class="row done" style="--i:0"><span class="ix">01</span><span class="tx">一线为什么见顶</span></div>
+      <div class="row cur"  style="--i:1"><span class="ix">02</span><span class="tx">结构性的天花板</span></div>
+      <div class="row"      style="--i:2"><span class="ix">03</span><span class="tx">增量去了哪里</span></div>
     </div>
   </div>
 

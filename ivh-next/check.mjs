@@ -10,7 +10,8 @@
  *   · 对齐     extract.md 的 kind 清单 == 该风格 spec.md 的 kind 列
  *   · 形状     blocks 的元素个数与 spec.md 声明的形状一致
  *   · 样板间   spec.md 里每个 kind，template.html 里必须有同名锚点（反之亦然）
- *   · 全局     meta.outline 与 目录 / 章节标记 逐条对得上；目录必须在正文之前
+ *   · 全局     片头必有目录（第一个点）；meta.outline 与 目录 / 章节标记 逐条对得上；
+ *              口播里"我讲三个方面"式的概括句，附近有没有配提纲
  *   · 产物     给了 HTML 时：逐点核对 kind / data-in / data-out，动效名不许自创
  *
  * 不查：好不好看。那是用户看 HTML 时的事。
@@ -253,10 +254,14 @@ head("8. 音轨");
   const bad = vo.filter(x => !(x.end > x.start));
   bad.length ? fail(bad.length + " 句 voiceover 区间非法") : ok("voiceover " + vo.length + " 句，区间合法");
   if (vo.length && sorted.length) {
-    const miss = sorted.filter(p => !vo.some(x => x.end <= p.start && p.start - x.end < 3.0));
+    /* 目录 放宽一档：片头那遍是「压在开场句上」，不是「跟在某句之后」 */
+    const attached = p =>
+      vo.some(x => x.end <= p.start && p.start - x.end < 3.0) ||
+      (p.kind === "目录" && vo.some(x => p.start >= x.start && p.start < x.end));
+    const miss = sorted.filter(p => !attached(p));
     miss.length === 0 ? ok("每个点都贴着一句口播（入点后 3s 内）")
                       : warn(miss.length + " 个点找不到贴着的句子（points[" +
-                          sorted.map((p, i) => (vo.some(x => x.end <= p.start && p.start - x.end < 3.0) ? -1 : i))
+                          sorted.map((p, i) => (attached(p) ? -1 : i))
                                .filter(i => i >= 0).join(", ") + "]）");
   }
 }
@@ -309,15 +314,46 @@ head("9. 全局");
     console.log("  · 跳过（没有 outline，也没有骨架点）");
   }
 
-  /* 第一个目录要早于第一个内容点 */
+  /* 片头必须有目录（硬要求）；而且它是全片第一个点 */
   const firstContent = sorted.findIndex(p => !SKELETON_KINDS.has(p.kind));
   const firstToc = sorted.findIndex(p => p.kind === "目录");
-  if (firstToc >= 0 && firstContent >= 0) {
-    if (firstToc < firstContent) ok("片头目录在第 " + (firstToc + 1) + " 位，早于第一个内容点");
-    else fail("第一个目录出现在第 " + (firstToc + 1) + " 位，比第一个内容点（第 " + (firstContent + 1) + " 位）还晚 —— 全局视野要在讲正文之前给");
-  } else if (firstToc >= 0) {
+  if (firstToc < 0) {
+    fail("全片没有 `目录` —— 片头必须给一次全片目录，这是硬要求（extract.md 第二节）");
+  } else if (sorted[0] && sorted[0].kind !== "目录") {
+    fail("第一个点是 " + sorted[0].kind + "，不是 `目录` —— 片头目录必须是全片第一个点");
+  } else if (firstContent < 0) {
     warn("有目录，但全片没有内容点");
+  } else if (firstToc < firstContent) {
+    ok("片头目录在第 1 位，早于第一个内容点");
+  } else {
+    fail("第一个目录出现在第 " + (firstToc + 1) + " 位，比第一个内容点（第 " + (firstContent + 1) + " 位）还晚 —— 全局视野要在讲正文之前给");
   }
+
+  /* 概括句：口播里数了"三个 / 四个方面"这种，附近有没有配提纲 */
+  const CN = { 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+  const CUE = /(?<!第)([两三二四五六七八九十]|[几数])\s*(?:个|点|方面|块|步|层|条|部分|问题|原因|维度|阶段|逻辑)/;
+  const cues = [];
+  vo.forEach((x, i) => {
+    const t = String(x.text || "");
+    const m = t.match(CUE);
+    if (m) cues.push({ i: i + 1, at: x.start, end: x.end, text: t, n: CN[m[1]] || 0 });
+  });
+  const noToc = cues.filter(c => !toc.some(p => p.start >= c.at - 1 && p.start - c.at < 14));
+  if (!cues.length) {
+    ok("口播里没有\"我讲三个方面\"式的概括句");
+  } else if (noToc.length === 0) {
+    ok(toc.length + " 个目录，把 " + cues.length + " 处概括句都接住了");
+  } else {
+    noToc.forEach(c => warn("口播第 " + c.i + " 句数了" + (c.n ? c.n + "条" : "几") + "（\u300c" + c.text + "\u300d），"
+      + "附近没有 `目录` —— 若这几条散在后面一大段就补提纲；同一句里就列完的，忽略"));
+  }
+  cues.forEach(c => {
+    if (!c.n) return;
+    const hit = toc.find(p => p.start >= c.at - 1 && p.start - c.at < 14);
+    if (hit && Array.isArray(hit.blocks) && hit.blocks.length !== c.n) {
+      warn("第 " + c.i + " 句说" + c.n + "条，接住的目录有 " + hit.blocks.length + " 条 —— 对不上就核一下");
+    }
+  });
 
   const kw = sorted.filter(p => p.kind === "关键词");
   kw.length === 0 ? ok("没有关键词点")
