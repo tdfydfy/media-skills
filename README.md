@@ -84,7 +84,7 @@
 
 | 文件 | 讲什么 |
 | --- | --- |
-| [ivh-next/extract.md](./ivh-next/extract.md) | ① 的提示词。挑哪句、压成什么字、认哪种关系、落在第几秒 |
+| [ivh-next/extract.md](./ivh-next/extract.md) | ① 的提示词。全片分几章、挑哪节、压成什么字、这是哪种关系、落在第几秒 |
 | [ivh-next/build.md](./ivh-next/build.md) | ② 的提示词。从脚本 JSON 到 HTML 的机械动作，含逐 `kind` 的填法表 |
 | `ivh-next/styles/<风格>/spec.md` | 这一风格把这些关系**画成什么**、容量、硬约束、动效配方 |
 | `ivh-next/styles/<风格>/template.html` | 引擎 + 样板间 + 产物区。**② 只抄样板间** |
@@ -94,7 +94,7 @@
 | 风格 | 设计语言 |
 | --- | --- |
 | `soft-relief` · 柔面凸凹 | 整个画面只有一个颜色，靠同一道光源的两侧柔影把东西托起 / 压下 |
-| `neon-terminal` · 赛博朋克 | 荧光绿发光；壳分括标 / 折叠 / 亮条 / 无壳四档 |
+| `neon-terminal` · 赛博朋克 | 荧光绿发光；壳分带底 / 折叠 / 亮条 / 括标 / 无壳五档 |
 
 风格之间**从设计语言到形状完全无关**，不考虑继承、复用、族。加新风格要做什么、怎么跑、
 两道闸门各自的门规，都在 [ivh-next/README.md](./ivh-next/README.md)。

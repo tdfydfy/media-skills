@@ -88,9 +88,9 @@ function shapeOf(cell) {
 
 const extractPath = path.join(HERE, "extract.md");
 if (!fs.existsSync(extractPath)) { console.log("找不到 extract.md"); process.exit(1); }
-/* kind 表在 extract.md 第五节 */
+/* kind 表在 extract.md 第四节 */
 const extractKinds = tableIn(fs.readFileSync(extractPath, "utf8").split(/\r?\n/),
-  /^##\s*五/, /^#{2,3}\s/).map(r => strip(r[1])).filter(Boolean);
+  /^##\s*四/, /^#{2,3}\s/).map(r => strip(r[1])).filter(Boolean);
 
 /* ---------- 读脚本 ---------- */
 
@@ -354,11 +354,6 @@ head("9. 全局");
       warn("第 " + c.i + " 句说" + c.n + "条，接住的目录有 " + hit.blocks.length + " 条 —— 对不上就核一下");
     }
   });
-
-  const kw = sorted.filter(p => p.kind === "关键词");
-  kw.length === 0 ? ok("没有关键词点")
-    : kw.length <= 3 ? ok("关键词 " + kw.length + " 个（上限 3）")
-                     : warn("关键词有 " + kw.length + " 个 —— 上限 3，多了就不叫重点了");
 }
 
 /* ---------- 10 · 产物（给了 HTML 才跑） ---------- */

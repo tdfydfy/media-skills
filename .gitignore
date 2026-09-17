@@ -17,10 +17,5 @@ frames/
 .vscode/
 .idea/
 
-# ivh-next 每次跑出来的片子（体积大，不入库）
-# 入库的只有 script.json / script.md / script.html 三件
-ivh-next/runs/*/out/
-ivh-next/runs/*/render-*/
-ivh-next/runs/*/*.mov
-ivh-next/runs/*/*.mp4
-ivh-next/runs/*/*.png
+# ivh-next 的跑批过程稿，不入库（正式样例在 ivh-next/example/）
+ivh-next/runs/
