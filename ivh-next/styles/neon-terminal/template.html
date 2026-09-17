@@ -561,7 +561,7 @@ html,body{margin:0;padding:0;background:transparent}
   text-shadow:0 0 4px rgba(2,8,5,.95),0 3px 16px rgba(2,8,5,.92),0 0 44px rgba(2,8,5,.72),
               0 0 30px rgba(57,255,106,.60);
 }
-.c-word .line{width:68%;margin:32px auto 0}
+.c-word .line{display:block;width:68%;margin:32px auto 0}   /* 必须 display:block —— 行内元素量不到宽 */
 .comp.in .c-word .line{animation:nt-growx .7s var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1 + .18s)}
 
 /* c-toc · 目录（逐条点亮；"当前"那一条是全屏唯一的 L2） */
