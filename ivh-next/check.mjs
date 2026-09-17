@@ -6,10 +6,11 @@
  * 只查机器能判的：
  *   · 契约     meta / voiceover / points 的字段与取值
  *   · 时间     停留 >=3s、相邻空档 >=1.5s、点不重叠、落在音轨范围内
- *   · 密度     按 contentType 分档
+ *   · 密度     按 contentType 分档（骨架点不计）
  *   · 对齐     extract.md 的 kind 清单 == 该风格 spec.md 的 kind 列
  *   · 形状     blocks 的元素个数与 spec.md 声明的形状一致
  *   · 样板间   spec.md 里每个 kind，template.html 里必须有同名锚点（反之亦然）
+ *   · 全局     meta.outline 与 目录 / 章节标记 逐条对得上；目录必须在正文之前
  *   · 产物     给了 HTML 时：逐点核对 kind / data-in / data-out，动效名不许自创
  *
  * 不查：好不好看。那是用户看 HTML 时的事。
@@ -24,6 +25,13 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 const MIN_HOLD = 3.0;      /* 一个点停留的下限（秒） */
 const MIN_GAP  = 1.5;      /* 相邻两点之间的纯透明空档下限（秒） */
+
+/* 骨架点：只报全片/本章的位置，不承担内容。它们必须早于正文 */
+const SKELETON_KINDS = new Set(["目录", "章节标记"]);
+
+/* 其中「目录」是同一张地图可能复现的东西，不算内容点 —— 密度里剔掉。
+   「章节标记」仍要算：它占屏 3.5s，是实打实的一个素材点。 */
+const NAV_KINDS = new Set(["目录"]);
 
 const DENSITY = {
   data:      [8, 12, "研报 / 口播 / 复盘"],
@@ -79,8 +87,9 @@ function shapeOf(cell) {
 
 const extractPath = path.join(HERE, "extract.md");
 if (!fs.existsSync(extractPath)) { console.log("找不到 extract.md"); process.exit(1); }
+/* kind 表在 extract.md 第五节 */
 const extractKinds = tableIn(fs.readFileSync(extractPath, "utf8").split(/\r?\n/),
-  /^##\s*四/, /^#{2,3}\s/).map(r => strip(r[1])).filter(Boolean);
+  /^##\s*五/, /^#{2,3}\s/).map(r => strip(r[1])).filter(Boolean);
 
 /* ---------- 读脚本 ---------- */
 
@@ -217,20 +226,23 @@ head("6. 内容形状");
   bad.length ? bad.forEach(fail) : ok(sorted.length + " 个点的 kind 与元素个数都对");
 }
 
-/* ---------- 7 · 密度 ---------- */
+/* ---------- 7 · 密度（目录不算内容点） ---------- */
 
 head("7. 密度");
 {
   const band = DENSITY[meta.contentType];
-  if (!band || !sorted.length) {
+  const content = sorted.filter(p => !NAV_KINDS.has(p.kind));
+  const nav = sorted.length - content.length;
+  const note = nav ? "（另有 " + nav + " 个目录不算）" : "";
+  if (!band || !content.length) {
     console.log("  · 跳过");
   } else {
     const [lo, hi, label] = band;
-    const per60 = sorted.length / Math.max(meta.duration, 1) * 60;
+    const per60 = content.length / Math.max(meta.duration, 1) * 60;
     const txt = lo + "~" + hi + " 个/60s（" + meta.contentType + " · " + label + "）";
     if (per60 < lo) warn("每 60s 只有 " + per60.toFixed(1) + " 个 —— 低于 " + txt + "，检查有没有该强调的漏了");
     else if (per60 > hi * 1.2) fail("每 60s 有 " + per60.toFixed(1) + " 个 —— 超出 " + txt + "，叠加层会变成第二块屏");
-    else ok("密度 " + per60.toFixed(1) + " 个/60s，落在 " + txt + " 内");
+    else ok("密度 " + per60.toFixed(1) + " 个/60s，落在 " + txt + " 内" + note);
   }
 }
 
@@ -249,9 +261,73 @@ head("8. 音轨");
   }
 }
 
-/* ---------- 9 · 产物（给了 HTML 才跑） ---------- */
+/* ---------- 9 · 全局（outline 与骨架点） ---------- */
 
-head("9. 产物");
+head("9. 全局");
+{
+  const outline = Array.isArray(meta.outline) ? meta.outline : null;
+  const toc   = sorted.filter(p => p.kind === "目录");
+  const marks = sorted.filter(p => p.kind === "章节标记");
+
+  if (outline) {
+    const bad = [];
+    if (outline.length < 3 || outline.length > 6) bad.push("outline 有 " + outline.length + " 章 —— 应为 3~6 章");
+    outline.forEach((c, i) => {
+      if (!c || !c.idx || !c.title) bad.push("outline[" + i + "] 缺 idx / title");
+      if (!(c.end > c.start)) bad.push("outline[" + i + "] 区间非法（end <= start）");
+    });
+    for (let i = 1; i < outline.length; i++) {
+      if (!(outline[i].start >= outline[i - 1].end)) bad.push("outline[" + i + "] 与上一章重叠了");
+    }
+    const ids = outline.map(c => c && c.idx);
+    if (new Set(ids).size !== ids.length) bad.push("outline 的 idx 有重复：" + ids.join(" / "));
+
+    /* TOC 逐条一致 */
+    if (toc.length && toc[0].blocks && toc[0].blocks.length === outline.length) {
+      toc[0].blocks.forEach((b, i) => {
+        const c = outline[i] || {};
+        if (b.idx !== c.idx || b.title !== c.title) {
+          bad.push("片头目录第 " + (i + 1) + " 条（" + b.idx + " " + b.title + "）与 outline 的（"
+                   + c.idx + " " + c.title + "）对不上");
+        }
+      });
+    } else if (toc.length) {
+      bad.push("片头目录有 " + toc[0].blocks.length + " 条，outline 有 " + outline.length + " 章 —— 片头目录必须报全");
+    }
+
+    /* 章节标记要落在 outline 里 */
+    marks.forEach((p, i) => {
+      const b = (p.blocks || [])[0] || {};
+      const hit = outline.some(c => c.idx === b.idx);
+      if (!hit) bad.push("章节标记「" + b.idx + " " + b.title + "」不在 outline 里");
+    });
+
+    bad.length ? bad.forEach(fail) : ok("outline " + outline.length + " 章，目录与章节标记都对得上");
+  } else if (toc.length || marks.length) {
+    warn("有 " + toc.length + " 个目录 / " + marks.length + " 个章节标记，但没有 meta.outline —— 骨架没有单一来源，建议补上");
+  } else {
+    console.log("  · 跳过（没有 outline，也没有骨架点）");
+  }
+
+  /* 第一个目录要早于第一个内容点 */
+  const firstContent = sorted.findIndex(p => !SKELETON_KINDS.has(p.kind));
+  const firstToc = sorted.findIndex(p => p.kind === "目录");
+  if (firstToc >= 0 && firstContent >= 0) {
+    if (firstToc < firstContent) ok("片头目录在第 " + (firstToc + 1) + " 位，早于第一个内容点");
+    else fail("第一个目录出现在第 " + (firstToc + 1) + " 位，比第一个内容点（第 " + (firstContent + 1) + " 位）还晚 —— 全局视野要在讲正文之前给");
+  } else if (firstToc >= 0) {
+    warn("有目录，但全片没有内容点");
+  }
+
+  const kw = sorted.filter(p => p.kind === "关键词");
+  kw.length === 0 ? ok("没有关键词点")
+    : kw.length <= 3 ? ok("关键词 " + kw.length + " 个（上限 3）")
+                     : warn("关键词有 " + kw.length + " 个 —— 上限 3，多了就不叫重点了");
+}
+
+/* ---------- 10 · 产物（给了 HTML 才跑） ---------- */
+
+head("10. 产物");
 const htmlFile = process.argv[3];
 if (!htmlFile) {
   console.log("  · 跳过（用法：node ivh-next/check.mjs 脚本.json 产物.html）");

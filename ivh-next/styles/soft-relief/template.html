@@ -267,6 +267,31 @@ html,body{margin:0;padding:0;background:transparent}
 }
 .c-list .row + .row{margin-top:20px}
 
+/* c-word · 关键词（一次提醒：只有那个词 + 一条凹槽收尾） */
+.c-word{text-align:center}
+.c-word .w{font-size:112px;font-weight:700;letter-spacing:-.02em;line-height:1.05}
+.c-word .groove{width:56%;margin:38px auto 0}
+
+/* c-toc · 目录（每行一条凹槽；当前章抬成凸起 —— 凸凹本身就是状态） */
+.c-toc .row{
+  display:flex;align-items:center;gap:24px;
+  padding:24px 30px;border-radius:var(--r-slot);
+  background:var(--plate);box-shadow:var(--sh-sink);
+}
+.c-toc .row + .row{margin-top:20px}
+.c-toc .ix{flex:none;font-size:26px;font-weight:700;color:var(--ink3)}
+.c-toc .tx{flex:1;font-size:32px;font-weight:500;color:var(--ink2)}
+.c-toc .row.cur{box-shadow:var(--sh-raise);}          /* 当前：抬起来 */
+.c-toc .row.cur .ix{color:var(--ink)}
+.c-toc .row.cur .tx{font-weight:700;color:var(--ink)}
+.c-toc .row.done .tx{color:var(--ink3)}               /* 已讲：字压回去 */
+/* 逐行压入，错峰 120ms。相位仍由 --hold 唯一决定 */
+.comp.in .c-toc .row{
+  animation:press 300ms var(--ease) both;
+  animation-play-state:paused;
+  animation-delay:calc(var(--hold,0s) * -1 + var(--i,0) * 120ms);
+}
+
 /* ---------- 5 · 预览控件（渲染时不存在，因为渲染带 ?t=） ---------- */
 #hud{
   position:fixed;left:0;right:0;bottom:0;height:56px;display:none;
@@ -412,6 +437,32 @@ html,body{margin:0;padding:0;background:transparent}
     <div class="c-kw">
       <div class="kw">渠道下沉</div>
       <div class="note">把货铺到低线城市，而不是继续在一线抢存量。</div>
+    </div>
+  </div>
+
+  <!-- kind: 关键词 -->
+  <div class="comp bare" data-in="0" data-out="5" data-anim="EMBOSS-IN">
+    <div class="c-word">
+      <div class="w">渠道下沉</div>
+      <div class="groove"></div>
+    </div>
+  </div>
+
+  <!-- kind: 目录 -->
+  <div class="comp bare" data-in="0" data-out="11" data-anim="PRESS-IN">
+    <div class="c-toc">
+      <div class="row" style="--i:0"><span class="ix">01</span><span class="tx">渠道结构变化</span></div>
+      <div class="row" style="--i:1"><span class="ix">02</span><span class="tx">一线为什么见顶</span></div>
+      <div class="row" style="--i:2"><span class="ix">03</span><span class="tx">三四线怎么接</span></div>
+    </div>
+  </div>
+
+  <!-- kind: 目录 | 变体：章节内的提纲，cur = 当前章的序号，比它小的加 done -->
+  <div class="comp bare" data-in="0" data-out="11" data-anim="PRESS-IN">
+    <div class="c-toc">
+      <div class="row done" style="--i:0"><span class="ix">01</span><span class="tx">一线为什么见顶</span></div>
+      <div class="row cur"  style="--i:1"><span class="ix">02</span><span class="tx">结构性的天花板</span></div>
+      <div class="row"      style="--i:2"><span class="ix">03</span><span class="tx">增量去了哪里</span></div>
     </div>
   </div>
 

@@ -4,7 +4,13 @@
     "title": "渠道下沉带来的结构性增长",
     "ratio": "3:4",
     "duration": 62.4,
-    "contentType": "data"
+    "contentType": "data",
+    "outline": [
+      { "idx": "01", "title": "开场与结论", "start": 0.0, "end": 3.6 },
+      { "idx": "02", "title": "渠道结构变化", "start": 3.6, "end": 29.0 },
+      { "idx": "03", "title": "投放与复购口径", "start": 29.0, "end": 46.3 },
+      { "idx": "04", "title": "走势与结论", "start": 46.3, "end": 62.4 }
+    ]
   },
   "voiceover": [
     { "i": 1,  "start": 0.0,  "end": 3.6,  "text": "今天讲一个跟直觉相反的结论。" },
