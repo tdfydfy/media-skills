@@ -16,6 +16,15 @@
 
    抄法：从样板间挑 kind → 复制整个 div.comp → 换内容
         → 按脚本填 data-in / data-out → 只从 #track 里留要用到的
+
+   ── 看画面 ───────────────────────────────────────────────────────────
+   打开时右下角有两个按钮，不用记参数：
+        ▶ 看动画        进预览态，把 #track 里现有的点放一遍（= ?view=1）
+        ▦ 样板间 N 块   把样板间整个搬进来放一遍（= ?kit=1）—— 想看全部动效点这个
+   定格某帧还是要手打参数：
+        ?view=1&t=2    深底 + 定格在 2s      ?t=22.5   透明 + 定格在 22.5s
+   默认路径仍是"出片状态"（不铺底、不缩放、没有 HUD、停在 t=0）—— 渲染器走的就是它；
+   按钮对渲染帧完全隐形，这条契约没被破坏。
    ========================================================================== */
 
 /* ---------- 0 · 变量 ---------- */
@@ -597,6 +606,22 @@ html,body{margin:0;padding:0;background:transparent}
 }
 #hud input[type=range]{flex:1;accent-color:#39FF6A}
 #hud .tt{font-variant-numeric:tabular-nums;min-width:96px;text-align:right}
+
+/* 一键预览按钮（#peek）：由脚本创建，只在"人打开"时冒出来。渲染器那条路上
+   它根本不会被创建，所以永远进不了帧 —— 见脚本里 armPeek 那段的三道保险。 */
+#peek{
+  position:fixed;right:22px;bottom:22px;z-index:20;
+  display:flex;gap:10px;
+}
+#peek button{
+  padding:14px 22px;border:1px solid var(--neon);border-radius:999px;
+  background:rgba(4,12,8,.88);color:var(--neon);
+  font:600 15px/1 var(--mono);letter-spacing:.08em;cursor:pointer;
+  box-shadow:var(--glow);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+}
+#peek button:hover{background:rgba(57,255,106,.16)}
+#peek button.kit{border-color:var(--cyan);color:var(--cyan);box-shadow:var(--glow-c)}
+#peek button.kit:hover{background:rgba(43,231,255,.16)}
 </style>
 </head><body>
 
@@ -1068,8 +1093,13 @@ const CONFIG = {
 
   /* ---------------- 对外契约 ---------------- */
 
+  var peek = null;        /* 一键预览按钮（见 armPeek） */
+
   var IVH = {
     seekAt: function(t){
+      /* 有外部在驱动 = 这就是渲染器 → 按钮必须马上消失，否则会被拍进素材。
+         渲染器每帧都是「先 seekAt 再截图」，所以它永远拍不到按钮存在的那一帧。 */
+      if (peek) dropPeek();
       stop();
       var v = Math.max(0, Math.min(duration, t));
       seekAt(v);
@@ -1094,15 +1124,7 @@ const CONFIG = {
     var view    = /[?&]view=1/.test(qs) || kitMode;
 
     if (kitMode){
-      track.innerHTML = '';
-      var frag = document.getElementById('kit').content;
-      var nodes = Array.prototype.slice.call(frag.querySelectorAll('.comp'));
-      for (var i = 0; i < nodes.length; i++){
-        var node = document.importNode(nodes[i], true);
-        node.setAttribute('data-in', String(i * 5.4 + 0.4));
-        node.setAttribute('data-out', String(i * 5.4 + 5.0));
-        track.appendChild(node);
-      }
+      loadKit();
     }
 
     scan();
@@ -1111,10 +1133,17 @@ const CONFIG = {
     var t0 = m ? parseFloat(m[1]) : (kitMode ? 0.4 : 0);
 
     /* 默认路径 = 出片状态。深底和 HUD 一旦铺上，每一帧都会带上它们 ——
-       透明素材会整份变成不透明的。 */
-    if (!view){ IVH.seekAt(t0); return; }
+       透明素材会整份变成不透明的。
+       人在浏览器里就是这么打开它的，所以留个按钮当台阶 —— 按钮本身对帧隐形。 */
+    if (!view){ IVH.seekAt(t0); armPeek(); return; }
 
-    /* 预览路径：缩放到窗口内，给个深底 —— 透明产物在浏览器里默认是白底，看不出效果 */
+    enterView(t0, hasT);
+  }
+
+  /* ---------------- 预览态（?view=1 与按钮共用这一段） ---------------- */
+
+  function enterView(t0, hasT){
+    /* 缩放到窗口内，给个深底 —— 透明产物在浏览器里默认是白底，看不出效果 */
     var fit = Math.min(window.innerWidth / 1080, (window.innerHeight - 56) / 1440);
     stage.style.transformOrigin = 'top center';
     stage.style.transform = 'scale(' + fit + ')';
@@ -1133,6 +1162,69 @@ const CONFIG = {
 
     IVH.seekAt(t0);
     if (!hasT) start();          /* 给了 ?t= 就是要定格看，别自己播起来 */
+  }
+
+  /* ---------------- 一键预览按钮 ----------------
+     人双击直接打开时，右下角冒一个「▶ 看动画」，点它 = 走一遍 ?view=1。
+     它必须对渲染帧完全隐形，三道保险：
+       ① 无头环境（navigator.webdriver / UA 带 Headless）压根不创建；
+       ② 真人交互之后才创建 —— 无头浏览器不会派发 pointermove 这类事件；
+       ③ 只要 IVH.seekAt 被外部调过一次（渲染器就是这么干的），立刻自删、不复活。
+     所以「不带参数 = 出片状态」这条契约一个字没变，别的模板/产物不用跟着改。 */
+
+  function dropPeek(){ if (peek){ peek.remove(); peek = null; } }
+
+  function loadKit(){
+    /* 把样板间整个搬进 #track —— ?kit=1 与「看样板间」按钮共用这一段 */
+    var frag = document.getElementById('kit').content;
+    var nodes = Array.prototype.slice.call(frag.querySelectorAll('.comp'));
+    track.innerHTML = '';
+    for (var i = 0; i < nodes.length; i++){
+      var node = document.importNode(nodes[i], true);
+      node.setAttribute('data-in', String(i * 5.4 + 0.4));
+      node.setAttribute('data-out', String(i * 5.4 + 5.0));
+      track.appendChild(node);
+    }
+  }
+
+  function makePeek(){
+    var box = document.createElement('div');
+    box.id = 'peek';
+
+    function add(label, cls, fn){
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = label;
+      if (cls) b.className = cls;
+      b.addEventListener('click', fn);
+      box.appendChild(b);
+    }
+
+    add('▶ 看动画', '', function(){
+      dropPeek();
+      enterView(0, false);        /* 只放 #track 里现有的点 */
+    });
+
+    var kitEl = document.getElementById('kit');
+    if (kitEl){
+      var n = kitEl.content.querySelectorAll('.comp').length;
+      add('▦ 样板间 ' + n + ' 块', 'kit', function(){
+        dropPeek();
+        loadKit(); scan();
+        enterView(0.4, false);    /* 从第一个样板点的入场开始 */
+      });
+    }
+
+    document.body.appendChild(box);
+    return box;
+  }
+
+  function armPeek(){
+    if (navigator.webdriver === true || /headless/i.test(navigator.userAgent)) return;
+    function show(){ if (!peek) peek = makePeek(); }
+    ['pointermove', 'pointerdown', 'wheel', 'keydown', 'touchstart'].forEach(function(ev){
+      window.addEventListener(ev, show, { once: true, passive: true });
+    });
+    setTimeout(show, 600);       /* 鼠标懒得动，也给它个台阶 */
   }
 
   if (document.readyState === 'loading'){
