@@ -33,12 +33,14 @@
  *   所以只渲染「有内容」的帧 + 1 张空档帧，其余复用，成片画面一点不变。
  *   这里显示的帧数与耗时都按复用后的实际值算（与 shoot.mjs 共用同一份计划）。
  */
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { samplePlan } from "./active-windows.mjs";
+
+import { cleanupRun } from "./cleanup.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const NODE = process.execPath;
@@ -191,7 +193,10 @@ if (SLOW_SEC > 900 && preset === "normal" && !has("--step")) {
 
 /* ---------- 3 · 委托 shoot.mjs 出片 ---------- */
 const outDir = path.resolve(getArg("--out", path.join(path.dirname(FILE), "render-" + path.basename(FILE, ".html"))));
+fs.mkdirSync(path.join(outDir, '.work'), { recursive: true });
+const workDir = fs.mkdtempSync(path.join(outDir, '.work', 'run-'));
 const args = [path.join(HERE, "shoot.mjs"), FILE, "--video", "--step", String(STEP), "--out", outDir, "--fps", String(OUT_FPS)];
+args.push('--work-dir', workDir, '--defer-cleanup');
 const engine = getArg("--engine", "");
 if (engine) args.push("--engine", engine);
 if (has("--no-reuse-blank")) args.push("--no-reuse-blank");
@@ -204,9 +209,36 @@ if (W_ARG) args.push("--workers", String(W_ARG));
 if (GPU) args.push("--gpu");
 
 console.log(`\n[render] 开始抽帧合成…（这一步就是出片本身，不是"检查"）`);
-const r = spawnSync(NODE, args, { stdio: "inherit" });
+// Once encoding has succeeded, a lingering Node handle must not block alpha verification.
+const r = await new Promise(resolve => {
+  const child = spawn(NODE, args, { stdio: ['inherit', 'inherit', 'inherit', 'ipc'], windowsHide: true });
+  let timer, settled = false, encoded = false;
+  const finish = status => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    if (child.connected) child.disconnect();
+    child.unref();
+    resolve({ status: status === 0 && !encoded ? 1 : status });
+  };
+  child.on('message', message => {
+    if (message?.type !== 'encoded' || timer) return;
+    encoded = true;
+    timer = setTimeout(() => {
+      console.warn('[render] 编码已完成，但 shoot 未在 5 秒内退出；终止残留进程后继续透明复检。');
+      if (process.platform === 'win32') {
+        spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true, timeout: 5000 });
+      }
+      child.kill();
+      finish(0);
+    }, 5000);
+  });
+  child.on('error', error => { console.error(error.message); finish(1); });
+  child.on('exit', code => finish(code ?? 1));
+});
 if (r.status !== 0) {
   console.error("\n[render] shoot.mjs 失败。");
+  console.error(`[render] 本轮临时文件保留：${workDir}`);
   process.exit(r.status || 1);
 }
 
@@ -228,8 +260,11 @@ if (TRANSPARENT && !has("--no-verify")) {
   if (v.status !== 0) {
     console.error("\n[render] ✗ 透明复检未通过 —— 这份 .mov 的 alpha 不可用，不要直接拿去叠加。");
     console.error("  最常见原因：截图时漏了 --default-background-color=00000000（shoot.mjs 已内置，检查是否被改掉）。");
+    console.error(`[render] 排查用帧保留：${workDir}`);
     process.exit(1);
   }
 }
 
+if (!has('--keep-frames')) await cleanupRun(workDir);
+else console.log('[render] 临时帧保留：' + workDir);
 console.log(expect);

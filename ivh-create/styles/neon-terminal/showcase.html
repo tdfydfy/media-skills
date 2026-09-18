@@ -55,8 +55,8 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
   --mag:#FF3D8B;                  /* 警示 */
   --ink:#EAFFF2;                  /* 正文，近白 */
   --ink2:#7FA894;                 /* 说明、单位、轴 */
-  --glow:0 0 18px rgba(57,255,106,.50);
-  --glow-in:inset 0 0 22px rgba(57,255,106,.10);
+  --nt-shadow:0 0 18px rgba(57,255,106,.50);
+  --nt-shadow-in:inset 0 0 22px rgba(57,255,106,.10);
   --scan:repeating-linear-gradient(180deg,rgba(57,255,106,.07) 0 1px,transparent 1px 4px);
   --mono:ui-monospace,"JetBrains Mono","Cascadia Mono",Consolas,"Microsoft YaHei",monospace;
   --ease:cubic-bezier(.2,.9,.25,1);
@@ -73,7 +73,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 .pnl{position:relative;width:100%;padding:58px 60px;border-radius:4px}
 .pnl.frame,.pnl.fold{
   border:1px solid var(--neon);background-color:var(--void);background-image:var(--scan);
-  box-shadow:var(--glow),var(--glow-in);overflow:hidden;
+  box-shadow:var(--nt-shadow),var(--nt-shadow-in);overflow:hidden;
 }
 .pnl.frame::before,.pnl.frame::after,.pnl.fold::before,.pnl.fold::after{
   content:"";position:absolute;width:18px;height:18px;border:2px solid var(--neon);
@@ -150,7 +150,8 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 .c-meter{display:flex;flex-direction:column;align-items:center;gap:24px}
 .c-meter .cells{display:flex;gap:8px}
 .c-meter .cells i{width:26px;height:46px;background:rgba(127,168,148,.16)}
-.c-meter .cells i.on{background:var(--neon);box-shadow:0 0 14px rgba(57,255,106,.45)}
+.c-meter .cells i{position:relative}
+.c-meter .cells i::after{content:"";position:absolute;inset:0;background:var(--neon);transform-origin:left;transform:scaleX(clamp(0,calc(var(--grow,0) * 12 - var(--i)),1))}
 .c-meter .val{font-family:var(--mono);font-size:76px;font-weight:700;font-variant-numeric:tabular-nums}
 .c-duel{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:26px;text-align:center}
 .c-duel .t{font-size:28px;letter-spacing:.12em;color:var(--ink2)}
@@ -162,7 +163,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 .c-vs .row{display:grid;grid-template-columns:112px 1fr;align-items:center;gap:24px;padding:22px 26px}
 .c-vs .row.off{border:1px dashed rgba(127,168,148,.5);background:rgba(4,12,8,.35)}
 .c-vs .row.off .lb,.c-vs .row.off .tx{color:var(--ink2)}
-.c-vs .row.on{border:1px solid var(--neon);background:var(--deep);box-shadow:var(--glow),var(--glow-in)}
+.c-vs .row.on{border:1px solid var(--neon);background:var(--deep);box-shadow:var(--nt-shadow),var(--nt-shadow-in)}
 .c-vs .lb{font-family:var(--mono);font-size:25px;letter-spacing:.14em;color:var(--ink2)}
 .c-vs .row.on .lb{color:var(--neon)}
 .c-vs .tx{font-size:38px}
@@ -170,7 +171,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 .c-flow .node{width:100%;display:flex;align-items:center;justify-content:space-between;padding:26px 32px;border:1px solid rgba(57,255,106,.35);background:rgba(4,12,8,.42)}
 .c-flow .node .t{font-size:38px}
 .c-flow .node .v{font-family:var(--mono);font-size:32px;color:var(--ink2)}
-.c-flow .node.to{border-color:var(--neon);background:var(--deep);box-shadow:var(--glow),var(--glow-in)}
+.c-flow .node.to{border-color:var(--neon);background:var(--deep);box-shadow:var(--nt-shadow),var(--nt-shadow-in)}
 .c-flow .node.to .v{color:var(--neon)}
 .c-flow .arw{position:relative;width:100%;height:104px;display:flex;align-items:center;justify-content:center}
 .c-flow .arw .bar{position:absolute;top:0;bottom:0;left:50%;width:1px;background:linear-gradient(180deg,rgba(57,255,106,.2),var(--neon),rgba(57,255,106,.2));transform-origin:top}
@@ -180,7 +181,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 .c-steps::before{content:"";position:absolute;left:32px;top:34px;bottom:34px;width:1px;background:rgba(57,255,106,.32);transform-origin:top}
 .c-steps .st{display:grid;grid-template-columns:66px 1fr;align-items:center;gap:26px;padding:14px 0}
 .c-steps .idx{width:64px;height:64px;border-radius:50%;border:1px solid var(--ink2);background:rgba(4,12,8,.9);display:grid;place-items:center;font-family:var(--mono);font-size:25px;color:var(--ink2)}
-.c-steps .st.on .idx{border-color:var(--neon);background:var(--deep);color:var(--neon);box-shadow:var(--glow)}
+.c-steps .st.on .idx{border-color:var(--neon);background:var(--deep);color:var(--neon);box-shadow:var(--nt-shadow)}
 .c-steps .t{font-size:34px;color:var(--ink2)}
 .c-steps .st.on .t{color:var(--ink)}
 .c-log{display:flex;flex-direction:column;gap:22px}
@@ -192,13 +193,14 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 .c-term .def{margin-top:24px;font-size:36px;line-height:1.6;color:var(--ink2)}
 .c-word{text-align:center}
 .c-word .w{font-size:132px;font-weight:700;letter-spacing:.03em}
+.c-word .w.long{font-size:116px}
 .c-word .bar{width:100%;height:4px;margin-top:36px;background:var(--neon);box-shadow:0 0 18px rgba(57,255,106,.7);transform:scaleX(var(--grow,0));transform-origin:center}
 .c-toc{display:flex;flex-direction:column;gap:16px}
 .c-toc .row{display:flex;align-items:center;gap:22px;padding:18px 24px;border:1px dashed rgba(127,168,148,.45);color:var(--ink2);font-size:34px}
 .c-toc .row .idx{width:44px;font-family:var(--mono);font-size:27px}
 .c-toc .row.done{border-style:solid;border-color:rgba(57,255,106,.16);background:rgba(4,12,8,.45)}
 .c-toc .row.done .dashed{background-image:none;background:rgba(127,168,148,.28)}
-.c-toc .row.cur{border-style:solid;border-color:var(--neon);background:var(--deep);color:var(--ink);box-shadow:var(--glow),var(--glow-in)}
+.c-toc .row.cur{border-style:solid;border-color:var(--neon);background:var(--deep);color:var(--ink);box-shadow:var(--nt-shadow),var(--nt-shadow-in)}
 .c-toc .row.cur .idx{color:var(--neon)}
 .c-toc .row.cur .dashed{background-image:repeating-linear-gradient(90deg,rgba(57,255,106,.9) 0 6px,transparent 6px 13px)}
 .c-chapter{display:flex;align-items:center;gap:28px}
@@ -222,7 +224,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 @keyframes nt-power{0%{opacity:0;filter:brightness(2.6)}16%{opacity:1}24%{opacity:.22}34%{opacity:1;filter:brightness(1.4)}100%{opacity:1;filter:none}}
 @keyframes nt-glitch{0%{opacity:0;transform:translateX(-16px)}14%{opacity:1;transform:translateX(11px)}26%{transform:translateX(-7px)}40%{transform:translateX(5px)}56%{transform:translateX(-3px)}72%{transform:none}100%{opacity:1;transform:none}}
 @keyframes nt-trace{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
-@keyframes nt-type{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+
 @keyframes nt-growx{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes nt-growy{from{transform:scaleY(0)}to{transform:scaleY(1)}}
 @keyframes nt-step{0%{opacity:0}60%{opacity:1;filter:brightness(2.2)}100%{opacity:1;filter:none}}
@@ -246,7 +248,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 .comp.in [data-anim="POWER-IN"] {animation:nt-power   .62s var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1)}
 .comp.in [data-anim="GLITCH-IN"]{animation:nt-glitch  .46s linear      both paused;animation-delay:calc(var(--hold,0s) * -1)}
 .comp.in [data-anim="TRACE-IN"] {animation:nt-trace   .90s linear      both paused;animation-delay:calc(var(--hold,0s) * -1)}
-.comp.in [data-anim="TYPE-IN"]  {animation:nt-type    .90s linear      both paused;animation-delay:calc(var(--hold,0s) * -1)}
+/* TYPE-IN uses data-type in the runtime; character opacity is a function of time. */
 .comp.in [data-anim="SURGE-IN"] {animation:nt-surgein .62s linear      both paused;animation-delay:calc(var(--hold,0s) * -1)}
 .comp.in [data-anim="RISE-IN"]  {animation:nt-rise    .56s var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1)}
 .comp.in [data-anim="FOLD-IN"]  {animation:nt-fold    .54s var(--ease) both paused;animation-delay:calc(var(--hold,0s) * -1)}
@@ -316,11 +318,11 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
   </div>
 </div>
 
-<div class="comp" id="S04" data-label="进度 · 亮条 · STEP-IN" data-in="12.4" data-out="16.0">
+<div class="comp" id="S04" data-label="进度 · 亮条 · BAR-IN" data-in="12.4" data-out="16.0">
   <div class="pnl bar">
     <div class="kick grow"><i class="tick"></i><span class="tx">迁移进度</span></div>
     <div class="c-meter">
-      <div class="cells" aria-hidden="true"><i class="on" data-anim="STEP-IN" style="--i:0"></i><i class="on" data-anim="STEP-IN" style="--i:1"></i><i class="on" data-anim="STEP-IN" style="--i:2"></i><i class="on" data-anim="STEP-IN" style="--i:3"></i><i class="on" data-anim="STEP-IN" style="--i:4"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="cells" data-grow=".38" data-dur="1.2" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i><i style="--i:10"></i><i style="--i:11"></i></div>
       <div class="val"><span data-to="38" data-suffix="%" data-dur="1.2"></span></div>
       <div class="lbl"><i class="dot pulse"></i>已完成节点数</div>
     </div>
@@ -387,7 +389,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
     <div class="c-term">
       <div class="kw" data-anim="POWER-IN">业务闭环</div>
       <div class="rule" aria-hidden="true"></div>
-      <div class="def" data-anim="TYPE-IN">从这个线索进来，到钱收回来，中途不用换人接手。</div>
+      <div class="def" data-anim="TYPE-IN" data-type data-dur=".9">从这个线索进来，到钱收回来，中途不用换人接手。</div>
     </div>
   </div>
 </div>
@@ -427,7 +429,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 <div class="comp pos-b" id="S14" data-label="引语 · 无壳（下方）· BLINK-IN" data-in="52.4" data-out="56.0">
   <div class="pnl bare" data-anim="BLINK-IN">
     <div class="c-quote">
-      <div class="tx pulse">“我们没有变得更能干，只是少做了两件没必要的事。”</div>
+      <div class="tx">“我们没有变得更能干，只是少做了两件没必要的事。”</div>
       <div class="by">受访者 · 运营负责人</div>
     </div>
   </div>
@@ -451,7 +453,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
   </div>
 </div>
 
-<div class="comp" id="S16" data-label="零件一览 · 带底 · RISE-IN" data-in="60.4" data-out="64.0">
+<div class="comp" id="S16" data-enter="none" data-label="零件一览 · 带底 · RISE-IN" data-in="60.4" data-out="64.0">
   <div class="pnl frame" data-anim="RISE-IN">
     <i class="scan"></i>
     <div class="kick grow"><i class="tick"></i><span class="tx">零件</span></div>
@@ -505,7 +507,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
   </div>
 </div>
 
-<div class="comp" id="S21" data-label="五档壳 · 无壳 · RISE-IN" data-in="80.4" data-out="84.0">
+<div class="comp" id="S21" data-enter="none" data-label="五档壳 · 无壳 · RISE-IN" data-in="80.4" data-out="84.0">
   <div class="pnl bare" data-anim="RISE-IN">
     <div class="kick grow"><i class="tick"></i><span class="tx">同一块内容，五档外观</span></div>
     <div class="c-log">
@@ -526,6 +528,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 
     .comp[data-enter="none"]   关掉默认入场，入场完全交给 CSS
     元素[data-anim="NAME"]     CSS 关键帧的入场/退场挂点；元素放在卡片内部即可
+    [data-type]                纯文本逐字显示，配 data-dur；保留完整排版，不依赖播放历史
     [data-to]                  数字跳涨，配 data-prefix / data-suffix / data-dur / data-dec / data-group
     [data-grow="0~1"]          生长量写进 --grow；带 .arc 的 SVG 圆改走 stroke-dash
 
@@ -546,10 +549,21 @@ const CONFIG = {
   'use strict';
   const clamp = n => Math.max(0, Math.min(1, n));
   const ease = n => 1 - Math.pow(1 - clamp(n), 3);
+  const splitText = text => typeof Intl.Segmenter === 'function'
+    ? [...new Intl.Segmenter('zh', {granularity:'grapheme'}).segment(text)].map(s => s.segment)
+    : Array.from(text);
   const cards = [...document.querySelectorAll('#track > .comp')].map(el => {
     const start = Number(el.dataset.in), end = Number(el.dataset.out);
     if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) throw new Error('Invalid card interval: ' + el.id);
     return {el, start, end, plain: el.dataset.enter === 'none',
+      types: [...el.querySelectorAll('[data-type]')].map(node => {
+        const letters = splitText(node.textContent).map(text => {
+          const span = document.createElement('span'); span.textContent = text;
+          span.style.whiteSpace = 'pre-wrap'; return span;
+        });
+        node.replaceChildren(...letters);
+        return {letters, duration: Math.max(.001, Number(node.dataset.dur) || .9)};
+      }),
       nums: [...el.querySelectorAll('[data-to]')],
       grows: [...el.querySelectorAll('[data-grow]')],
       reveals: [...el.querySelectorAll('[data-reveal]')].map(node => {
@@ -583,6 +597,10 @@ const CONFIG = {
       c.el.style.setProperty('--glow', (.72 + .12 * Math.sin((current-c.start)*2)).toFixed(6));
       c.el.style.setProperty('--entry', enter.toFixed(6));
       const elapsed = current < c.start ? 0 : (active ? current - c.start : 1e9);
+      for (const type of c.types) {
+        const count = Math.floor(clamp(elapsed / type.duration) * type.letters.length);
+        type.letters.forEach((letter, i) => { letter.style.opacity = i < count ? '1' : '0'; });
+      }
       for (const n of c.nums) {
         const to = Number(n.dataset.to) || 0;
         let text = (to * Math.min(1, elapsed / (Number(n.dataset.dur) || 1))).toFixed(Number(n.dataset.dec) || 0);

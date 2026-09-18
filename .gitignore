@@ -24,3 +24,7 @@ ivh-next/runs/
 ivh-create/examples/*/render-script/
 ivh-create/examples/*/shots/
 *.mov
+
+# 日常作品的输出与运行临时目录
+outputs/
+.work/

@@ -70,6 +70,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseComps, samplePlan, uniformTimes, alphaIsEmpty } from "./active-windows.mjs";
 
+import { cleanupRun } from "./cleanup.mjs";
+
 /* ---------- 浏览器探测 ---------- */
 const BROWSERS = [
   process.env.IVH_BROWSER,
@@ -127,8 +129,15 @@ const SHARD_MANIFEST = getArg("--shard-manifest", "");
 const SHARD_TAG = getArg("--shard-tag", "f");
 const SHARD_ID = Number(getArg("--shard-id", "-1"));
 const name = path.basename(FILE, ".html");
-const outDir = path.resolve(getArg("--out", path.join(path.dirname(FILE), "frames-" + name)));
-fs.mkdirSync(outDir, { recursive: true });
+const outputDir = path.resolve(getArg("--out", path.join(path.dirname(FILE), "frames-" + name)));
+fs.mkdirSync(outputDir, { recursive: true });
+let outDir = outputDir;
+if (VIDEO && !SHARD_FILE) {
+  const workRoot = path.join(outputDir, '.work');
+  fs.mkdirSync(workRoot, { recursive: true });
+  outDir = getArg('--work-dir', '') || fs.mkdtempSync(path.join(workRoot, 'run-'));
+  console.log('[shoot] 临时目录 -> ' + outDir);
+}
 
 /* ---------- 读产物 ---------- */
 const html = fs.readFileSync(FILE, "utf8");
@@ -612,7 +621,7 @@ if ((FRAMES || VIDEO) && shots.length) {
          剪辑软件只能自己猜。采多少帧仍由 --step 决定（那才是清晰度/耗时的取舍），
          容器帧率则固定下来。 */
     const alpha = BG === "transparent";
-    const outFile = path.join(outDir, alpha ? `${name}-alpha.mov` : `${name}.mp4`);
+    const outFile = path.join(outputDir, alpha ? `${name}-alpha.mov` : `${name}.mp4`);
     const seqPattern = path.join(seqDir, "frame-%05d.png");
     const cfr = ["-r", String(OUT_FPS)];
     const cmd = alpha
@@ -632,13 +641,15 @@ if ((FRAMES || VIDEO) && shots.length) {
 
     if (VIDEO) {
       if (!FFMPEG) {
-        console.warn("\n[shoot] 没找到 ffmpeg，只输出命令。装好后设 IVH_FFMPEG 或加进 PATH 再跑。");
+        console.warn("\n[shoot] 没找到 ffmpeg，未生成视频。");
+        process.exitCode = 1;
       } else {
         try {
           execFileSync(FFMPEG, cmd, { stdio: ["ignore", "ignore", "inherit"], timeout: 900000 });
           const mb = fs.existsSync(outFile) ? (fs.statSync(outFile).size / 1048576).toFixed(1) : "0";
           console.log(`\n[shoot] 视频 -> ${outFile}（${mb} MB）`);
           console.log(outFile);
+          if (process.send && argv.includes('--defer-cleanup')) process.send({ type: 'encoded' });
         } catch (e) {
           console.error("\n[shoot] ffmpeg 合成失败：" + e.message);
           process.exitCode = 1;
@@ -648,35 +659,13 @@ if ((FRAMES || VIDEO) && shots.length) {
       console.log(`\n  提示：抽帧是「定格」采样，用于核对某个时间点长什么样。\n        想看整条片子的观感，直接打开 HTML 看——比抽帧快，而且能看到真实动效。\n        要出片请走 render.mjs，不要在这里手工拼帧。`);
     }
 
-    /* 4) 收尾：中间帧用完即清。
-       mp4 已经落盘，seq/ 这几千张 PNG 的唯一剩余用途是「不重抽帧、只换编码参数
-       重出一版」。默认清掉 —— fine 档一条 3 分钟片子就是 2.1GB，不清会在每个
-       产物目录里静默堆积（上一轮就是漏在这里）。要留着就加 --keep-frames。 */
-    const dirSize = d => {
-      const seen = new Set();
-      let n = 0;
-      for (const f of fs.readdirSync(d)) {
-        try {
-          const st = fs.statSync(path.join(d, f));
-          const key = st.ino ? st.dev + ":" + st.ino : f;   /* 硬链接的空档帧只算一次 */
-          if (seen.has(key)) continue;
-          seen.add(key);
-          n += st.size;
-        } catch {}
-      }
-      return n;
-    };
+    // render owns cleanup after verification; direct shoot uses a bounded cleaner.
     if (VIDEO && KEEP_FRAMES) {
-      console.log(`\n[shoot] seq/ 已保留（--keep-frames）：${seqDir}`);
-    } else if (VIDEO && !process.exitCode && fs.existsSync(outFile)) {
-      try {
-        const bytes = dirSize(seqDir);
-        fs.rmSync(seqDir, { recursive: true, force: true });
-        console.log(`\n[shoot] 中间帧已清理：seq/ 回收 ${(bytes / 1048576).toFixed(0)} MB`);
-        console.log(`        想留着换编码参数重出，下次加 --keep-frames。`);
-      } catch (e) {
-        console.warn(`\n[shoot] seq/ 清理失败（不影响成片）：${e.message}`);
-      }
+      console.log('[shoot] 帧已保留：' + seqDir);
+    } else if (VIDEO && !process.exitCode && fs.existsSync(outFile) && !argv.includes('--defer-cleanup')) {
+      await cleanupRun(outDir);
     }
   }
 }
+
+if (process.connected) process.disconnect();

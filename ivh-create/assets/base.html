@@ -48,6 +48,7 @@ body.view{min-height:100vh;color:#e8f2ed;background:#101714;display:flex;flex-di
 
     .comp[data-enter="none"]   关掉默认入场，入场完全交给 CSS
     元素[data-anim="NAME"]     CSS 关键帧的入场/退场挂点；元素放在卡片内部即可
+    [data-type]                纯文本逐字显示，配 data-dur；保留完整排版，不依赖播放历史
     [data-to]                  数字跳涨，配 data-prefix / data-suffix / data-dur / data-dec / data-group
     [data-grow="0~1"]          生长量写进 --grow；带 .arc 的 SVG 圆改走 stroke-dash
 
@@ -68,10 +69,21 @@ const CONFIG = {
   'use strict';
   const clamp = n => Math.max(0, Math.min(1, n));
   const ease = n => 1 - Math.pow(1 - clamp(n), 3);
+  const splitText = text => typeof Intl.Segmenter === 'function'
+    ? [...new Intl.Segmenter('zh', {granularity:'grapheme'}).segment(text)].map(s => s.segment)
+    : Array.from(text);
   const cards = [...document.querySelectorAll('#track > .comp')].map(el => {
     const start = Number(el.dataset.in), end = Number(el.dataset.out);
     if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) throw new Error('Invalid card interval: ' + el.id);
     return {el, start, end, plain: el.dataset.enter === 'none',
+      types: [...el.querySelectorAll('[data-type]')].map(node => {
+        const letters = splitText(node.textContent).map(text => {
+          const span = document.createElement('span'); span.textContent = text;
+          span.style.whiteSpace = 'pre-wrap'; return span;
+        });
+        node.replaceChildren(...letters);
+        return {letters, duration: Math.max(.001, Number(node.dataset.dur) || .9)};
+      }),
       nums: [...el.querySelectorAll('[data-to]')],
       grows: [...el.querySelectorAll('[data-grow]')],
       reveals: [...el.querySelectorAll('[data-reveal]')].map(node => {
@@ -105,6 +117,10 @@ const CONFIG = {
       c.el.style.setProperty('--glow', (.72 + .12 * Math.sin((current-c.start)*2)).toFixed(6));
       c.el.style.setProperty('--entry', enter.toFixed(6));
       const elapsed = current < c.start ? 0 : (active ? current - c.start : 1e9);
+      for (const type of c.types) {
+        const count = Math.floor(clamp(elapsed / type.duration) * type.letters.length);
+        type.letters.forEach((letter, i) => { letter.style.opacity = i < count ? '1' : '0'; });
+      }
       for (const n of c.nums) {
         const to = Number(n.dataset.to) || 0;
         let text = (to * Math.min(1, elapsed / (Number(n.dataset.dur) || 1))).toFixed(Number(n.dataset.dec) || 0);

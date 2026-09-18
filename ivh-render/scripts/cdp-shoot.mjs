@@ -50,7 +50,7 @@ function killTree(child) {
   if (!child || child.killed || !child.pid) return;
   try {
     if (process.platform === "win32")
-      spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+      spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true, timeout: 5000 });
     else child.kill("SIGKILL");
   } catch {}
   try { child.kill(); } catch {}
@@ -141,7 +141,12 @@ class CdpPipe {
       this.out.write(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }) + "\0");
     });
   }
-  close() { for (const w of this.pending.values()) clearTimeout(w.t); try { this.in.removeAllListeners("data"); } catch {} }
+  close() {
+    for (const w of this.pending.values()) { clearTimeout(w.t); w.rej(new Error('CDP closed')); }
+    this.pending.clear();
+    this.in.destroy();
+    this.out.destroy();
+  }
 }
 
 /* ==========================================================================
@@ -292,6 +297,8 @@ async function captureWith(how, { browser, file, times, outDir, filePrefix, size
     /* 子进程的 stderr 管道也要放掉：句柄不关，事件循环就被吊着不退出。 */
     try { state.child?.stderr?.destroy(); } catch {}
     try { state.child?.stdout?.destroy(); } catch {}
+    for (const stream of state.child?.stdio || []) { try { stream?.destroy(); } catch {} }
+    state.child?.unref();
     await sleep(150);
     /* 删不掉就删不掉：临时目录留着不致命，卡在这儿才致命（整棵进程树已端掉，正常是瞬时完成）。 */
     try { fs.rmSync(userDir, { recursive: true, force: true, maxRetries: 2, retryDelay: 120 }); } catch {}
