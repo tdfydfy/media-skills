@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN" data-ivh-async-media>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>独立视频画面</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#111}body{font-family:"Microsoft YaHei",sans-serif}
+#viewport{width:1920px;height:1080px}#stage{position:relative;width:1920px;height:1080px;overflow:hidden;transform-origin:top left;background:#eee9df}
+#track,.comp{position:absolute;inset:0}.comp{visibility:hidden}.comp.in{visibility:visible}
+.scene{padding:100px 120px;color:#172320;background:#eee9df}.scene.dark{background:#172320;color:#eee9df}
+.scene h1{font-size:100px;margin:0 0 48px}.scene p{font-size:42px;max-width:1300px;line-height:1.6}
+.accent{color:#db633c}.orb{width:220px;height:220px;border-radius:50%;background:#db633c;animation:travel 3s both paused;animation-delay:calc(-1 * var(--local))}
+@keyframes travel{from{transform:translateX(0) scale(.7)}to{transform:translateX(900px) scale(1)}}
+img,video{max-width:100%;object-fit:contain}.controls{display:none}
+body.view{display:flex;flex-direction:column;align-items:center;gap:16px;padding:16px;color:#eee}
+.view .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;width:min(1100px,100%)}
+.controls button,.controls select{font:inherit;padding:8px}.controls input{flex:1;min-width:140px}.controls output{font:14px monospace}
+#error{color:#ff9e85;flex-basis:100%;white-space:pre-wrap}audio{display:none}
+</style>
+<!-- STYLE: add scene-specific design here; replace the demo content below. -->
+</head>
+<body>
+<main id="viewport"><div id="stage" data-composition-id="standalone" data-width="1920" data-height="1080"><div id="track">
+<div class="comp scene" data-scene data-in="0" data-out="4" data-label="概念">
+<h1>从概念<span class="accent">出发</span></h1><p>替换为本片内容，画面与已有音频使用同一个零点。</p><div class="orb"></div>
+</div>
+<div class="comp scene dark" data-scene data-in="4" data-out="8" data-label="展开">
+<h1>让画面<span class="accent">推进解释</span></h1><p>明暗反差跟随内容转折，主体、强调色与动作保持连续。</p><div class="orb"></div>
+</div>
+</div></div></main>
+<!-- Set a local src only when preview narration is available. Audio is never exported. -->
+<audio id="narration" preload="metadata"></audio>
+<nav class="controls" aria-label="视频预览">
+<button id="play">播放</button><select id="scenes" aria-label="场景"></select>
+<input id="seek" aria-label="时间" type="range" min="0" step="0.001"><output id="time"></output>
+<span id="error" role="alert"></span>
+</nav>
+<script>
+const CONFIG = {
+  PURPOSE: 'standalone', BASE: 'timeline', BG: 'opaque',
+  RATIO: '16:9', STYLE: 'custom', ANIMATE: true, HIDE_HUD: true
+};
+(() => {
+  'use strict';
+  const params = new URLSearchParams(location.search), view = params.get('view') === '1';
+  const stage = document.getElementById('stage');
+  const ui = Object.fromEntries(['play','seek','scenes','time','error'].map(id => [id,document.getElementById(id)]));
+  const audio = document.getElementById('narration');
+  const hasAudio = !!audio?.getAttribute('src');
+  const groups = [...document.querySelectorAll('#track > .comp')].map(el => {
+    const start = Number(el.dataset.in), end = Number(el.dataset.out);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) throw Error('Invalid interval: '+el.outerHTML.slice(0,160));
+    return {el,start,end};
+  });
+  const duration = Math.max(0,...groups.map(g=>g.end));
+  const scenes = groups.filter(g=>g.el.hasAttribute('data-scene')).sort((a,b)=>a.start-b.start);
+  let covered = 0;
+  for (const s of scenes) {
+    if (s.start > covered + .000001) throw Error('Scene gap at '+covered);
+    covered = Math.max(covered,s.end);
+  }
+  if (!duration || covered < duration) throw Error('Scenes must cover the full timeline');
+  const videos = [...stage.querySelectorAll('video')].map(el => {
+    el.muted=true; el.autoplay=false; el.loop=false; el.pause();
+    const start=Number(el.dataset.start), end=Number(el.dataset.end);
+    const source=Number(el.dataset.sourceIn || 0), rate=Number(el.dataset.rate || 1);
+    if (![start,end,source,rate].every(Number.isFinite) || start<0 || end<=start || source<0 || rate<=0) throw Error('Invalid video mapping');
+    return {el,start,end,source,rate};
+  });
+  let current=0, playing=false, raf=0, origin=0, generation=0, queue=Promise.resolve();
+  const clamp = t => Math.max(0,Math.min(duration,Number(t)||0));
+  function waitFor(el,event,ready,action=()=>{}) {
+    return new Promise((resolve,reject)=>{
+      let timer;
+      const clean=()=>{clearTimeout(timer);el.removeEventListener(event,done);el.removeEventListener('error',bad);};
+      const done=()=>{if(ready()){clean();resolve();}};
+      const bad=()=>{clean();reject(Error('Media failed: '+(el.currentSrc||el.src)));};
+      el.addEventListener(event,done);el.addEventListener('error',bad);
+      timer=setTimeout(()=>{clean();reject(Error('Media timeout: '+(el.currentSrc||el.src)));},10000);
+      try {action();if(el.error)bad();else done();} catch(e){clean();reject(e);}
+    });
+  }
+  let assets;
+  function readyAssets() {
+    return assets ||= Promise.all([
+      document.fonts?.ready,
+      ...[...stage.querySelectorAll('img')].map(img=>waitFor(img,'load',()=>img.complete&&img.naturalWidth>0).then(()=>img.decode())),
+      ...videos.map(v=>waitFor(v.el,'loadeddata',()=>v.el.readyState>=2).then(()=>{
+        if (!Number.isFinite(v.el.duration) || v.source+(v.end-v.start)*v.rate>v.el.duration+.001) throw Error('Video range exceeds source: '+v.el.src);
+      }))
+    ]);
+  }
+  function draw(t) {
+    current=clamp(t);
+    for (const g of groups) {
+      const active=current>=g.start && (current<g.end || (current===duration&&g.end===duration));
+      g.el.classList.toggle('in',active);
+      const local=Math.max(0,Math.min(g.end-g.start,current-g.start));
+      g.el.style.setProperty('--local',local+'s');
+      g.el.style.setProperty('--progress',String(local/(g.end-g.start)));
+    }
+    ui.seek.value=String(current);ui.time.textContent=current.toFixed(2)+' / '+duration.toFixed(2)+' s';
+    const index=scenes.findIndex(s=>current>=s.start&&current<s.end);
+    if(index>=0)ui.scenes.value=String(index);
+  }
+  async function renderAt(t) {
+    await readyAssets();
+    t=clamp(t);
+    await Promise.all(videos.map(async v=>{
+      v.el.pause();
+      if (t<v.start || t>v.end || (t===v.end && t!==duration)) return;
+      const target=Math.min(v.el.duration-.000001,v.source+(t-v.start)*v.rate);
+      if(Math.abs(v.el.currentTime-target)<.000001 && v.el.readyState>=2)return;
+      await waitFor(v.el,'seeked',()=>!v.el.seeking&&v.el.readyState>=2,()=>{v.el.currentTime=target;});
+    }));
+    draw(t);
+  }
+  function enqueue(t) {
+    const task=queue.then(()=>renderAt(t));
+    queue=task.catch(()=>{});
+    return task;
+  }
+  function pause() {generation++;playing=false;cancelAnimationFrame(raf);audio?.pause();ui.play.textContent='播放';}
+  function report(e) {pause();ui.error.textContent=e.message;console.error(e);}
+  async function seekAt(t) {
+    pause(); t=clamp(t);
+    if(view&&hasAudio) {
+      await waitFor(audio,'loadedmetadata',()=>audio.readyState>=1);
+      audio.currentTime=Math.min(t,audio.duration);
+    }
+    return enqueue(t);
+  }
+  async function tick(now,token) {
+    if(!playing||token!==generation)return;
+    try {
+      const t=hasAudio?audio.currentTime:(now-origin)/1000;
+      await enqueue(t);
+      if(!playing||token!==generation)return;
+      if(t>=duration || (hasAudio&&audio.ended)){pause();return;}
+      raf=requestAnimationFrame(now=>tick(now,token));
+    } catch(e){report(e);}
+  }
+  async function play() {
+    if(playing)return;
+    try {
+      if(current>=duration)await seekAt(0);
+      const token=++generation;
+      await queue;
+      if(token!==generation)return;
+      if(hasAudio) {audio.currentTime=current;await audio.play();}
+      if(token!==generation){audio?.pause();return;}
+      playing=true;origin=performance.now()-current*1000;ui.play.textContent='暂停';
+      raf=requestAnimationFrame(now=>tick(now,token));
+    } catch(e){report(e);}
+  }
+  window.IVH={seekAt,play,pause,get duration(){return duration;},get currentTime(){return current;}};
+  stage.dataset.duration=String(duration);
+  ui.seek.max=String(duration);
+  if(view) {
+    document.body.classList.add('view');
+    const fit=()=>{
+      const w=Number(stage.dataset.width),h=Number(stage.dataset.height);
+      const scale=Math.max(.05,Math.min((innerWidth-32)/w,(innerHeight-150)/h,1));
+      stage.style.transform='scale('+scale+')';
+      const viewport=document.getElementById('viewport');viewport.style.width=w*scale+'px';viewport.style.height=h*scale+'px';
+    };
+    fit();addEventListener('resize',fit);
+    scenes.forEach((s,i)=>{const o=document.createElement('option');o.value=i;o.textContent=s.el.dataset.label||'场景 '+(i+1);ui.scenes.append(o);});
+    ui.play.onclick=()=>playing?pause():play();
+    ui.seek.oninput=()=>seekAt(ui.seek.value).catch(report);
+    ui.scenes.onchange=()=>seekAt(scenes[Number(ui.scenes.value)].start).catch(report);
+    addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|SELECT|BUTTON/.test(e.target.tagName)){e.preventDefault();playing?pause():play();}});
+  }
+  draw(params.has('t')?Number(params.get('t')):0);
+  seekAt(current).catch(report);
+})();
+</script>
+</body>
+</html>

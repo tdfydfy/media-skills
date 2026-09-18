@@ -11,7 +11,7 @@
  *   node scripts/shoot.mjs <产物.html> --video --fps 30    # 成片输出 30fps 恒定帧率（默认就是 30）
  *   node scripts/shoot.mjs <产物.html> --engine cli        # 强制走「每帧一个浏览器」的老路
  *   node scripts/shoot.mjs <产物.html> --no-reuse-blank    # 空档不复用，逐帧老实渲染
- *   node scripts/shoot.mjs <产物.html> --video --keep-frames  # 出片后保留 seq/ 中间帧（默认出完即清）
+ *   node scripts/shoot.mjs <产物.html> --video --keep-frames  # 出片后保留 run/ 中间帧（默认出完即清）
  *   node scripts/shoot.mjs <产物.html> --gallery            # 六风格对照页
  *   node scripts/shoot.mjs <产物.html> --out <目录> --scale 2
  *   node scripts/shoot.mjs <产物.html> --workers 4         # 指定并行路数（默认 核数−2，上限 6）
@@ -139,6 +139,17 @@ if (VIDEO && !SHARD_FILE) {
   console.log('[shoot] 临时目录 -> ' + outDir);
 }
 
+/* 出片时直接把截图写成 ffmpeg 所需的连续帧名；普通截图仍使用时间戳文件名。 */
+const directFrames = VIDEO || argv.includes('--direct-frames');
+const framePath = (index) => path.join(outDir, `frame-${String(index + 1).padStart(5, "0")}.png`);
+let frameOrder = null;
+const frameNameForTime = t => {
+  const index = frameOrder?.get(t);
+  if (directFrames && index !== undefined) return framePath(index);
+  if (directFrames) return path.join(outDir, `blank-${String(t).padStart(7, "0").replace(".", "_")}.png`);
+  return path.join(outDir, `${name}-f${String(t).padStart(7, "0").replace(".", "_")}.png`);
+};
+
 /* ---------- 读产物 ---------- */
 const html = fs.readFileSync(FILE, "utf8");
 const getCfg = k => (html.match(new RegExp("\\b" + k + "\\s*:\\s*'([^']*)'")) || [])[1];
@@ -155,10 +166,19 @@ const IS_OVERLAY = PURPOSE === "overlay";
 const MATERIAL = IS_OVERLAY && RATIO === "3:4";
 const KIND = !IS_OVERLAY ? "独立成片" : (MATERIAL ? "素材模式（3:4 一块板）" : "整屏叠加（铺满整屏）");
 
-const SIZE = {
+const ratioSize = {
   "16:9": { w: 1920, h: 1080 }, "9:16": { w: 1080, h: 1920 },
   "4:3":  { w: 1440, h: 1080 }, "3:4":  { w: 1080, h: 1440 },
 }[RATIO] || { w: 1920, h: 1080 };
+const stageTag = html.replace(/<!--[\s\S]*?-->/g, '').match(/<[^>]+\bid="stage"[^>]*>/)?.[0] || '';
+const dimension = (key, fallback) => {
+  const value = stageTag.match(new RegExp(`\\bdata-${key}="([^"]+)"`))?.[1];
+  if (value === undefined) return fallback;
+  const number = Number(value);
+  if (!Number.isInteger(number) || number <= 0) throw new Error(`Invalid stage ${key}: ${value}`);
+  return number;
+};
+const SIZE = { w: dimension('width', ratioSize.w), h: dimension('height', ratioSize.h) };
 console.log(`[shoot] ${name} · ${KIND} · ${RATIO} ${SIZE.w}x${SIZE.h} · ${BG}`);
 if (IS_OVERLAY && !MATERIAL) {
   console.log("        ⚠ 整屏叠加：画布比例应与视频本体一致，且每个组件都要写 data-safe 避开中央。");
@@ -258,6 +278,11 @@ ${items.map(i => `  <figure><figcaption>${i.s}</figcaption>${i.png ? `<img src="
      不剥掉的话"总时长"会被注释里的示例数字带偏。
    ========================================================================== */
 const bareHtml = html.replace(/<!--[\s\S]*?-->/g, "");
+// Async assets cannot be validated by the CLI screenshot's fixed virtual-time budget.
+const ASYNC_MEDIA = /<html\b[^>]*\bdata-ivh-async-media\b/i.test(bareHtml);
+if (ASYNC_MEDIA && ENGINE === "cli") {
+  throw new Error('This HTML requires async media readiness; use --engine cdp or composite the media in an editor.');
+}
 const { comps: allComps, outDur: OUT_DUR } = parseComps(html);
 
 const POINTS = argv.includes("--points");
@@ -271,7 +296,7 @@ const usePoints = BASE === "timeline" && MATERIAL && !(FRAMES || VIDEO) && (POIN
    素材模式出片时，整条时间轴上大部分秒数一个可见像素都没有。逐帧渲染它们纯属白干：
    实测同一份产物里两个空档时刻截出的 PNG 逐字节相同（MD5 一致、alpha 平面全 0）。
    于是只渲染一张空档帧，其余空档全部复用它 —— 成片画面一点不变，
-   帧序号与时间映射也不变（seq/ 里该有的帧一张不少）。
+   帧序号与时间映射也不变（run 目录里该有的帧一张不少）。
    只对「透明产物」成立：不透明产物的空档里还有纸底和进度条，那不算空档。
    ★ 复用前会对那一张实测 alpha，不是靠推断（见 shootWithBlankReuse）。 */
 const REUSE_BLANK = !argv.includes("--no-reuse-blank")
@@ -305,6 +330,7 @@ const captureShard = async (times, tag, quiet = false) => {
     const res = await captureFrames({
       browser: BROWSER, file: FILE, times, outDir, filePrefix,
       size: SIZE, scale: SCALE, transparent: BG === "transparent",
+      fileNameForTime: directFrames ? frameNameForTime : undefined,
       log: (done, total, t, perFrame, err, how) => {
         if (err) {
           /* 每种传输失败都会报一次，都打出来 —— 排障时要知道是哪条路不通、为什么。 */
@@ -312,7 +338,9 @@ const captureShard = async (times, tag, quiet = false) => {
           console.warn(`[shoot] ${label}不可用：${err}`);
           if (!explained) {
             explained = true;
-            console.warn("        逐个传输重试中；都不可用才回退到逐帧浏览器（会慢一个数量级）。");
+            console.warn(ASYNC_MEDIA
+              ? "        逐个传输重试中；异步媒体产物失败后停止，不回退逐帧浏览器。"
+              : "        逐个传输重试中；都不可用才回退到逐帧浏览器（会慢一个数量级）。");
           }
           return;
         }
@@ -327,14 +355,16 @@ const captureShard = async (times, tag, quiet = false) => {
       if (!quiet) process.stdout.write("\r" + " ".repeat(64) + "\r");
       return res;
     }
-    if (ENGINE === "cdp") {
-      console.error("[shoot] 指定了 --engine cdp，但单浏览器引擎不可用。");
+    if (ENGINE === "cdp" || ASYNC_MEDIA) {
+      console.error(ASYNC_MEDIA
+        ? "[shoot] 异步媒体定位或 CDP 抓帧失败；请处理素材，或改在剪辑软件中合成。"
+        : "[shoot] 指定了 --engine cdp，但单浏览器引擎不可用。");
       process.exit(1);
     }
   }
   const out = [];
   for (const t of times) {
-    const png = path.join(outDir, `${filePrefix}${String(t).padStart(7, "0").replace(".", "_")}.png`);
+    const png = directFrames ? frameNameForTime(t, out.length) : path.join(outDir, `${filePrefix}${String(t).padStart(7, "0").replace(".", "_")}.png`);
     if (shootOne(fileUrl(`?t=${t}`), png, 3000)) {
       out.push({ t, png });
       if (!quiet) process.stdout.write(`\r  已抽 ${out.length}/${times.length} 帧 @ ${t}s   `);
@@ -368,7 +398,8 @@ const captureInParallel = async (times, tag, W) => {
 
   const jobs = shards.map((ts, i) => {
     const inp = path.join(tmp, `in-${i}.json`);
-    fs.writeFileSync(inp, JSON.stringify(ts), "utf8");
+    fs.writeFileSync(inp, JSON.stringify({ times: ts, order: directFrames
+      ? ts.filter(t => frameOrder.has(t)).map(t => [t, frameOrder.get(t)]) : null }), "utf8");
     return { i, ts, inp, out: path.join(tmp, `out-${i}.json`) };
   });
 
@@ -378,6 +409,7 @@ const captureInParallel = async (times, tag, W) => {
   const run = j => new Promise(resolve => {
     const a = [fileURLToPath(import.meta.url), FILE, "--out", outDir, "--scale", String(SCALE),
       "--shard-file", j.inp, "--shard-manifest", j.out, "--shard-tag", tag, "--shard-id", String(j.i)];
+    if (directFrames) a.push('--direct-frames');
     if (ENGINE !== "auto") a.push("--engine", ENGINE);
     if (GPU) a.push("--gpu");
     const c = spawn(process.execPath, a, { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
@@ -391,7 +423,10 @@ const captureInParallel = async (times, tag, W) => {
      worker 各写各的帧，t 互不重叠，所以文件名不冲突，数出来就是总进度。 */
   const tick = setInterval(() => {
     let n = 0;
-    try { n = fs.readdirSync(outDir).filter(f => f.startsWith(`${name}-${tag}`) && f.endsWith(".png")).length; } catch {}
+    try {
+      n = fs.readdirSync(outDir).filter(f =>
+        f.endsWith(".png") && (directFrames ? /^frame-\d+\.png$/.test(f) : f.startsWith(`${name}-${tag}`))).length;
+    } catch {}
     process.stdout.write(`\r  并行抽帧 ${Math.min(n, times.length)}/${times.length} 帧 · ${jobs.length} 路   `);
   }, 1500);
 
@@ -426,7 +461,7 @@ const captureInParallel = async (times, tag, W) => {
   try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
 
   /* 按 times 的原始顺序排回去：并行之后回来的次序是乱的，
-     而下游的 seq/frame-%05d.png 必须严格按时间轴顺序落号。 */
+     而下游的 frame-%05d.png 必须严格按时间轴顺序落号。 */
   const rank = new Map(times.map((t, i) => [t, i]));
   ok.sort((a, b) => (rank.get(a.t) ?? 1e9) - (rank.get(b.t) ?? 1e9));
   console.log(`[shoot] 并行抽帧完成：${ok.length}/${times.length} 帧`);
@@ -442,12 +477,14 @@ const shootTimes = async (times, tag) => {
 
 /* ==========================================================================
    worker 模式：主进程 spawn 自己时带 --shard-file。
-   只抓帧、写 manifest、退出 —— 不碰 seq/、不碰 ffmpeg。
+   只抓帧、写 manifest、退出 —— 不碰 ffmpeg。
    ========================================================================== */
 if (SHARD_FILE) {
-  const times = JSON.parse(fs.readFileSync(SHARD_FILE, "utf8"));
+  const payload = JSON.parse(fs.readFileSync(SHARD_FILE, "utf8"));
+  const times = payload.times;
+  frameOrder = payload.order ? new Map(payload.order) : null;
   const shots = await captureShard(times, SHARD_TAG, true);
-  const got = (shots || []).map(s => ({ t: s.t, png: s.png }));
+  const got = shots || [];
   fs.writeFileSync(SHARD_MANIFEST, JSON.stringify(got), "utf8");
   process.exit(got.length === times.length ? 0 : 1);
 }
@@ -466,6 +503,7 @@ const shootWithBlankReuse = async (plan) => {
   const targets = [...new Set([...activeTimes, blankT])].sort((a, b) => a - b);
   const rendered = await shootTimes(targets, "f");
   const byTime = new Map(rendered.map(s => [s.t, s.png]));
+  const metadata = new Map(rendered.map(s => [s.t, s]));
 
   const blank = byTime.get(blankT);
   const alpha = blank ? alphaIsEmpty(findFfmpeg(), blank) : null;
@@ -479,9 +517,9 @@ const shootWithBlankReuse = async (plan) => {
   const out = [];
   let missing = 0;
   for (const t of times) {
-    if (!activeSet.has(t)) { out.push({ t, png: blank, blank: true }); continue; }
+    if (!activeSet.has(t)) { out.push({ ...metadata.get(blankT), t, png: blank, blank: true }); continue; }
     const png = byTime.get(t);
-    if (png) out.push({ t, png });
+    if (png) out.push(metadata.get(t));
     else missing++;                       /* 有内容的帧没抽到，不能拿空档帧糊过去 */
   }
   if (missing) {
@@ -493,6 +531,7 @@ const shootWithBlankReuse = async (plan) => {
 };
 
 let shots = [];
+const captureStartedAt = Date.now();
 if (sampleByTime) {
   const duration = totalDur;
 
@@ -507,6 +546,7 @@ if (sampleByTime) {
       }
     }
     const uniq = [...new Set(times)].sort((a, b) => a - b);
+    frameOrder = new Map(uniq.map((t, i) => [t, i]));
     console.log(`[shoot] ${name} · 素材点采样 ${uniq.length} 张 · ${allComps.length} 个组件 · 时间轴总长 ${timelineDur}s`);
     shots = await shootTimes(uniq, "p");
     console.log("");
@@ -518,6 +558,7 @@ if (sampleByTime) {
     console.log(`[shoot] ${name} · ${BASE === "timeline" ? "timeline" : "分幕"} 抽帧 ${times.length} 张 · 间隔 ${step.toFixed(2)}s · 总长 ${duration}s`);
     /* 空档复用只改「渲染哪些帧」，不改 times —— 帧序号、时间映射、成片时长一律不动。 */
     const plan = REUSE_BLANK ? samplePlan(html, duration, step, OUT_FPS) : null;
+    frameOrder = new Map(times.map((t, i) => [t, i]));
     shots = (plan && plan.blankT !== null)
       ? await shootWithBlankReuse(plan)
       : await shootTimes(times, "f");
@@ -533,6 +574,15 @@ if (sampleByTime) {
     if (okShot) shots.push({ t: i + 1, png });
     console.log(`  ${okShot ? "●" : "✗"} 第 ${i + 1} 幕`);
   }
+}
+console.log(`[shoot] 抽帧阶段耗时 ${(Date.now() - captureStartedAt) / 1000}s`);
+if (directFrames && (shots.length !== frameOrder.size || shots.some((s, i) => frameOrder.get(s.t) !== i))) {
+  throw new Error('抓帧不完整或顺序错误；保留本轮临时文件，不编码截断视频。');
+}
+const timings = [...new Map(shots.map(s => [s.png, s])).values()].filter(s => s.timing);
+if (timings.length) {
+  const sum = key => (timings.reduce((n, s) => n + s.timing[key], 0) / 1000).toFixed(3);
+  console.log(`[shoot] 成功抓帧累计工作耗时（并行路数相加，非墙钟）：定位 ${sum('seek')}s；截图接口 ${sum('capture')}s；base64 解码 ${sum('decode')}s；写盘 ${sum('write')}s`);
 }
 
 console.log(`\n[shoot] 输出 ${shots.length} 张 -> ${outDir}`);
@@ -576,15 +626,12 @@ if ((FRAMES || VIDEO) && shots.length) {
     console.warn("[shoot] 分幕模式的截图是「每幕一张静态图」，不是时间序列，合出来的视频没有意义。");
     console.warn("         要出片请改成 timeline 模式，或用 --step <秒> 显式指定抽帧间隔。");
   } else {
-    /* 1) 把帧物化成连续序号。
-       原始文件名带 "t=12.5" 这种小数点，ffmpeg 的 %d 序列匹配不了，必须先规整。
-       ★ 用 rename 而不是 copy：同盘改名是元数据操作，零拷贝。
-         原来 copy 一份出来、原件不删，fine 档一条 30s 片子会留下两份 751 张 PNG
-         （约 3GB）。改名之后 seq/ 就是唯一的帧目录，时间映射由 index.txt 保留，
-         信息一点没少。
-       ★ seq/ 不是长期产物：合成成功后默认删除（见本段末尾「收尾」）。 */
-    const seqDir = path.join(outDir, "seq");
-    fs.rmSync(seqDir, { recursive: true, force: true });
+    /* 1) 视频截图阶段已经直接写成连续序号 frame-%05d.png；--frames 保留旧的整理接口。
+       这里只补齐空档复用的硬链接并写时间映射，不再把时间戳文件搬进第二个 seq 目录。
+       ★ run/ 不是长期产物：合成成功后默认删除（见本段末尾「收尾」）。 */
+    const sequenceStarted = Date.now();
+    const seqDir = directFrames ? outDir : path.join(outDir, 'seq');
+    if (!directFrames) fs.rmSync(seqDir, { recursive: true, force: true });
     fs.mkdirSync(seqDir, { recursive: true });
     const index = [];
     let reused = 0;
@@ -595,9 +642,10 @@ if ((FRAMES || VIDEO) && shots.length) {
          不占额外空间、也不花拷贝时间；文件系统不支持时退回拷贝（一张 9KB，代价可忽略）。 */
       if (s.blank) {
         reused++;
+        if (s.png === dst) return void index.push(`${f}\t${s.t}s`);
         try { fs.linkSync(s.png, dst); }
-        catch { try { fs.copyFileSync(s.png, dst); } catch {} }
-      } else {
+        catch { fs.copyFileSync(s.png, dst); }
+      } else if (!directFrames && s.png !== dst) {
         try { fs.renameSync(s.png, dst); }
         catch { fs.copyFileSync(s.png, dst); }   // 跨盘时改名会失败，退回拷贝
       }
@@ -605,6 +653,7 @@ if ((FRAMES || VIDEO) && shots.length) {
     });
     /* 序号 → 秒 的对照，方便回头定位某一帧 */
     fs.writeFileSync(path.join(seqDir, "index.txt"), index.join("\n") + "\n", "utf8");
+    console.log(`[shoot] 序列补齐及索引耗时 ${((Date.now() - sequenceStarted) / 1000).toFixed(3)}s`);
     if (reused) console.log(`[shoot] 空档复用：${reused} 帧指向同一张全透明帧（硬链接，不重复占空间）`);
 
     /* 2) 用相邻帧的实际间隔推算输入帧率，保证成片时长 = 原始时间轴长度 */
@@ -624,11 +673,14 @@ if ((FRAMES || VIDEO) && shots.length) {
     const outFile = path.join(outputDir, alpha ? `${name}-alpha.mov` : `${name}.mp4`);
     const seqPattern = path.join(seqDir, "frame-%05d.png");
     const cfr = ["-r", String(OUT_FPS)];
+    // Standalone footage must align with the separately edited narration.
+    // The sampling grid can include an extra endpoint; cap encoded duration.
+    const durationLimit = IS_OVERLAY ? [] : ['-t', String(totalDur)];
     const cmd = alpha
       ? ["-y", "-framerate", String(sampleFps), "-i", seqPattern,
-         "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", ...cfr, outFile]
+         "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", ...cfr, ...durationLimit, outFile]
       : ["-y", "-framerate", String(sampleFps), "-i", seqPattern,
-         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", ...cfr, outFile];
+         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", ...cfr, ...durationLimit, outFile];
 
     const FFMPEG = findFfmpeg();
     const quote = s => (/\s/.test(s) ? `"${s}"` : s);
@@ -645,9 +697,11 @@ if ((FRAMES || VIDEO) && shots.length) {
         process.exitCode = 1;
       } else {
         try {
+          const encodeStartedAt = Date.now();
           execFileSync(FFMPEG, cmd, { stdio: ["ignore", "ignore", "inherit"], timeout: 900000 });
           const mb = fs.existsSync(outFile) ? (fs.statSync(outFile).size / 1048576).toFixed(1) : "0";
           console.log(`\n[shoot] 视频 -> ${outFile}（${mb} MB）`);
+          console.log(`[shoot] ffmpeg 编码耗时 ${(Date.now() - encodeStartedAt) / 1000}s`);
           console.log(outFile);
           if (process.send && argv.includes('--defer-cleanup')) process.send({ type: 'encoded' });
         } catch (e) {

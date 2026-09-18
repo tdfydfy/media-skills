@@ -9,7 +9,7 @@
  *   node scripts/render.mjs <产物.html> --preflight        # 只做出片前检查，不渲染
  *   node scripts/render.mjs <产物.html> --no-verify        # 跳过透明通道复检
  *   node scripts/render.mjs <产物.html> --no-reuse-blank   # 素材模式空档不复用（逐帧老实渲染）
- *   node scripts/render.mjs <产物.html> --keep-frames      # 保留 seq/ 中间帧（默认出完即清）
+ *   node scripts/render.mjs <产物.html> --keep-frames      # 保留 run/ 中间帧（默认出完即清）
  *   node scripts/render.mjs <产物.html> --workers 4        # 抽帧并行路数（默认 逻辑核−2，小机器封 3、大机器封 16）
  *   node scripts/render.mjs <产物.html> --gpu              # 放开 GPU 光栅化（默认关，只值 15%）
  *
@@ -255,8 +255,10 @@ console.log(`\n[render] 产物 → ${expect}（${mb} MB）`);
 console.log(`[render] 编码：${TRANSPARENT ? "ProRes 4444 / yuva444p10le（含 alpha）" : "H.264 / yuv420p"}`);
 
 if (TRANSPARENT && !has("--no-verify")) {
+  const verifyStarted = Date.now();
   console.log("\n[render] 透明复检（抽 alpha 平面，不看 pix_fmt）");
   const v = spawnSync(NODE, [path.join(HERE, "check-alpha.mjs"), expect], { stdio: "inherit" });
+  console.log(`[render] 透明复检耗时 ${((Date.now() - verifyStarted) / 1000).toFixed(3)}s`);
   if (v.status !== 0) {
     console.error("\n[render] ✗ 透明复检未通过 —— 这份 .mov 的 alpha 不可用，不要直接拿去叠加。");
     console.error("  最常见原因：截图时漏了 --default-background-color=00000000（shoot.mjs 已内置，检查是否被改掉）。");

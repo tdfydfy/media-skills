@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN" data-ivh-async-media>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Neon Terminal · 从噪声到行动</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#06100c}body{font-family:"Microsoft YaHei","PingFang SC",sans-serif}
+#viewport{width:1920px;height:1080px}#stage{position:relative;width:1920px;height:1080px;overflow:hidden;transform-origin:top left;background:#06100c}
+#track,.comp{position:absolute;inset:0}.comp{visibility:hidden}.comp.in{visibility:visible}
+:root{--green:#39ff6a;--white:#eafff2;--muted:#a3bead;--line:#284d38;--ease:cubic-bezier(.2,.75,.2,1)}
+.scene{color:var(--white);background:#06100c;overflow:hidden}.mono{font-family:Consolas,ui-monospace,monospace}.green{color:var(--green)}
+.topline{position:absolute;left:112px;right:112px;top:65px;display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:24px;font-size:23px;letter-spacing:.09em;color:var(--muted)}
+.brand{display:flex;align-items:center;gap:16px}.status{width:10px;height:10px;background:var(--green);box-shadow:0 0 15px #39ff6a66}
+.scene-index{position:absolute;bottom:64px;left:112px;right:112px;display:flex;align-items:center;gap:18px;color:var(--muted);font:22px Consolas,monospace}
+.scene-index i{height:3px;width:84px;background:#284d38}.scene-index i.on{background:var(--green)}.scene-index span:last-child{margin-left:auto;font:22px "Microsoft YaHei",sans-serif;letter-spacing:.08em}
+.eyebrow{font:24px Consolas,monospace;letter-spacing:.16em;color:var(--muted);display:flex;align-items:center;gap:18px;margin-bottom:32px}.eyebrow::before{content:"";height:3px;width:40px;background:var(--green)}
+h1,h2,p{margin:0}h1{font-size:112px;line-height:1.27;letter-spacing:-.045em;font-weight:700}h2{font-size:82px;line-height:1.32;letter-spacing:-.045em}p{font-size:32px;line-height:1.8;color:var(--muted)}
+.anim{animation:rise .7s var(--ease) both paused;animation-delay:calc(var(--delay,0s) - var(--local,0s))}
+.line-draw{transform-origin:left;animation:line 1.1s var(--ease) both paused;animation-delay:calc(var(--delay,0s) - var(--local,0s))}
+@keyframes rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes line{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+/* N01 / concept: incoming messages converge on a single actionable signal. */
+.concept::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 76% 55%,#183d2444,transparent 48%)}
+.concept-copy{position:absolute;left:112px;top:240px;width:850px}.concept-copy p{margin-top:36px;max-width:690px}
+.concept-note{margin-top:58px;padding-left:24px;border-left:3px solid var(--green);font-size:28px;line-height:1.6;color:var(--white)}
+.signal-map{position:absolute;left:1030px;top:230px;width:780px;height:630px;background-image:radial-gradient(#31543e 1px,transparent 1px);background-size:30px 30px}
+.signal-map::before,.signal-map::after{content:"";position:absolute;width:38px;height:38px;border-color:var(--green);border-style:solid}.signal-map::before{left:0;top:0;border-width:2px 0 0 2px}.signal-map::after{right:0;bottom:0;border-width:0 2px 2px 0}
+.map-label{position:absolute;left:30px;top:26px;font:21px Consolas,monospace;color:var(--muted);letter-spacing:.12em}
+.noise{position:absolute;left:40px;width:270px;height:92px;border:1px solid #45614e;background:#0c1d14;display:flex;align-items:center;padding:0 26px;font-size:29px;color:#bdd1c2;animation:noise 8s linear both paused;animation-delay:calc(var(--delay,0s) - var(--local,0s))}
+.noise:nth-of-type(1){top:135px}.noise:nth-of-type(2){top:278px}.noise:nth-of-type(3){top:421px}
+.noise b{font:19px Consolas,monospace;margin-right:22px;color:#799785}
+@keyframes noise{0%{opacity:0;transform:translateX(-30px)}10%,38%{opacity:1;transform:translateX(0)}58%,100%{opacity:.42;transform:translateX(0)}}
+.connections{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:#39ff6a;stroke-width:2}
+.connections path{stroke-dasharray:620;stroke-dashoffset:620;animation:connect 1.6s var(--ease) both paused;animation-delay:calc(1.7s - var(--local,0s))}
+@keyframes connect{to{stroke-dashoffset:0}}
+.signal-box{position:absolute;left:415px;top:241px;width:320px;height:170px;border:1px solid #39ff6a;background:#0c2114;box-shadow:0 0 42px #39ff6a15,inset 0 0 25px #39ff6a08;padding:31px}
+.signal-box small{display:block;color:var(--green);font:19px Consolas,monospace;letter-spacing:.1em;margin-bottom:18px}.signal-box strong{font-size:36px;font-weight:500}.signal-caption{position:absolute;left:415px;top:441px;font-size:24px;color:var(--muted)}
+/* N02 / workspace: same accent, different light and spatial density. */
+.workspace{background:#edf4ee;color:#10271b;--muted:#466454;--line:#b8cbbd}
+.workspace .status{background:#087638;box-shadow:none}.workspace .eyebrow::before{background:#087638}.workspace .scene-index i{background:#b8cbbd}.workspace .scene-index i.on{background:#087638}
+.workspace-copy{position:absolute;left:112px;top:228px;width:550px}.workspace-copy h2{font-size:86px}.workspace-copy p{margin-top:32px;font-size:30px;max-width:500px}
+.steps{margin-top:56px;display:flex;flex-direction:column;gap:25px}.step{font-size:28px;display:flex;align-items:center;gap:23px;color:#466454}.step b{font:20px Consolas,monospace;border:1px solid #b8cbbd;width:42px;height:42px;display:grid;place-items:center}.step:last-child{color:#087638}
+.application{position:absolute;left:790px;top:219px;width:1018px;height:622px;background:#fafcf9;border:1px solid #a9c0ae;box-shadow:0 22px 70px #153a2510}
+.app-bar{height:74px;border-bottom:1px solid #c6d7ca;display:flex;align-items:center;justify-content:space-between;padding:0 36px;font:22px Consolas,monospace;color:#466454}.app-bar span:last-child{font:20px "Microsoft YaHei",sans-serif;padding:7px 14px;border:1px solid #c6d7ca}
+.app-toolbar{height:105px;display:flex;align-items:center;justify-content:space-between;padding:0 36px}.app-toolbar strong{font-size:32px;font-weight:600}.action{font-size:24px;color:#10271b;background:#39ff6a;padding:13px 24px;animation:press .45s var(--ease) both paused;animation-delay:calc(4.5s - var(--local,0s))}
+@keyframes press{0%,100%{transform:scale(1)}40%{transform:scale(.92);background:#21d650}}
+.task-list{padding:0 36px}.task{position:relative;display:flex;align-items:center;gap:24px;height:98px;margin-bottom:12px;padding:0 24px;border:1px solid #c6d7ca;background:#fafcf9;animation:select-row .4s linear both paused;animation-delay:calc(var(--at) - var(--local,0s))}
+@keyframes select-row{to{background:#e0f8e5;border-color:#087638}}
+.check{height:28px;width:28px;border:1px solid #7b9985;position:relative;flex:none}.check::after{content:"";position:absolute;left:5px;top:5px;width:15px;height:9px;border-left:3px solid #087638;border-bottom:3px solid #087638;transform:rotate(-45deg);animation:checked .15s linear both paused;animation-delay:calc(var(--at) - var(--local,0s))}
+@keyframes checked{from{opacity:0}to{opacity:1}}
+.task strong{font-size:28px;font-weight:500}.task .type{margin-left:auto;font-size:21px;color:#466454}
+.result{position:absolute;inset:179px 36px 32px;background:#10271b;color:#eafff2;padding:44px;display:flex;align-items:center;gap:32px}
+.result-icon{height:78px;width:78px;display:grid;place-items:center;border:1px solid #39ff6a;color:#39ff6a;font-size:42px}.result strong{font-size:36px;font-weight:500}.result p{font-size:25px;color:#a3bead;margin-top:16px}
+.cursor{position:absolute;left:809px;top:130px;width:40px;height:48px;filter:drop-shadow(0 3px 2px #0003);animation:cursor 1.5s var(--ease) both paused;animation-delay:calc(3.2s - var(--local,0s))}
+@keyframes cursor{0%{opacity:0;transform:translate(-330px,220px)}20%{opacity:1}85%,100%{opacity:1;transform:translate(0,0)}}
+.cursor-away{animation:away .2s linear both paused;animation-delay:calc(5.2s - var(--local,0s))}@keyframes away{to{opacity:0}}
+/* N03 / conclusion: the chosen action becomes the whole focal plane. */
+.conclusion .ruler{position:absolute;left:112px;top:200px;bottom:216px;width:140px;border-left:1px solid #284d38;background:repeating-linear-gradient(0deg,transparent 0 39px,#284d38 39px 40px);mask-image:linear-gradient(to right,#000,transparent)}
+.conclusion-copy{position:absolute;left:330px;top:235px;width:1450px}.conclusion-copy .eyebrow{margin-bottom:46px}.conclusion-copy h2{font-size:62px;color:var(--muted);font-weight:400;letter-spacing:-.02em}
+.hero-line{margin-top:12px;font-size:136px;font-weight:700;letter-spacing:-.06em;line-height:1.4}.hero-line .under{position:relative;display:inline-block;color:#39ff6a}.under::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:#39ff6a;transform-origin:left;animation:line 1s var(--ease) both paused;animation-delay:calc(1.2s - var(--local,0s))}
+.action-path{margin-top:70px;display:flex;align-items:center;gap:34px;font-size:31px}.action-path .arrow{width:118px;height:1px;background:#4a7358;position:relative}.action-path .arrow::after{content:"";position:absolute;right:0;top:-5px;width:10px;height:10px;border-right:1px solid #4a7358;border-top:1px solid #4a7358;transform:rotate(45deg)}
+.action-path .final{padding:18px 28px;background:#39ff6a;color:#06100c;font-weight:600}.conclusion-note{margin-top:40px;font-size:29px;color:var(--muted)}
+.controls{display:none}audio{display:none}body.view{display:flex;flex-direction:column;align-items:center;gap:16px;padding:16px;color:#eafff2}
+.view .controls{display:flex;flex-wrap:wrap;align-items:center;gap:14px;width:min(1100px,100%);font-size:14px}.controls button,.controls select{font:inherit;padding:9px 14px;border:1px solid #45614e;color:#eafff2;background:#0c1d14;border-radius:3px}.controls input{flex:1;min-width:130px;accent-color:#39ff6a}.controls output{font:14px Consolas,monospace}#error{color:#ff9e85;flex-basis:100%;white-space:pre-wrap}
+.controls a{color:#a3bead;text-decoration:none}.controls button:focus-visible,.controls select:focus-visible,.controls a:focus-visible{outline:2px solid #39ff6a;outline-offset:3px}
+</style>
+</head>
+<body>
+<main id="viewport"><div id="stage" data-composition-id="neon-terminal-standalone" data-width="1920" data-height="1080"><div id="track">
+<!-- N01: concept / dark / 0–8 seconds -->
+<div id="N01" class="comp scene concept" data-scene data-in="0" data-out="8" data-label="01 · 概念：从噪声中找信号">
+  <div class="topline"><span class="brand mono"><i class="status"></i> NEON TERMINAL</span><span class="mono">01 / SIGNAL</span></div>
+  <div class="concept-copy">
+    <div class="eyebrow anim">FOCUS / 信息筛选</div>
+    <h1>信息很多。<br><span class="green">重点很少。</span></h1>
+    <p class="anim" style="--delay:.55s">把分散的提醒，<br>变成一个清楚的行动方向。</p>
+    <div class="concept-note anim" style="--delay:3.4s">先找到信号，再决定下一步。</div>
+  </div>
+  <div class="signal-map">
+    <span class="map-label">INPUT → FOCUS</span>
+    <div class="noise" style="--delay:.35s"><b>01</b>临时提醒</div>
+    <div class="noise" style="--delay:.65s"><b>02</b>待处理消息</div>
+    <div class="noise" style="--delay:.95s"><b>03</b>重复内容</div>
+    <svg class="connections" viewBox="0 0 780 630" aria-hidden="true"><path d="M310 181 H345 V326 H415"/><path d="M310 324 H415"/><path d="M310 467 H365 V326 H415"/></svg>
+    <div class="signal-box anim" style="--delay:2.55s"><small>PRIORITY / 01</small><strong>下一步行动</strong></div>
+    <div class="signal-caption anim" style="--delay:3s">让注意力有落点</div>
+  </div>
+  <div class="scene-index"><span>01 — 03</span><i class="on"></i><i></i><i></i><span>识别 → 组织 → 行动</span></div>
+</div>
+<!-- N02: workspace / light / 8–17 seconds. Deliberately labeled illustration. -->
+<div id="N02" class="comp scene workspace" data-scene data-in="8" data-out="17" data-label="02 · 演示：把相关任务放在一起">
+  <div class="topline"><span class="brand mono"><i class="status"></i> NEON TERMINAL</span><span class="mono">02 / WORKSPACE</span></div>
+  <div class="workspace-copy">
+    <div class="eyebrow anim">ORGANIZE / 工作台</div>
+    <h2>把相关的事，<br>放在一起。</h2>
+    <p class="anim" style="--delay:.45s">从来回切换，<br>到围绕一个目标推进。</p>
+    <div class="steps"><div class="step anim" style="--delay:.8s"><b>01</b>选中相关任务</div><div class="step anim" style="--delay:2s"><b>02</b>归入同一项目</div><div class="step anim" style="--delay:5.3s"><b>03</b>保留清晰的下一步</div></div>
+  </div>
+  <div class="application anim" style="--delay:.3s">
+    <div class="app-bar"><span>PROJECT / 工作清单</span><span>操作示意</span></div>
+    <div class="app-toolbar"><strong>准备本周分享</strong><span class="action">归入项目 ↗</span></div>
+    <div class="task-list">
+      <div class="task" style="--at:1.2s"><span class="check"></span><strong>收集参考资料</strong><span class="type">资料</span></div>
+      <div class="task" style="--at:1.9s"><span class="check"></span><strong>整理关键观点</strong><span class="type">内容</span></div>
+      <div class="task" style="--at:2.6s"><span class="check"></span><strong>准备演示案例</strong><span class="type">演示</span></div>
+    </div>
+    <div class="result anim" style="--delay:5.2s"><span class="result-icon">✓</span><div><strong>相关任务，已归到一起。</strong><p>下一步：整理关键观点</p></div></div>
+    <div class="cursor-away"><svg class="cursor" viewBox="0 0 40 48" aria-hidden="true"><path d="M3 2 L34 28 L20 29 L14 43 Z" fill="#10271b" stroke="#fafcf9" stroke-width="2"/></svg></div>
+  </div>
+  <div class="scene-index"><span>02 — 03</span><i></i><i class="on"></i><i></i><span>识别 → 组织 → 行动</span></div>
+</div>
+<!-- N03: conclusion / dark / 17–24 seconds -->
+<div id="N03" class="comp scene conclusion" data-scene data-in="17" data-out="24" data-label="03 · 收束：让信息走向行动">
+  <div class="topline"><span class="brand mono"><i class="status"></i> NEON TERMINAL</span><span class="mono">03 / NEXT ACTION</span></div>
+  <div class="ruler"></div>
+  <div class="conclusion-copy">
+    <div class="eyebrow anim">NEXT / 回到目标</div>
+    <h2>让信息，走向</h2>
+    <div class="hero-line anim" style="--delay:.45s"><span class="under">下一步行动。</span></div>
+    <div class="action-path"><span class="anim" style="--delay:1.7s">识别重点</span><i class="arrow line-draw" style="--delay:2s"></i><span class="anim" style="--delay:2.3s">组织任务</span><i class="arrow line-draw" style="--delay:2.6s"></i><span class="final anim" style="--delay:2.9s">开始推进 ↗</span></div>
+    <p class="conclusion-note anim" style="--delay:3.4s">把注意力留给真正要做的事。</p>
+  </div>
+  <div class="scene-index"><span>03 — 03</span><i></i><i></i><i class="on"></i><span>识别 → 组织 → 行动</span></div>
+</div>
+</div></div></main>
+<audio id="narration" preload="metadata"></audio>
+<nav class="controls" aria-label="独立场景预览"><button id="play">播放</button><select id="scenes" aria-label="选择场景"></select><input id="seek" aria-label="时间" type="range" min="0" step="0.001"><output id="time"></output><a href="standalone.md">风格规范</a><span id="error" role="alert"></span></nav>
+<!-- Runtime copied from modes/standalone/assets/base.html; no extra animation clock. -->
+<script>
+const CONFIG = {
+  PURPOSE: 'standalone', BASE: 'timeline', BG: 'opaque',
+  RATIO: '16:9', STYLE: 'neon-terminal', ANIMATE: true, HIDE_HUD: true
+};
+(() => {
+  'use strict';
+  const params = new URLSearchParams(location.search), view = params.get('view') === '1';
+  const stage = document.getElementById('stage');
+  const ui = Object.fromEntries(['play','seek','scenes','time','error'].map(id => [id,document.getElementById(id)]));
+  const audio = document.getElementById('narration');
+  const hasAudio = !!audio?.getAttribute('src');
+  const groups = [...document.querySelectorAll('#track > .comp')].map(el => {
+    const start = Number(el.dataset.in), end = Number(el.dataset.out);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) throw Error('Invalid interval: '+el.outerHTML.slice(0,160));
+    return {el,start,end};
+  });
+  const duration = Math.max(0,...groups.map(g=>g.end));
+  const scenes = groups.filter(g=>g.el.hasAttribute('data-scene')).sort((a,b)=>a.start-b.start);
+  let covered = 0;
+  for (const s of scenes) {
+    if (s.start > covered + .000001) throw Error('Scene gap at '+covered);
+    covered = Math.max(covered,s.end);
+  }
+  if (!duration || covered < duration) throw Error('Scenes must cover the full timeline');
+  const videos = [...stage.querySelectorAll('video')].map(el => {
+    el.muted=true; el.autoplay=false; el.loop=false; el.pause();
+    const start=Number(el.dataset.start), end=Number(el.dataset.end);
+    const source=Number(el.dataset.sourceIn || 0), rate=Number(el.dataset.rate || 1);
+    if (![start,end,source,rate].every(Number.isFinite) || start<0 || end<=start || source<0 || rate<=0) throw Error('Invalid video mapping');
+    return {el,start,end,source,rate};
+  });
+  let current=0, playing=false, raf=0, origin=0, generation=0, queue=Promise.resolve();
+  const clamp = t => Math.max(0,Math.min(duration,Number(t)||0));
+  function waitFor(el,event,ready,action=()=>{}) {
+    return new Promise((resolve,reject)=>{
+      let timer;
+      const clean=()=>{clearTimeout(timer);el.removeEventListener(event,done);el.removeEventListener('error',bad);};
+      const done=()=>{if(ready()){clean();resolve();}};
+      const bad=()=>{clean();reject(Error('Media failed: '+(el.currentSrc||el.src)));};
+      el.addEventListener(event,done);el.addEventListener('error',bad);
+      timer=setTimeout(()=>{clean();reject(Error('Media timeout: '+(el.currentSrc||el.src)));},10000);
+      try {action();if(el.error)bad();else done();} catch(e){clean();reject(e);}
+    });
+  }
+  let assets;
+  function readyAssets() {
+    return assets ||= Promise.all([
+      document.fonts?.ready,
+      ...[...stage.querySelectorAll('img')].map(img=>waitFor(img,'load',()=>img.complete&&img.naturalWidth>0).then(()=>img.decode())),
+      ...videos.map(v=>waitFor(v.el,'loadeddata',()=>v.el.readyState>=2).then(()=>{
+        if (!Number.isFinite(v.el.duration) || v.source+(v.end-v.start)*v.rate>v.el.duration+.001) throw Error('Video range exceeds source: '+v.el.src);
+      }))
+    ]);
+  }
+  function draw(t) {
+    current=clamp(t);
+    for (const g of groups) {
+      const active=current>=g.start && (current<g.end || (current===duration&&g.end===duration));
+      g.el.classList.toggle('in',active);
+      const local=Math.max(0,Math.min(g.end-g.start,current-g.start));
+      g.el.style.setProperty('--local',local+'s');
+      g.el.style.setProperty('--progress',String(local/(g.end-g.start)));
+    }
+    ui.seek.value=String(current);ui.time.textContent=current.toFixed(2)+' / '+duration.toFixed(2)+' s';
+    const index=scenes.findIndex(s=>current>=s.start&&current<s.end);
+    if(index>=0)ui.scenes.value=String(index);
+  }
+  async function renderAt(t) {
+    await readyAssets();
+    t=clamp(t);
+    await Promise.all(videos.map(async v=>{
+      v.el.pause();
+      if (t<v.start || t>v.end || (t===v.end && t!==duration)) return;
+      const target=Math.min(v.el.duration-.000001,v.source+(t-v.start)*v.rate);
+      if(Math.abs(v.el.currentTime-target)<.000001 && v.el.readyState>=2)return;
+      await waitFor(v.el,'seeked',()=>!v.el.seeking&&v.el.readyState>=2,()=>{v.el.currentTime=target;});
+    }));
+    draw(t);
+  }
+  function enqueue(t) {
+    const task=queue.then(()=>renderAt(t));
+    queue=task.catch(()=>{});
+    return task;
+  }
+  function pause() {generation++;playing=false;cancelAnimationFrame(raf);audio?.pause();ui.play.textContent='播放';}
+  function report(e) {pause();ui.error.textContent=e.message;console.error(e);}
+  async function seekAt(t) {
+    pause(); t=clamp(t);
+    if(view&&hasAudio) {
+      await waitFor(audio,'loadedmetadata',()=>audio.readyState>=1);
+      audio.currentTime=Math.min(t,audio.duration);
+    }
+    return enqueue(t);
+  }
+  async function tick(now,token) {
+    if(!playing||token!==generation)return;
+    try {
+      const t=hasAudio?audio.currentTime:(now-origin)/1000;
+      await enqueue(t);
+      if(!playing||token!==generation)return;
+      if(t>=duration || (hasAudio&&audio.ended)){pause();return;}
+      raf=requestAnimationFrame(now=>tick(now,token));
+    } catch(e){report(e);}
+  }
+  async function play() {
+    if(playing)return;
+    try {
+      if(current>=duration)await seekAt(0);
+      const token=++generation;
+      await queue;
+      if(token!==generation)return;
+      if(hasAudio) {audio.currentTime=current;await audio.play();}
+      if(token!==generation){audio?.pause();return;}
+      playing=true;origin=performance.now()-current*1000;ui.play.textContent='暂停';
+      raf=requestAnimationFrame(now=>tick(now,token));
+    } catch(e){report(e);}
+  }
+  window.IVH={seekAt,play,pause,get duration(){return duration;},get currentTime(){return current;}};
+  stage.dataset.duration=String(duration);
+  ui.seek.max=String(duration);
+  if(view) {
+    document.body.classList.add('view');
+    const fit=()=>{
+      const w=Number(stage.dataset.width),h=Number(stage.dataset.height);
+      const scale=Math.max(.05,Math.min((innerWidth-32)/w,(innerHeight-150)/h,1));
+      stage.style.transform='scale('+scale+')';
+      const viewport=document.getElementById('viewport');viewport.style.width=w*scale+'px';viewport.style.height=h*scale+'px';
+    };
+    fit();addEventListener('resize',fit);
+    scenes.forEach((s,i)=>{const o=document.createElement('option');o.value=i;o.textContent=s.el.dataset.label||'场景 '+(i+1);ui.scenes.append(o);});
+    ui.play.onclick=()=>playing?pause():play();
+    ui.seek.oninput=()=>seekAt(ui.seek.value).catch(report);
+    ui.scenes.onchange=()=>seekAt(scenes[Number(ui.scenes.value)].start).catch(report);
+    addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|SELECT|BUTTON/.test(e.target.tagName)){e.preventDefault();playing?pause():play();}});
+  }
+  draw(params.has('t')?Number(params.get('t')):0);
+  seekAt(current).catch(report);
+})();
+</script>
+</body>
+</html>

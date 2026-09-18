@@ -224,7 +224,7 @@ async function launch(browser, userDir, how, state) {
    一趟取样
    ========================================================================== */
 
-async function captureWith(how, { browser, file, times, outDir, filePrefix, size, scale, transparent, log }) {
+async function captureWith(how, { browser, file, times, outDir, filePrefix, size, scale, transparent, log, fileNameForTime }) {
   const userDir = path.join(os.tmpdir(), `ivh-cdp-${process.pid}-${Math.random().toString(36).slice(2)}`);
   const state = {};                       /* launch() 会把子进程写进来，哪怕它随后抛错 */
   let cdp = null;
@@ -268,23 +268,36 @@ async function captureWith(how, { browser, file, times, outDir, filePrefix, size
     const shots = [];
     const t0 = Date.now();
     for (const t of times) {
+      const seekStart = performance.now();
       /* 定格 + 等两帧 rAF，确保样式变更已经落到合成帧上再按快门 */
-      await S("Runtime.evaluate", {
-        expression: `(() => { IVH.seekAt(${t});
+      const seekResult = await S("Runtime.evaluate", {
+        expression: `(async () => { await IVH.seekAt(${t});
           return new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res))); })()`,
         awaitPromise: true, returnByValue: true,
       });
+      if (seekResult.exceptionDetails) {
+        throw new Error('HTML seekAt failed: ' + (seekResult.exceptionDetails.exception?.description || seekResult.exceptionDetails.text));
+      }
       /* ★ optimizeForSpeed —— PNG 的无损快压。这是这条链路上唯一真能提速的旋钮：
          单帧抓取 187 → 85 ms（2.2 倍），代价只是体积 0.37 → 0.68 MB。
          编码占单帧耗时的 84%~91%（远大于光栅化的 4%~9%），所以调它才有效，
          开 GPU / 走管道 / 不落盘 都动不了这一段。
          换 JPEG 还能再快一点（79 ms），但有损：4:2:0 色度抽样，细文字边缘会出色晕。 */
+      const captureStart = performance.now();
       const shot = await S("Page.captureScreenshot", {
         format: "png", fromSurface: true, captureBeyondViewport: false, optimizeForSpeed: true,
       });
-      const png = path.join(outDir, `${filePrefix}${String(t).padStart(7, "0").replace(".", "_")}.png`);
-      fs.writeFileSync(png, Buffer.from(shot.data, "base64"));
-      shots.push({ t, png });
+      const png = typeof fileNameForTime === "function"
+        ? fileNameForTime(t, shots.length)
+        : path.join(outDir, `${filePrefix}${String(t).padStart(7, "0").replace(".", "_")}.png`);
+      const decodeStart = performance.now();
+      const buffer = Buffer.from(shot.data, "base64");
+      const writeStart = performance.now();
+      fs.writeFileSync(png, buffer);
+      shots.push({ t, png, timing: {
+        seek: captureStart - seekStart, capture: decodeStart - captureStart,
+        decode: writeStart - decodeStart, write: performance.now() - writeStart,
+      } });
       log(shots.length, times.length, t, (Date.now() - t0) / shots.length, null, how);
     }
     return shots;

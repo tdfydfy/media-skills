@@ -37,3 +37,21 @@ test('cleanup deadline returns failure without holding the caller open', async (
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('cleanup handles nested frame sets and does not traverse directory links', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ivh-cleanup-test-'));
+  const run = path.join(root, '.work', 'run-frames');
+  const outside = path.join(root, 'preserved');
+  fs.mkdirSync(path.join(run, 'seq', 'nested'), { recursive: true });
+  fs.mkdirSync(outside);
+  fs.writeFileSync(path.join(outside, 'keep.txt'), 'keep');
+  fs.symlinkSync(outside, path.join(run, 'link'), process.platform === 'win32' ? 'junction' : 'dir');
+  for (let i = 0; i < 500; i++) fs.writeFileSync(path.join(run, 'seq', 'nested', `${i}.png`), 'frame');
+  try {
+    assert.equal(await cleanupRun(run), true);
+    assert.equal(fs.existsSync(run), false);
+    assert.equal(fs.readFileSync(path.join(outside, 'keep.txt'), 'utf8'), 'keep');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
